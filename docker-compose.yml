@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    container_name: matalangit-streamlit
+    ports:
+      - "8502:8501"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
