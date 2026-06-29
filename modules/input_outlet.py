@@ -1,0 +1,148 @@
+import streamlit as st
+
+from database import (
+    simpan_data,
+    cek_msisdn
+)
+
+
+def show():
+
+    # =====================
+    # SESSION
+    # =====================
+
+    if "jumlah_msisdn" not in st.session_state:
+        st.session_state.jumlah_msisdn = 1
+
+    # =====================
+    # FORM
+    # =====================
+
+    st.title("📝 Input Outlet")
+
+    nama_outlet = st.text_input("Nama Outlet *")
+
+    id_outlet = st.text_input("ID Outlet *")
+
+    st.divider()
+
+    st.subheader("📱 MSISDN")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("➕ Tambah MSISDN", use_container_width=True):
+
+            if st.session_state.jumlah_msisdn < 10:
+                st.session_state.jumlah_msisdn += 1
+                st.rerun()
+
+    with col2:
+        if st.button("➖ Kurangi MSISDN", use_container_width=True):
+
+            if st.session_state.jumlah_msisdn > 1:
+                st.session_state.jumlah_msisdn -= 1
+                st.rerun()
+
+    msisdn_list = []
+
+    for i in range(st.session_state.jumlah_msisdn):
+
+        nomor = st.text_input(
+            f"MSISDN {i+1}",
+            key=f"msisdn_{i}",
+            placeholder="628xxxxxxxxxx"
+        ).strip()
+
+        msisdn_list.append(nomor)
+
+    st.divider()
+
+    # =====================
+    # SIMPAN
+    # =====================
+
+    if st.button("💾 Simpan", use_container_width=True):
+
+        if nama_outlet == "":
+            st.error("Nama Outlet wajib diisi.")
+            st.stop()
+
+        if id_outlet == "":
+            st.error("ID Outlet wajib diisi.")
+            st.stop()
+
+        nomor_isi = [x for x in msisdn_list if x != ""]
+
+        if len(nomor_isi) == 0:
+            st.error("Minimal isi 1 MSISDN.")
+            st.stop()
+
+        # Cek duplikat di form
+
+        if len(nomor_isi) != len(set(nomor_isi)):
+            st.error("Ada MSISDN yang sama pada form.")
+            st.stop()
+
+        # Validasi format
+
+        for nomor in nomor_isi:
+
+            if not nomor.isdigit():
+                st.error(f"{nomor} hanya boleh angka.")
+                st.stop()
+
+            if not nomor.startswith("62"):
+                st.error(f"{nomor} harus diawali 62.")
+                st.stop()
+
+        # Cek database
+
+        for nomor in nomor_isi:
+
+            cek = cek_msisdn(nomor)
+
+            if cek:
+
+                st.error(
+                    f"""
+MSISDN **{nomor}**
+
+Sudah pernah diinput.
+
+Input By : **{cek['input_by']}**
+
+Tanggal : **{cek['created_at']}**
+"""
+                )
+
+                st.stop()
+
+        # Simpan ke database
+
+        for nomor in nomor_isi:
+
+            simpan_data(
+                nama_outlet,
+                id_outlet,
+                nomor,
+                st.session_state.outlet_user
+            )
+
+        st.success(f"Berhasil menyimpan {len(nomor_isi)} MSISDN.")
+
+        st.balloons()
+
+        # Reset form
+
+        st.session_state.jumlah_msisdn = 1
+
+        for i in range(10):
+
+            key = f"msisdn_{i}"
+
+            if key in st.session_state:
+                del st.session_state[key]
+
+        st.rerun()
