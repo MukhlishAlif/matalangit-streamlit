@@ -10,6 +10,30 @@ from database import (
 )
 
 # ===========================
+# LOAD BIOMETRIK
+# ===========================
+
+@st.cache_data
+def load_biometrik():
+
+    biometrik = pd.read_csv(
+        "ga_biometrics_cj.csv",
+        dtype=str,
+        low_memory=False
+    )
+
+    biometrik.columns = biometrik.columns.str.strip().str.lower()
+
+    biometrik["msisdn"] = (
+        biometrik["msisdn"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    return set(biometrik["msisdn"])
+
+# ===========================
 # HALAMAN DATA OUTLET
 # ===========================
 
@@ -38,6 +62,24 @@ def show():
             "Tanggal"
         ]
     )
+
+    # ===========================
+    # CEK BIOMETRIK H-1
+    # ===========================
+
+    biometrik_set = load_biometrik()
+
+    df["MSISDN"] = (
+        df["MSISDN"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df["Biometrik H-1"] = df["MSISDN"].apply(
+        lambda x: "YES" if x in biometrik_set else "NO"
+    )
+
 
     users = tampil_user()
 
@@ -311,7 +353,8 @@ def show():
                 "MSISDN",
                 "Input By",
                 "Tanggal",
-                "ROLE"
+                "ROLE", 
+                "Biometrik H-1"
 
             ],
 

@@ -12,6 +12,25 @@ from database import (
     tampil_user
 )
 
+@st.cache_data
+def load_biometrik():
+
+    biometrik = pd.read_csv(
+        "ga_biometrics_cj.csv",
+        dtype=str,
+        low_memory=False
+    )
+
+    biometrik.columns = biometrik.columns.str.strip().str.lower()
+
+    biometrik["msisdn"] = (
+        biometrik["msisdn"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    return set(biometrik["msisdn"])
 
 def show():
 
@@ -42,6 +61,23 @@ def show():
             "Input By",
             "Tanggal"
         ]
+    )
+
+    # =====================================================
+    # CEK BIOMETRIK
+    # =====================================================
+
+    biometrik_set = load_biometrik()
+
+    df["MSISDN"] = (
+        df["MSISDN"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df["Biometrik"] = df["MSISDN"].isin(
+        biometrik_set
     )
 
     df_user = pd.DataFrame(
@@ -240,7 +276,10 @@ def show():
                     temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    temp["MSISDN"].nunique()
+                    temp["MSISDN"].nunique(),
+
+                "Biometrik H-1":
+                    temp["Biometrik"].sum()
 
             })
 
@@ -304,7 +343,10 @@ def show():
                     temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    temp["MSISDN"].nunique()
+                    temp["MSISDN"].nunique(),
+
+                "Biometrik H-1":
+                    temp["Biometrik"].sum()
 
             })
 
@@ -373,7 +415,10 @@ def show():
                     temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    temp["MSISDN"].nunique()
+                    temp["MSISDN"].nunique(),
+
+                "Biometrik H-1":
+                    temp["Biometrik"].sum()
 
             })
 
@@ -430,10 +475,12 @@ def show():
                 temp["ID Outlet"].nunique(),
 
             "MSISDN":
-                temp["MSISDN"].nunique()
+                temp["MSISDN"].nunique(),
+
+            "Biometrik H-1":
+                temp["Biometrik"].sum()
 
         })
-
     summary_promotor = pd.DataFrame(rekap_promotor)
 
     if not summary_promotor.empty:

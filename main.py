@@ -14,6 +14,8 @@ from modules.dashboard_pm import show as dashboard_pm
 from auth import login_page, sidebar
 
 
+
+
 # =====================================
 # CONFIG
 # =====================================
@@ -117,18 +119,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# =====================================
-# HERO LOGO
-# =====================================
-
-col1, col2, col3 = st.columns([1,2,1])
-
-with col2:
-
-    st.image(
-        'logo.png',
-        use_container_width=True
-    )
 
 # =====================================
 # LOGIN

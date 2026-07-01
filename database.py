@@ -1,5 +1,7 @@
 import os
 import sqlite3
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # =====================================
 # PATH DATABASE
@@ -107,20 +109,26 @@ def simpan_data(
     input_by
 ):
 
+    waktu = datetime.now(
+        ZoneInfo("Asia/Jakarta")
+    ).strftime("%Y-%m-%d %H:%M:%S")
+
     cursor.execute("""
         INSERT INTO outlet
         (
             nama_outlet,
             id_outlet,
             msisdn,
-            input_by
+            input_by,
+            created_at
         )
-        VALUES(?,?,?,?)
+        VALUES(?,?,?,?,?)
     """, (
         nama_outlet,
         id_outlet,
         msisdn,
-        input_by
+        input_by,
+        waktu
     ))
 
     conn.commit()

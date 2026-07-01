@@ -1,8 +1,31 @@
 import streamlit as st
 import pandas as pd
 
-
 from database import tampil_data, tampil_user
+
+# ===========================
+# LOAD BIOMETRIK
+# ===========================
+
+@st.cache_data
+def load_biometrik():
+
+    biometrik = pd.read_csv(
+        "ga_biometrics_cj.csv",
+        dtype=str,
+        low_memory=False
+    )
+
+    biometrik.columns = biometrik.columns.str.strip().str.lower()
+
+    biometrik["msisdn"] = (
+        biometrik["msisdn"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    return set(biometrik["msisdn"])
 
 def hapus_data(id_data):
 
@@ -38,6 +61,23 @@ def show():
             "Input By",
             "Tanggal"
         ]
+    )
+
+    # ===========================
+    # CEK BIOMETRIK
+    # ===========================
+
+    biometrik_set = load_biometrik()
+
+    df["MSISDN"] = (
+        df["MSISDN"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df["Biometrik"] = df["MSISDN"].isin(
+        biometrik_set
     )
 
     df_user = pd.DataFrame(
@@ -163,7 +203,8 @@ def show():
             df.groupby("Input By")
             .agg(
                 Outlet=("ID Outlet", "nunique"),
-                MSISDN=("MSISDN", "count")
+                MSISDN=("MSISDN", "count"),
+                Biometrik=("Biometrik", "sum")
             )
             .reset_index()
             .sort_values(
@@ -171,7 +212,6 @@ def show():
                 ascending=False
             )
         )
-
         st.subheader("📋 Rekap CSE/RSE")
 
         st.dataframe(
@@ -209,19 +249,84 @@ def show():
                     temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    len(temp)
+                    len(temp),
+
+                "Biometrik H-1":
+                    temp["Biometrik"].sum()
 
             })
 
         st.subheader("📋 Rekap BSM")
 
+        summary_bsm = pd.DataFrame(daftar)
+
+        if not summary_bsm.empty:
+
+            summary_bsm = summary_bsm.sort_values(
+                "MSISDN",
+                ascending=False
+            )
+
         st.dataframe(
-            pd.DataFrame(daftar),
+            summary_bsm,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.divider()
+
+        st.subheader("📋 Rekap CSE/RSE")
+
+        rekap_cse = []
+
+        for bsm in daftar_bsm:
+
+            bawahan = df_user[
+                df_user["ATASAN"] == bsm
+            ]
+
+            for _, row in bawahan.iterrows():
+
+                user_cse = row["USER"]
+
+                temp = df[
+                    df["Input By"] == user_cse
+                ]
+
+                rekap_cse.append({
+
+                    "CSE/RSE": user_cse,
+
+                    "Branch": bsm,
+
+                    "Outlet":
+                        temp["ID Outlet"].nunique(),
+
+                    "MSISDN":
+                        len(temp),
+
+                    "Biometrik H-1":
+                        temp["Biometrik"].sum()
+
+                })
+
+        summary_cse = pd.DataFrame(rekap_cse)
+
+        if not summary_cse.empty:
+
+            summary_cse = summary_cse.sort_values(
+                ["MSISDN", "Outlet"],
+                ascending=False
+            )
+
+        st.dataframe(
+            summary_cse,
             use_container_width=True,
             hide_index=True
         )
 
     else:
+
         
         # ===========================
         # REKAP HOS
@@ -268,10 +373,12 @@ def show():
                     temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    len(temp)
+                    len(temp),
+
+                "Biometrik H-1":
+                    temp["Biometrik"].sum()
 
             })
-
         summary_hos = pd.DataFrame(rekap_hos)
 
         summary_hos = summary_hos.sort_values(
@@ -323,10 +430,12 @@ def show():
                     temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    len(temp)
+                    len(temp),
+
+                "Biometrik H-1":
+                    temp["Biometrik"].sum()
 
             })
-
         summary = pd.DataFrame(rekap)
 
         if not summary.empty:
@@ -375,10 +484,12 @@ def show():
                     temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    len(temp)
+                    len(temp),
+
+                "Biometrik H-1":
+                    temp["Biometrik"].sum()
 
             })
-
         summary_cse = pd.DataFrame(rekap_cse)
 
         summary_cse = summary_cse.sort_values(
