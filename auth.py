@@ -1,18 +1,5 @@
 import streamlit as st
 from database import login
-from streamlit_cookies_manager import EncryptedCookieManager
-
-# =====================================
-# COOKIE MANAGER
-# =====================================
-
-cookies = EncryptedCookieManager(
-    prefix="matalangit/",
-    password="MATALANGIT_SECRET_2026"
-)
-
-if not cookies.ready():
-    st.stop()
 
 
 # =====================================
@@ -36,16 +23,6 @@ def login_page():
     # =====================================
     # AUTO LOGIN DARI COOKIE
     # =====================================
-
-    if (
-        not st.session_state.outlet_login
-        and cookies.get("outlet_login") == "true"
-    ):
-
-        st.session_state.outlet_login = True
-        st.session_state.outlet_user = cookies.get("outlet_user", "")
-        st.session_state.outlet_role = cookies.get("outlet_role", "")
-        st.session_state.outlet_atasan = cookies.get("outlet_atasan", "")
 
     if st.session_state.outlet_login:
         return
@@ -142,18 +119,6 @@ def login_page():
                 st.session_state.outlet_role = hasil["role"]
                 st.session_state.outlet_atasan = hasil["atasan"]
 
-                # =====================================
-                # SIMPAN COOKIE
-                # =====================================
-
-                cookies["outlet_login"] = "true"
-                cookies["outlet_user"] = hasil["user"]
-                cookies["outlet_role"] = hasil["role"]
-                cookies["outlet_atasan"] = hasil["atasan"]
-                cookies.save()
-
-                st.rerun()
-
             else:
 
                 st.error("Username atau Password salah.")
@@ -186,15 +151,5 @@ def sidebar():
             st.session_state.outlet_user = ""
             st.session_state.outlet_role = ""
             st.session_state.outlet_atasan = ""
-
-            # =====================================
-            # HAPUS COOKIE
-            # =====================================
-
-            cookies["outlet_login"] = ""
-            cookies["outlet_user"] = ""
-            cookies["outlet_role"] = ""
-            cookies["outlet_atasan"] = ""
-            cookies.save()
 
             st.rerun()
