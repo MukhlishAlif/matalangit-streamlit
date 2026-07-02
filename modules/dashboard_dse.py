@@ -1,38 +1,201 @@
 # =========================================================
 # dashboard_dse.py
 # DASHBOARD HIERARCHY DSE
-# HOS -> BSM -> CSE/RSE -> DSE
+# FOKUS INPUT BY DSE
 # =========================================================
 
 import streamlit as st
 import pandas as pd
+
+from st_aggrid import (
+    AgGrid,
+    GridOptionsBuilder
+)
 
 from database import (
     tampil_data,
     tampil_user
 )
 
+# =========================================================
+# LOAD BIOMETRIK
+# =========================================================
+
 @st.cache_data
 def load_biometrik():
 
     biometrik = pd.read_csv(
+
         "ga_biometrics_cj.csv",
+
         dtype=str,
+
         low_memory=False
+
     )
 
-    biometrik.columns = biometrik.columns.str.strip().str.lower()
+    biometrik.columns = (
+
+        biometrik.columns
+        .str.strip()
+        .str.lower()
+
+    )
 
     biometrik["msisdn"] = (
+
         biometrik["msisdn"]
+
         .fillna("")
         .astype(str)
         .str.strip()
+
     )
 
     return set(
         biometrik["msisdn"]
     )
+
+# =========================================================
+# GRID
+# =========================================================
+
+def show_grid(df):
+
+    if df.empty:
+
+        st.info("Tidak ada data.")
+        return
+
+    gb = GridOptionsBuilder.from_dataframe(df)
+
+    gb.configure_default_column(
+
+        resizable=True,
+        sortable=True,
+        filter=True
+
+    )
+
+    # =====================================================
+    # TOTAL ROW
+    # =====================================================
+
+    total_row = {}
+
+    for col in df.columns:
+
+        # =================================================
+        # NUMERIC
+        # =================================================
+
+        if pd.api.types.is_numeric_dtype(df[col]):
+
+            total_row[col] = int(
+                df[col].sum()
+            )
+
+        # =================================================
+        # TEXT
+        # =================================================
+
+        else:
+
+            if col in [
+
+                "HOS",
+                "BSM",
+                "Branch",
+                "CSE/RSE",
+                "DSE",
+                "Atasan"
+
+            ]:
+
+                total_row[col] = (
+                    df[col].nunique()
+                )
+
+            else:
+
+                total_row[col] = ""
+
+    grid_options = gb.build()
+
+    grid_options["pinnedBottomRowData"] = [
+        total_row
+    ]
+
+    # =====================================================
+    # HEIGHT
+    # =====================================================
+
+    row_count = len(df)
+
+    table_height = min(
+
+        80 + (row_count * 42),
+
+        500
+
+    )
+
+    # =====================================================
+    # GRID
+    # =====================================================
+
+    AgGrid(
+
+        df,
+
+        gridOptions=grid_options,
+
+        fit_columns_on_grid_load=True,
+
+        height=table_height,
+
+        theme="balham",
+
+        allow_unsafe_jscode=True,
+
+        custom_css={
+
+            ".ag-root-wrapper": {
+
+                "border": "1px solid #e5e7eb",
+                "border-radius": "14px",
+                "overflow": "hidden"
+
+            },
+
+            ".ag-header": {
+
+                "background-color": "#f8fafc",
+                "font-weight": "700"
+
+            },
+
+            ".ag-row": {
+
+                "font-size": "14px"
+
+            },
+
+            ".ag-pinned-bottom": {
+
+                "background-color": "#eef2ff",
+                "font-weight": "700",
+                "border-top": "2px solid #6366f1"
+
+            }
+
+        }
+
+    )
+
+# =========================================================
+# DASHBOARD
+# =========================================================
 
 def show():
 
@@ -46,7 +209,11 @@ def show():
     users = tampil_user()
 
     if len(data) == 0:
-        st.info("Belum ada data.")
+
+        st.info(
+            "Belum ada data."
+        )
+
         return
 
     # =====================================================
@@ -54,63 +221,98 @@ def show():
     # =====================================================
 
     df = pd.DataFrame(
+
         data,
+
         columns=[
+
             "ID",
             "Nama Outlet",
             "ID Outlet",
             "MSISDN",
             "Input By",
             "Tanggal"
+
         ]
+
     )
 
     # =====================================================
-    # CEK BIOMETRIK
+    # BIOMETRIK
     # =====================================================
 
     biometrik_set = load_biometrik()
 
     df["MSISDN"] = (
+
         df["MSISDN"]
+
         .fillna("")
         .astype(str)
         .str.strip()
+
     )
 
-    df["Biometrik"] = df["MSISDN"].isin(
-        biometrik_set
+    df["Biometrik"] = (
+
+        df["MSISDN"]
+        .isin(biometrik_set)
+
     )
+
+    # =====================================================
+    # USER DF
+    # =====================================================
+
     df_user = pd.DataFrame(
+
         users,
+
         columns=[
+
             "USER",
             "ROLE",
             "ATASAN"
+
         ]
+
     )
+
+    # =====================================================
+    # SESSION
+    # =====================================================
 
     role = st.session_state.outlet_role
     user = st.session_state.outlet_user
+
     # =====================================================
     # FILTER TANGGAL
     # =====================================================
 
     df["Tanggal"] = pd.to_datetime(
+
         df["Tanggal"],
+
         errors="coerce"
+
     )
 
     tanggal = st.date_input(
+
         "📅 Filter Tanggal",
+
         value=None,
+
         key="dse_tanggal"
+
     )
 
     if tanggal:
 
         df = df[
+
             df["Tanggal"].dt.date == tanggal
+
         ]
 
     st.divider()
@@ -119,116 +321,174 @@ def show():
     # FILTER ROLE
     # =====================================================
 
-    # -------------------------
-    # DSE / FRONTLINER
-    # -------------------------
+    if role in [
 
-    if role in ["DSE", "PROMOTOR", "FRONTLINER"]:
+        "DSE",
+        "PROMOTOR",
+        "FRONTLINER"
+
+    ]:
 
         df = df[
             df["Input By"] == user
         ]
 
-    # -------------------------
-    # CSE / RSE
-    # -------------------------
+    elif role in [
 
-    elif role in ["CSE", "RSE"]:
+        "CSE",
+        "RSE"
+
+    ]:
 
         daftar_dse = df_user[
+
             df_user["ATASAN"] == user
+
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(daftar_dse)
+            df["Input By"].isin(
+                daftar_dse
+            )
         ]
-
-    # -------------------------
-    # BSM
-    # -------------------------
 
     elif role == "BSM":
 
         daftar_cse = df_user[
+
             df_user["ATASAN"] == user
+
         ]["USER"].tolist()
 
         daftar_dse = df_user[
-            df_user["ATASAN"].isin(daftar_cse)
+
+            df_user["ATASAN"]
+            .isin(daftar_cse)
+
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(daftar_dse)
+            df["Input By"].isin(
+                daftar_dse
+            )
         ]
-
-    # -------------------------
-    # HOS
-    # -------------------------
 
     elif role == "HOS":
 
         daftar_bsm = df_user[
+
             df_user["ATASAN"] == user
+
         ]["USER"].tolist()
 
         daftar_cse = df_user[
-            df_user["ATASAN"].isin(daftar_bsm)
+
+            df_user["ATASAN"]
+            .isin(daftar_bsm)
+
         ]["USER"].tolist()
 
         daftar_dse = df_user[
-            df_user["ATASAN"].isin(daftar_cse)
+
+            df_user["ATASAN"]
+            .isin(daftar_cse)
+
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(daftar_dse)
+            df["Input By"].isin(
+                daftar_dse
+            )
         ]
 
-    # ADMIN melihat semua
-
     # =====================================================
-    # SUMMARY
-    # =====================================================
-
-    # semua user role DSE
-    dse_user = df_user[
-        df_user["ROLE"].isin(
-            [
-                "DSE"
-            ]
-        )
-    ]
-
-    # total DSE
-    total_dse = len(dse_user)
-
-    col1, col2, col3 = st.columns(3)
-
-    # =====================================================
-    # DSE AKTIF
+    # KPI KHUSUS DSE
+    # HANYA HITUNG INPUT DARI USER ROLE DSE
     # =====================================================
 
     daftar_dse = df_user[
+
         df_user["ROLE"] == "DSE"
+
     ]["USER"].tolist()
 
-    dse_aktif = df[
-        df["Input By"].isin(daftar_dse)
-    ]["Input By"].nunique()
+    # ==============================================
+    # DATA KHUSUS INPUT DSE
+    # ==============================================
+
+    df_dse = df[
+
+        df["Input By"]
+        .isin(daftar_dse)
+
+    ]
+
+    # ==============================================
+    # KPI
+    # ==============================================
+
+    dse_aktif = (
+
+        df_dse["Input By"]
+        .nunique()
+
+    )
+
+    jumlah_outlet = (
+
+        df_dse["ID Outlet"]
+        .nunique()
+
+    )
+
+    jumlah_msisdn = len(
+        df_dse
+    )
+
+    jumlah_biometrik = (
+
+        df_dse["Biometrik"]
+        .sum()
+
+    )
+
+    # ==============================================
+    # KPI UI
+    # ==============================================
+
+    col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
+
         "👤 DSE Aktif",
+
         dse_aktif
+
     )
+
     col2.metric(
-        "🏪 Outlet",
-        df["ID Outlet"].nunique()
+
+        "🏪 Outlet Input DSE",
+
+        jumlah_outlet
+
     )
 
     col3.metric(
-        "📱 MSISDN",
-        df["MSISDN"].nunique()
+
+        "📱 MSISDN Input DSE",
+
+        jumlah_msisdn
+
     )
 
+    col4.metric(
+
+        "✅ Biometrik Input DSE",
+
+        jumlah_biometrik
+
+    )
     # =====================================================
     # REKAP HOS
     # =====================================================
@@ -247,28 +507,29 @@ def show():
 
             nama_hos = row["USER"]
 
-            # Semua BSM milik HOS
             daftar_bsm = df_user[
                 df_user["ATASAN"] == nama_hos
             ]["USER"].tolist()
 
-            # Semua CSE milik BSM
             daftar_cse = df_user[
-                df_user["ATASAN"].isin(daftar_bsm)
+                df_user["ATASAN"]
+                .isin(daftar_bsm)
             ]["USER"].tolist()
 
-            # Semua DSE milik CSE
             daftar_dse = df_user[
-                df_user["ATASAN"].isin(daftar_cse)
+                df_user["ATASAN"]
+                .isin(daftar_cse)
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"].isin(daftar_dse)
+                df["Input By"]
+                .isin(daftar_dse)
             ]
 
             rekap_hos.append({
 
-                "HOS": nama_hos,
+                "HOS":
+                    nama_hos,
 
                 "BSM":
                     len(daftar_bsm),
@@ -276,34 +537,55 @@ def show():
                 "CSE/RSE":
                     len(daftar_cse),
 
+                # ======================================
+                # TOTAL DSE
+                # ======================================
+
+                "DSE":
+                    len(daftar_dse),
+
+                # ======================================
+                # DSE AKTIF
+                # ======================================
+
                 "DSE Aktif":
-                    temp["Input By"].nunique(),
+                    temp["Input By"]
+                    .nunique(),
 
                 "Outlet":
-                    temp["ID Outlet"].nunique(),
+                    temp["ID Outlet"]
+                    .nunique(),
 
                 "MSISDN":
                     len(temp),
 
-                "Biometrik H-1":
-                    temp["Biometrik"].sum()
+                "Biometrik":
+                    temp["Biometrik"]
+                    .sum()
 
             })
 
-        summary_hos = pd.DataFrame(rekap_hos)
+        summary_hos = pd.DataFrame(
+            rekap_hos
+        )
 
         if not summary_hos.empty:
 
-            summary_hos = summary_hos.sort_values(
-                "MSISDN",
-                ascending=False
+            summary_hos = (
+
+                summary_hos
+
+                .sort_values(
+
+                    "MSISDN",
+
+                    ascending=False
+
+                )
+
             )
 
-        st.dataframe(
-            summary_hos,
-            use_container_width=True,
-            hide_index=True
-        )
+        show_grid(summary_hos)
 
         st.divider()
 
@@ -311,7 +593,12 @@ def show():
     # REKAP BSM
     # =====================================================
 
-    if role in ["HOS", "ADMIN"]:
+    if role in [
+
+        "HOS",
+        "ADMIN"
+
+    ]:
 
         st.subheader("📋 Rekap BSM")
 
@@ -325,18 +612,18 @@ def show():
 
             nama_bsm = row["USER"]
 
-            # Semua CSE milik BSM
             daftar_cse = df_user[
                 df_user["ATASAN"] == nama_bsm
             ]["USER"].tolist()
 
-            # Semua DSE milik CSE
             daftar_dse = df_user[
-                df_user["ATASAN"].isin(daftar_cse)
+                df_user["ATASAN"]
+                .isin(daftar_cse)
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"].isin(daftar_dse)
+                df["Input By"]
+                .isin(daftar_dse)
             ]
 
             if role != "ADMIN":
@@ -346,110 +633,160 @@ def show():
 
             rekap_bsm.append({
 
-                "BSM": nama_bsm,
+                "BSM":
+                    nama_bsm,
 
                 "CSE/RSE":
                     len(daftar_cse),
 
+                # ======================================
+                # TOTAL DSE
+                # ======================================
+
+                "DSE":
+                    len(daftar_dse),
+
+                # ======================================
+                # DSE AKTIF
+                # ======================================
+
                 "DSE Aktif":
-                    temp["Input By"].nunique(),
+                    temp["Input By"]
+                    .nunique(),
 
                 "Outlet":
-                    temp["ID Outlet"].nunique(),
+                    temp["ID Outlet"]
+                    .nunique(),
 
                 "MSISDN":
                     len(temp),
 
-                "Biometrik H-1":
-                    temp["Biometrik"].sum()
+                "Biometrik":
+                    temp["Biometrik"]
+                    .sum()
 
             })
 
-        summary_bsm = pd.DataFrame(rekap_bsm)
+        summary_bsm = pd.DataFrame(
+            rekap_bsm
+        )
 
         if not summary_bsm.empty:
 
-            summary_bsm = summary_bsm.sort_values(
-                "MSISDN",
-                ascending=False
+            summary_bsm = (
+
+                summary_bsm
+
+                .sort_values(
+
+                    "MSISDN",
+
+                    ascending=False
+
+                )
+
             )
 
-        st.dataframe(
-            summary_bsm,
-            use_container_width=True,
-            hide_index=True
-        )
+        show_grid(summary_bsm)
 
         st.divider()
 
     # =====================================================
-    # REKAP CSE / RSE
+    # REKAP CSE/RSE
     # =====================================================
 
-    if role in ["BSM", "HOS", "ADMIN"]:
+    if role in [
+
+        "BSM",
+        "HOS",
+        "ADMIN"
+
+    ]:
 
         st.subheader("📋 Rekap CSE/RSE")
 
         rekap_cse = []
 
         cse_list = df_user[
-            df_user["ROLE"].isin(
-                ["CSE", "RSE"]
-            )
+            df_user["ROLE"]
+            .isin([
+                "CSE",
+                "RSE"
+            ])
         ]
 
         for _, row in cse_list.iterrows():
 
             nama_cse = row["USER"]
 
-            # Semua DSE milik CSE
             daftar_dse = df_user[
                 df_user["ATASAN"] == nama_cse
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"].isin(daftar_dse)
+                df["Input By"]
+                .isin(daftar_dse)
             ]
 
-            if role != "ADMIN":
+            if len(temp) > 0:
 
-                if len(temp) == 0:
-                    continue
+                rekap_cse.append({
 
-            rekap_cse.append({
+                "CSE/RSE":
+                    nama_cse,
 
-                "CSE/RSE": nama_cse,
+                # ======================================
+                # TOTAL DSE DI BAWAH CSE
+                # ======================================
 
-                "Branch": row["ATASAN"],
+                "DSE":
+                    len(daftar_dse),
+
+                # ======================================
+                # DSE YANG BENAR2 INPUT
+                # ======================================
 
                 "DSE Aktif":
-                    temp["Input By"].nunique(),
+                    temp["Input By"]
+                    .nunique(),
+
+                "Branch":
+                    row["ATASAN"],
 
                 "Outlet":
-                    temp["ID Outlet"].nunique(),
+                    temp["ID Outlet"]
+                    .nunique(),
 
                 "MSISDN":
                     len(temp),
 
-                "Biometrik H-1":
-                    temp["Biometrik"].sum()
+                "Biometrik":
+                    temp["Biometrik"]
+                    .sum()
 
             })
 
-        summary_cse = pd.DataFrame(rekap_cse)
+        summary_cse = pd.DataFrame(
+            rekap_cse
+        )
 
         if not summary_cse.empty:
 
-            summary_cse = summary_cse.sort_values(
-                "MSISDN",
-                ascending=False
+            summary_cse = (
+
+                summary_cse
+
+                .sort_values(
+
+                    "MSISDN",
+
+                    ascending=False
+
+                )
+
             )
 
-        st.dataframe(
-            summary_cse,
-            use_container_width=True,
-            hide_index=True
-        )
+        show_grid(summary_cse)
 
         st.divider()
 
@@ -462,11 +799,7 @@ def show():
     rekap_dse = []
 
     dse_user = df_user[
-        df_user["ROLE"].isin(
-            [
-                "DSE"
-            ]
-        )
+        df_user["ROLE"] == "DSE"
     ]
 
     for _, row in dse_user.iterrows():
@@ -477,39 +810,47 @@ def show():
             df["Input By"] == nama_dse
         ]
 
-        if role != "ADMIN":
+        if len(temp) > 0:
 
-            if nama_dse not in df["Input By"].unique():
-                continue
+            rekap_dse.append({
 
-        rekap_dse.append({
+                "DSE":
+                    nama_dse,
 
-            "DSE": nama_dse,
+                "Atasan":
+                    row["ATASAN"],
 
-            "Atasan": row["ATASAN"],
+                "Outlet":
+                    temp["ID Outlet"]
+                    .nunique(),
 
-            "Outlet":
-                temp["ID Outlet"].nunique(),
+                "MSISDN":
+                    len(temp),
 
-            "MSISDN":
-                len(temp),
+                "Biometrik":
+                    temp["Biometrik"]
+                    .sum()
 
-            "Biometrik H-1":
-                temp["Biometrik"].sum()
+            })
 
-        })
-
-    summary_dse = pd.DataFrame(rekap_dse)
+    summary_dse = pd.DataFrame(
+        rekap_dse
+    )
 
     if not summary_dse.empty:
 
-        summary_dse = summary_dse.sort_values(
-            "MSISDN",
-            ascending=False
+        summary_dse = (
+
+            summary_dse
+
+            .sort_values(
+
+                "MSISDN",
+
+                ascending=False
+
+            )
+
         )
 
-    st.dataframe(
-        summary_dse,
-        use_container_width=True,
-        hide_index=True
-    )
+    show_grid(summary_dse)

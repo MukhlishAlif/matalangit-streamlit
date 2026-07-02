@@ -174,7 +174,7 @@ elif role == "BSM":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
-            "Dashboard CSE",
+            "Dashboard CSE/RSE",
             "Data Outlet"
         ],
         key="outlet_menu"
@@ -188,7 +188,7 @@ elif role == "HOS":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
-            "Dashboard CSE",
+            "Dashboard CSE/RSE",
             "Data Outlet"
         ],
         key="outlet_menu"
@@ -202,7 +202,7 @@ elif role == "ADMIN":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
-            "Dashboard CSE",
+            "Dashboard CSE/RSE",
             "Data Outlet",
             "Master User"
         ],
@@ -230,7 +230,7 @@ elif menu == "Dashboard Promotor":
 
     dashboard_pm()
 
-elif menu == "Dashboard CSE":
+elif menu == "Dashboard CSE/RSE":
 
     dashboard_cse()
 
