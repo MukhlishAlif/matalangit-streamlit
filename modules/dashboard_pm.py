@@ -25,36 +25,35 @@ from database import (
 def load_biometrik():
 
     biometrik = pd.read_csv(
-
         "ga_biometrics_cj.csv",
-
         dtype=str,
-
         low_memory=False
-
     )
 
     biometrik.columns = (
-
         biometrik.columns
         .str.strip()
         .str.lower()
-
     )
 
     biometrik["msisdn"] = (
-
         biometrik["msisdn"]
-
         .fillna("")
         .astype(str)
         .str.strip()
-
     )
 
-    return set(
-        biometrik["msisdn"]
-    )
+    biometrik["tanggal_biometrik"] = pd.to_datetime(
+        biometrik["ga_dt"],
+        errors="coerce"
+    ).dt.date
+
+    return biometrik[
+        [
+            "msisdn",
+            "tanggal_biometrik"
+        ]
+    ].drop_duplicates()
 
 # =========================================================
 # GRID TABLE
@@ -67,6 +66,31 @@ def show_grid(df):
         st.info("Tidak ada data.")
         return
 
+    # =====================================================
+    # CSS
+    # =====================================================
+
+    st.markdown(
+        """
+        <style>
+
+        .ag-theme-balham .ag-pinned-bottom {
+
+            font-weight: 700 !important;
+            min-height: 42px !important;
+            line-height: 42px !important;
+
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # =====================================================
+    # GRID BUILDER
+    # =====================================================
+
     gb = GridOptionsBuilder.from_dataframe(df)
 
     gb.configure_default_column(
@@ -74,6 +98,14 @@ def show_grid(df):
         resizable=True,
         sortable=True,
         filter=True
+
+    )
+
+    gb.configure_grid_options(
+
+        headerHeight=45,
+        rowHeight=42,
+        domLayout="normal"
 
     )
 
@@ -87,7 +119,9 @@ def show_grid(df):
 
         if pd.api.types.is_numeric_dtype(df[col]):
 
-            total_row[col] = int(df[col].sum())
+            total_row[col] = int(
+                df[col].sum()
+            )
 
         else:
 
@@ -102,7 +136,9 @@ def show_grid(df):
 
             ]:
 
-                total_row[col] = df[col].nunique()
+                total_row[col] = (
+                    df[col].nunique()
+                )
 
             else:
 
@@ -111,26 +147,27 @@ def show_grid(df):
     grid_options = gb.build()
 
     grid_options["pinnedBottomRowData"] = [
+
         total_row
+
     ]
 
     # =====================================================
-    # AUTO HEIGHT
+    # HEIGHT
     # =====================================================
 
-    row_height = 38
-
-    header_height = 40
-
-    pinned_height = 40
+    header_height = 45
+    row_height = 42
+    footer_height = 45
 
     table_height = min(
 
-        header_height +
-        pinned_height +
-        (len(df) * row_height) + 10,
+        header_height
+        + (len(df) * row_height)
+        + footer_height
+        + 10,
 
-        650
+        560
 
     )
 
@@ -144,15 +181,13 @@ def show_grid(df):
 
         gridOptions=grid_options,
 
-        theme="balham",
-
         fit_columns_on_grid_load=True,
 
         height=table_height,
 
-        allow_unsafe_jscode=True,
+        theme="balham",
 
-        reload_data=False,
+        allow_unsafe_jscode=True,
 
         custom_css={
 
@@ -180,13 +215,15 @@ def show_grid(df):
 
                 "background-color": "#eef2ff",
                 "font-weight": "700",
-                "border-top": "2px solid #6366f1"
+                "border-top": "2px solid #6366f1",
+                "min-height": "42px"
 
             }
 
         }
 
     )
+
 # =========================================================
 # DASHBOARD
 # =========================================================
@@ -233,8 +270,7 @@ def show():
     # =====================================================
     # BIOMETRIK
     # =====================================================
-
-    biometrik_set = load_biometrik()
+    biometrik = load_biometrik()
 
     df["MSISDN"] = (
 
@@ -246,10 +282,46 @@ def show():
 
     )
 
+    df["Tanggal"] = pd.to_datetime(
+
+        df["Tanggal"],
+
+        errors="coerce"
+
+    ).dt.date
+
+    df = df.merge(
+
+        biometrik,
+
+        left_on="MSISDN",
+
+        right_on="msisdn",
+
+        how="left"
+
+    )
+
     df["Biometrik"] = (
 
-        df["MSISDN"]
-        .isin(biometrik_set)
+        df["Tanggal"]
+
+        ==
+
+        df["tanggal_biometrik"]
+
+    )
+
+    df.drop(
+
+        columns=[
+
+            "msisdn",
+            "tanggal_biometrik"
+
+        ],
+
+        inplace=True
 
     )
 
@@ -305,7 +377,7 @@ def show():
 
         df = df[
 
-            df["Tanggal"].dt.date == tanggal
+            df["Tanggal"] == tanggal
 
         ]
 

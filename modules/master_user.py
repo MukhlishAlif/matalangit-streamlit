@@ -107,10 +107,64 @@ def show():
 
     with tab1:
 
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+
+            keyword = st.text_input(
+
+                "🔍 Cari Username / Role / Upline",
+
+                key="search_user"
+
+            )
+
+        with col2:
+
+            st.metric(
+
+                "👥 Total User",
+
+                len(df)
+
+            )
+
+        tampil_df = df.copy()
+
+        if keyword:
+
+            keyword = keyword.lower()
+
+            tampil_df = tampil_df[
+
+                tampil_df.astype(str)
+
+                .apply(
+
+                    lambda x:
+
+                    x.str.lower().str.contains(keyword)
+
+                )
+
+                .any(axis=1)
+
+            ]
+
+        st.caption(
+
+            f"Menampilkan {len(tampil_df)} dari {len(df)} user"
+
+        )
+
         st.dataframe(
-            df,
+
+            tampil_df,
+
             use_container_width=True,
+
             hide_index=True
+
         )
 
     # =====================================

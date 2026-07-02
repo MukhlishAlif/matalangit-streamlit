@@ -35,12 +35,28 @@ def load_biometrik():
         .str.strip()
     )
 
-    # GANTI NAMA KOLOM SESUAI FILE CSV
-    biometrik["tanggal_biometrik"] = biometrik["ga_dt"]
+    # ===========================
+    # TANGGAL BIOMETRIK
+    # ===========================
+
+    biometrik["tanggal_biometrik"] = pd.to_datetime(
+
+        biometrik["ga_dt"],
+
+        errors="coerce"
+
+    ).dt.date
 
     return biometrik[
-        ["msisdn", "tanggal_biometrik"]
-    ].drop_duplicates("msisdn")
+
+        [
+
+            "msisdn",
+            "tanggal_biometrik"
+
+        ]
+
+    ].drop_duplicates()
 
 # ===========================
 # HALAMAN DATA OUTLET
@@ -88,6 +104,14 @@ def show():
 
     )
 
+    df["Tanggal"] = pd.to_datetime(
+
+        df["Tanggal"],
+
+        errors="coerce"
+
+    ).dt.date
+
     df = df.merge(
 
         biometrik,
@@ -128,21 +152,21 @@ def show():
 
     df["Biometrik H-1"] = (
 
+        df["Tanggal"]
+
+        ==
+
         df["Tanggal Biometrik"]
 
-        .notna()
+    ).map(
 
-        .map(
+        {
 
-            {
+            True: "YES",
 
-                True: "YES",
+            False: "NO"
 
-                False: "NO"
-
-            }
-
-        )
+        }
 
     )
 
@@ -298,31 +322,65 @@ def show():
     # SUMMARY
     # ===========================
 
-    col1, col2, col3 = st.columns(3)
+    total_biometrik = (
+
+        (
+
+            df["Biometrik H-1"]
+
+            ==
+
+            "YES"
+
+        )
+
+        .sum()
+
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
 
         st.metric(
+
             "🏪 Outlet",
+
             df["ID Outlet"].nunique()
+
         )
 
     with col2:
 
         st.metric(
+
             "📱 MSISDN",
+
             df["MSISDN"].nunique()
+
         )
 
     with col3:
 
         st.metric(
+
             "👤 User",
+
             df["Input By"].nunique()
+
+        )
+
+    with col4:
+
+        st.metric(
+
+            "✅ Biometrik",
+
+            total_biometrik
+
         )
 
     st.divider()
-
     # ===========================
     # ROLE MAP
     # ===========================

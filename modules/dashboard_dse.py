@@ -25,37 +25,35 @@ from database import (
 def load_biometrik():
 
     biometrik = pd.read_csv(
-
         "ga_biometrics_cj.csv",
-
         dtype=str,
-
         low_memory=False
-
     )
 
     biometrik.columns = (
-
         biometrik.columns
         .str.strip()
         .str.lower()
-
     )
 
     biometrik["msisdn"] = (
-
         biometrik["msisdn"]
-
         .fillna("")
         .astype(str)
         .str.strip()
-
     )
 
-    return set(
-        biometrik["msisdn"]
-    )
+    biometrik["tanggal_biometrik"] = pd.to_datetime(
+        biometrik["ga_dt"],
+        errors="coerce"
+    ).dt.date
 
+    return biometrik[
+        [
+            "msisdn",
+            "tanggal_biometrik"
+        ]
+    ].drop_duplicates()
 # =========================================================
 # GRID
 # =========================================================
@@ -272,7 +270,7 @@ def show():
     # BIOMETRIK
     # =====================================================
 
-    biometrik_set = load_biometrik()
+    biometrik = load_biometrik()
 
     df["MSISDN"] = (
 
@@ -284,10 +282,63 @@ def show():
 
     )
 
+    df["Tanggal"] = (
+
+        pd.to_datetime(
+
+            df["Tanggal"],
+
+            errors="coerce"
+
+        )
+
+        .dt.date
+
+    )
+
+    df = df.merge(
+
+        biometrik,
+
+        left_on=[
+
+            "MSISDN",
+
+            "Tanggal"
+
+        ],
+
+        right_on=[
+
+            "msisdn",
+
+            "tanggal_biometrik"
+
+        ],
+
+        how="left"
+
+    )
+
     df["Biometrik"] = (
 
-        df["MSISDN"]
-        .isin(biometrik_set)
+        df["tanggal_biometrik"]
+
+        .notna()
+
+    )
+
+    df.drop(
+
+        columns=[
+
+            "msisdn",
+
+            "tanggal_biometrik"
+
+        ],
+
+        inplace=True
 
     )
 
@@ -316,17 +367,6 @@ def show():
     role = st.session_state.outlet_role
     user = st.session_state.outlet_user
 
-    # =====================================================
-    # FILTER TANGGAL
-    # =====================================================
-
-    df["Tanggal"] = pd.to_datetime(
-
-        df["Tanggal"],
-
-        errors="coerce"
-
-    )
 
     tanggal = st.date_input(
 
@@ -342,7 +382,7 @@ def show():
 
         df = df[
 
-            df["Tanggal"].dt.date == tanggal
+            df["Tanggal"] == tanggal
 
         ]
 
