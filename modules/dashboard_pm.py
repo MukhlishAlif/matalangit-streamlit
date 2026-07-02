@@ -72,9 +72,7 @@ def show_grid(df):
     gb.configure_default_column(
 
         resizable=True,
-
         sortable=True,
-
         filter=True
 
     )
@@ -87,19 +85,9 @@ def show_grid(df):
 
     for col in df.columns:
 
-        # =================================================
-        # NUMERIC
-        # =================================================
-
         if pd.api.types.is_numeric_dtype(df[col]):
 
-            total_row[col] = int(
-                df[col].sum()
-            )
-
-        # =================================================
-        # TEXT
-        # =================================================
+            total_row[col] = int(df[col].sum())
 
         else:
 
@@ -109,13 +97,12 @@ def show_grid(df):
                 "BSM",
                 "Branch",
                 "CSE/RSE",
-                "Promotor"
+                "Promotor",
+                "Atasan"
 
             ]:
 
-                total_row[col] = (
-                    df[col].nunique()
-                )
+                total_row[col] = df[col].nunique()
 
             else:
 
@@ -128,16 +115,22 @@ def show_grid(df):
     ]
 
     # =====================================================
-    # HEIGHT
+    # AUTO HEIGHT
     # =====================================================
 
-    row_count = len(df)
+    row_height = 38
+
+    header_height = 40
+
+    pinned_height = 40
 
     table_height = min(
 
-        80 + (row_count * 42),
+        header_height +
+        pinned_height +
+        (len(df) * row_height) + 10,
 
-        500
+        650
 
     )
 
@@ -151,30 +144,28 @@ def show_grid(df):
 
         gridOptions=grid_options,
 
+        theme="balham",
+
         fit_columns_on_grid_load=True,
 
         height=table_height,
 
-        theme="balham",
-
         allow_unsafe_jscode=True,
+
+        reload_data=False,
 
         custom_css={
 
             ".ag-root-wrapper": {
 
                 "border": "1px solid #e5e7eb",
-
-                "border-radius": "14px",
-
-                "overflow": "hidden"
+                "border-radius": "14px"
 
             },
 
             ".ag-header": {
 
                 "background-color": "#f8fafc",
-
                 "font-weight": "700"
 
             },
@@ -188,9 +179,7 @@ def show_grid(df):
             ".ag-pinned-bottom": {
 
                 "background-color": "#eef2ff",
-
                 "font-weight": "700",
-
                 "border-top": "2px solid #6366f1"
 
             }
@@ -198,7 +187,6 @@ def show_grid(df):
         }
 
     )
-
 # =========================================================
 # DASHBOARD
 # =========================================================

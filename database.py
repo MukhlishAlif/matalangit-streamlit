@@ -93,9 +93,66 @@ def tampil_user():
             role,
             atasan
         FROM users
+        ORDER BY user
     """)
 
     return cursor.fetchall()
+
+def tampil_user_master():
+
+    cursor.execute("""
+        SELECT
+            id,
+            user,
+            password,
+            role,
+            atasan,
+            status,
+            created_at
+        FROM users
+        ORDER BY role, user
+    """)
+
+    return cursor.fetchall()
+
+# =====================================
+# UPDATE USER
+# =====================================
+
+def update_user(old_user, user, password, role, atasan):
+
+    cursor.execute("""
+        UPDATE users
+        SET
+            user=?,
+            password=?,
+            role=?,
+            atasan=?
+        WHERE user=?
+    """, (
+        user,
+        password,
+        role,
+        atasan,
+        old_user
+    ))
+
+    conn.commit()
+
+
+# =====================================
+# HAPUS USER
+# =====================================
+
+def hapus_user(user):
+
+    cursor.execute("""
+        DELETE FROM users
+        WHERE user=?
+    """, (user,))
+
+    conn.commit()
+
 
 
 # =====================================

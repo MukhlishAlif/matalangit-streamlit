@@ -67,6 +67,31 @@ def show_grid(df):
         st.info("Tidak ada data.")
         return
 
+    # =====================================================
+    # CSS
+    # =====================================================
+
+    st.markdown(
+        """
+        <style>
+
+        .ag-theme-balham .ag-pinned-bottom {
+
+            font-weight: 700 !important;
+            min-height: 42px !important;
+            line-height: 42px !important;
+
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # =====================================================
+    # GRID BUILDER
+    # =====================================================
+
     gb = GridOptionsBuilder.from_dataframe(df)
 
     gb.configure_default_column(
@@ -74,6 +99,14 @@ def show_grid(df):
         resizable=True,
         sortable=True,
         filter=True
+
+    )
+
+    gb.configure_grid_options(
+
+        headerHeight=45,
+        rowHeight=42,
+        domLayout="normal"
 
     )
 
@@ -85,19 +118,11 @@ def show_grid(df):
 
     for col in df.columns:
 
-        # =================================================
-        # NUMERIC
-        # =================================================
-
         if pd.api.types.is_numeric_dtype(df[col]):
 
             total_row[col] = int(
                 df[col].sum()
             )
-
-        # =================================================
-        # TEXT
-        # =================================================
 
         else:
 
@@ -123,20 +148,27 @@ def show_grid(df):
     grid_options = gb.build()
 
     grid_options["pinnedBottomRowData"] = [
+
         total_row
+
     ]
 
     # =====================================================
     # HEIGHT
     # =====================================================
 
-    row_count = len(df)
+    header_height = 45
+    row_height = 42
+    footer_height = 45
 
     table_height = min(
 
-        80 + (row_count * 42),
+        header_height
+        + (len(df) * row_height)
+        + footer_height
+        + 10,
 
-        500
+        560
 
     )
 
@@ -163,8 +195,7 @@ def show_grid(df):
             ".ag-root-wrapper": {
 
                 "border": "1px solid #e5e7eb",
-                "border-radius": "14px",
-                "overflow": "hidden"
+                "border-radius": "14px"
 
             },
 
@@ -185,14 +216,14 @@ def show_grid(df):
 
                 "background-color": "#eef2ff",
                 "font-weight": "700",
-                "border-top": "2px solid #6366f1"
+                "border-top": "2px solid #6366f1",
+                "min-height": "42px"
 
             }
 
         }
 
     )
-
 # =========================================================
 # DASHBOARD
 # =========================================================
@@ -342,15 +373,21 @@ def show():
 
         daftar_dse = df_user[
 
-            df_user["ATASAN"] == user
+            (df_user["ATASAN"] == user)
+
+            &
+
+            (df_user["ROLE"] == "DSE")
 
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(
-                daftar_dse
-            )
+
+            df["Input By"]
+            .isin(daftar_dse)
+
         ]
+
 
     elif role == "BSM":
 
@@ -362,15 +399,20 @@ def show():
 
         daftar_dse = df_user[
 
-            df_user["ATASAN"]
-            .isin(daftar_cse)
+            (df_user["ATASAN"]
+            .isin(daftar_cse))
+
+            &
+
+            (df_user["ROLE"] == "DSE")
 
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(
-                daftar_dse
-            )
+
+            df["Input By"]
+            .isin(daftar_dse)
+
         ]
 
     elif role == "HOS":
@@ -383,24 +425,32 @@ def show():
 
         daftar_cse = df_user[
 
-            df_user["ATASAN"]
-            .isin(daftar_bsm)
+            (df_user["ATASAN"]
+            .isin(daftar_bsm))
+
+            &
+
+            (df_user["ROLE"] == "CSE")
 
         ]["USER"].tolist()
 
         daftar_dse = df_user[
 
-            df_user["ATASAN"]
-            .isin(daftar_cse)
+            (df_user["ATASAN"]
+            .isin(daftar_cse))
+
+            &
+
+            (df_user["ROLE"] == "DSE")
 
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(
-                daftar_dse
-            )
-        ]
 
+            df["Input By"]
+            .isin(daftar_dse)
+
+        ]
     # =====================================================
     # KPI KHUSUS DSE
     # HANYA HITUNG INPUT DARI USER ROLE DSE
@@ -517,8 +567,14 @@ def show():
             ]["USER"].tolist()
 
             daftar_dse = df_user[
-                df_user["ATASAN"]
-                .isin(daftar_cse)
+
+                (df_user["ATASAN"]
+                .isin(daftar_cse))
+
+                &
+
+                (df_user["ROLE"] == "DSE")
+
             ]["USER"].tolist()
 
             temp = df[
@@ -617,8 +673,14 @@ def show():
             ]["USER"].tolist()
 
             daftar_dse = df_user[
-                df_user["ATASAN"]
-                .isin(daftar_cse)
+
+                (df_user["ATASAN"]
+                .isin(daftar_cse))
+
+                &
+
+                (df_user["ROLE"] == "DSE")
+
             ]["USER"].tolist()
 
             temp = df[
@@ -720,8 +782,15 @@ def show():
             nama_cse = row["USER"]
 
             daftar_dse = df_user[
-                df_user["ATASAN"] == nama_cse
+
+                (df_user["ATASAN"] == nama_cse)
+
+                &
+
+                (df_user["ROLE"] == "DSE")
+
             ]["USER"].tolist()
+
 
             temp = df[
                 df["Input By"]

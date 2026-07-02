@@ -72,9 +72,7 @@ def show_grid(df):
     gb.configure_default_column(
 
         resizable=True,
-
         sortable=True,
-
         filter=True
 
     )
@@ -87,19 +85,9 @@ def show_grid(df):
 
     for col in df.columns:
 
-        # =================================================
-        # NUMERIC
-        # =================================================
-
         if pd.api.types.is_numeric_dtype(df[col]):
 
-            total_row[col] = int(
-                df[col].sum()
-            )
-
-        # =================================================
-        # TEXT
-        # =================================================
+            total_row[col] = int(df[col].sum())
 
         else:
 
@@ -109,23 +97,34 @@ def show_grid(df):
                 "BSM",
                 "Branch",
                 "CSE/RSE",
-                "Frontliner"
+                "Frontliner",
+                "Atasan"
 
             ]:
 
-                total_row[col] = (
-                    df[col].nunique()
-                )
+                total_row[col] = df[col].nunique()
 
             else:
 
                 total_row[col] = ""
 
-    grid_options = gb.build()
+    # =====================================================
+    # GRID OPTION
+    # =====================================================
 
-    grid_options["pinnedBottomRowData"] = [
-        total_row
-    ]
+    gb.configure_grid_options(
+
+        pinnedBottomRowData=[total_row],
+
+        alwaysShowHorizontalScroll=True,
+
+        suppressHorizontalScroll=False,
+
+        domLayout="normal"
+
+    )
+
+    grid_options = gb.build()
 
     # =====================================================
     # HEIGHT
@@ -135,9 +134,9 @@ def show_grid(df):
 
     table_height = min(
 
-        80 + (row_count * 42),
+        (row_count + 2) * 42,
 
-        500
+        650
 
     )
 
@@ -151,30 +150,28 @@ def show_grid(df):
 
         gridOptions=grid_options,
 
-        fit_columns_on_grid_load=True,
-
         height=table_height,
 
         theme="balham",
 
+        fit_columns_on_grid_load=False,
+
         allow_unsafe_jscode=True,
+
+        reload_data=True,
 
         custom_css={
 
             ".ag-root-wrapper": {
 
                 "border": "1px solid #e5e7eb",
-
-                "border-radius": "14px",
-
-                "overflow": "hidden"
+                "border-radius": "14px"
 
             },
 
             ".ag-header": {
 
                 "background-color": "#f8fafc",
-
                 "font-weight": "700"
 
             },
@@ -188,17 +185,15 @@ def show_grid(df):
             ".ag-pinned-bottom": {
 
                 "background-color": "#eef2ff",
-
                 "font-weight": "700",
-
-                "border-top": "2px solid #6366f1"
+                "border-top": "2px solid #6366f1",
+                "min-height": "42px"
 
             }
 
         }
 
     )
-
 # =========================================================
 # DASHBOARD
 # =========================================================

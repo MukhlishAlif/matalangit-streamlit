@@ -3,16 +3,15 @@
 # =====================================
 
 import streamlit as st
-
 from modules.input_outlet import show as input_outlet
 from modules.data_outlet import show as data_outlet
 from modules.dashboard_cse import show as dashboard_cse
 from modules.dashboard_dse import show as dashboard_dse
 from modules.dashboard_fl import show as dashboard_fl
 from modules.dashboard_pm import show as dashboard_pm
+from modules.master_user import show as master_user
 
 from auth import login_page, sidebar
-
 
 
 
@@ -244,5 +243,4 @@ elif menu == "Data Outlet":
 
 elif menu == "Master User":
 
-    st.title("👥 Master User")
-    st.info("Menu masih dalam proses migrasi.")
+    master_user()
