@@ -146,7 +146,7 @@ if role in ["DSE", "FRONTLINER", "PROMOTOR"]:
         "Menu",
         [
             "Input MSISDN",
-            "Data Outlet"
+            "Data MSISDN"
         ],
         key="outlet_menu"
     )
@@ -160,7 +160,7 @@ elif role in ["CSE", "RSE"]:
             "Dashboard Frontliner",
             "Dashboard Promotor",
             "Input MSISDN",
-            "Data Outlet"
+            "Data MSISDN"
         ],
         key="outlet_menu"
     )
@@ -174,7 +174,7 @@ elif role == "BSM":
             "Dashboard Frontliner",
             "Dashboard Promotor",
             "Dashboard CSE/RSE",
-            "Data Outlet"
+            "Data MSISDN"
         ],
         key="outlet_menu"
     )
@@ -188,7 +188,7 @@ elif role == "HOS":
             "Dashboard Frontliner",
             "Dashboard Promotor",
             "Dashboard CSE/RSE",
-            "Data Outlet"
+            "Data MSISDN"
         ],
         key="outlet_menu"
     )
@@ -202,7 +202,7 @@ elif role == "ADMIN":
             "Dashboard Frontliner",
             "Dashboard Promotor",
             "Dashboard CSE/RSE",
-            "Data Outlet",
+            "Data MSISDN",
             "Master User"
         ],
         key="outlet_menu"
@@ -237,7 +237,7 @@ elif menu == "Input MSISDN":
 
     input_outlet()
 
-elif menu == "Data Outlet":
+elif menu == "Data MSISDN":
 
     data_outlet()
 

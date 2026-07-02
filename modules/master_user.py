@@ -90,7 +90,7 @@ def show():
                 "user",
                 "password",
                 "role",
-                "atasan",
+                "Upline",
                 "status",
                 "created_at"
             ]
@@ -141,7 +141,7 @@ def show():
         )
 
         atasan_tambah = st.selectbox(
-            "Atasan",
+            "Upline",
             pilihan,
             key="atasan_tambah"
         )
@@ -217,7 +217,7 @@ def show():
             )
 
             st.text_input(
-                "Atasan",
+                "Upline",
                 value=row["atasan"],
                 disabled=True
             )
@@ -236,7 +236,7 @@ def show():
                         user_edit,
                         password_edit,
                         row["role"],
-                        row["atasan"]
+                        row["Upline"]
                     )
 
                     st.session_state["notif"] = (

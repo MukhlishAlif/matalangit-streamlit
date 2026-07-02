@@ -22,7 +22,11 @@ def load_biometrik():
         low_memory=False
     )
 
-    biometrik.columns = biometrik.columns.str.strip().str.lower()
+    biometrik.columns = (
+        biometrik.columns
+        .str.strip()
+        .str.lower()
+    )
 
     biometrik["msisdn"] = (
         biometrik["msisdn"]
@@ -31,7 +35,12 @@ def load_biometrik():
         .str.strip()
     )
 
-    return set(biometrik["msisdn"])
+    # GANTI NAMA KOLOM SESUAI FILE CSV
+    biometrik["tanggal_biometrik"] = biometrik["ga_dt"]
+
+    return biometrik[
+        ["msisdn", "tanggal_biometrik"]
+    ].drop_duplicates("msisdn")
 
 # ===========================
 # HALAMAN DATA OUTLET
@@ -39,7 +48,7 @@ def load_biometrik():
 
 def show():
 
-    st.title("📋 Data Outlet")
+    st.title("📋 Data MSISDN")
 
     # ===========================
     # LOAD DATA
@@ -67,19 +76,75 @@ def show():
     # CEK BIOMETRIK H-1
     # ===========================
 
-    biometrik_set = load_biometrik()
+    biometrik = load_biometrik()
 
     df["MSISDN"] = (
+
         df["MSISDN"]
+
         .fillna("")
         .astype(str)
         .str.strip()
+
     )
 
-    df["Biometrik H-1"] = df["MSISDN"].apply(
-        lambda x: "YES" if x in biometrik_set else "NO"
+    df = df.merge(
+
+        biometrik,
+
+        left_on="MSISDN",
+
+        right_on="msisdn",
+
+        how="left"
+
     )
 
+    df.drop(
+
+        columns=[
+
+            "msisdn"
+
+        ],
+
+        inplace=True
+
+    )
+
+    df.rename(
+
+        columns={
+
+            "tanggal_biometrik":
+
+            "Tanggal Biometrik"
+
+        },
+
+        inplace=True
+
+    )
+
+    df["Biometrik H-1"] = (
+
+        df["Tanggal Biometrik"]
+
+        .notna()
+
+        .map(
+
+            {
+
+                True: "YES",
+
+                False: "NO"
+
+            }
+
+        )
+
+    )
 
     users = tampil_user()
 
@@ -181,23 +246,54 @@ def show():
     # ===========================
 
     df["Tanggal"] = pd.to_datetime(
+
         df["Tanggal"],
+
         errors="coerce"
+
     )
 
-    tanggal = st.date_input(
-        "📅 Filter Tanggal",
-        value=None
+    col_tgl1, col_tgl2 = st.columns(
+
+        [4, 1]
+
     )
 
-    if tanggal:
+    with col_tgl1:
+
+        tanggal = st.date_input(
+
+            "📅 Filter Tanggal",
+
+            value=None
+
+        )
+
+    with col_tgl2:
+
+        st.markdown(
+
+            "<br>",
+
+            unsafe_allow_html=True
+
+        )
+
+        semua_tanggal = st.toggle(
+
+            "Semua",
+
+            value=True
+
+        )
+
+    if not semua_tanggal and tanggal:
 
         df = df[
+
             df["Tanggal"].dt.date == tanggal
+
         ]
-
-    st.divider()
-
     # ===========================
     # SUMMARY
     # ===========================

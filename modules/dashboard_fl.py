@@ -71,12 +71,57 @@ def show_grid(df):
 
     gb.configure_default_column(
 
+        flex=1,
+
+        minWidth=120,
+
         resizable=True,
+
         sortable=True,
+
         filter=True
 
     )
 
+    for col in df.columns:
+
+        if col in [
+
+            "HOS",
+
+            "BSM",
+
+            "CSE/RSE",
+
+            "Frontliner",
+
+            "Atasan",
+
+            "Branch"
+
+        ]:
+
+            gb.configure_column(
+
+                col,
+
+                minWidth=180,
+
+                flex=2
+
+            )
+
+        else:
+
+            gb.configure_column(
+
+                col,
+
+                minWidth=120,
+
+                flex=1
+
+            )
     # =====================================================
     # TOTAL ROW
     # =====================================================
@@ -114,18 +159,17 @@ def show_grid(df):
 
     gb.configure_grid_options(
 
-        pinnedBottomRowData=[total_row],
-
-        alwaysShowHorizontalScroll=True,
-
-        suppressHorizontalScroll=False,
-
         domLayout="normal"
 
     )
 
     grid_options = gb.build()
 
+    grid_options["pinnedBottomRowData"] = [
+
+        total_row
+
+    ]
     # =====================================================
     # HEIGHT
     # =====================================================
