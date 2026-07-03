@@ -1,15 +1,16 @@
 # =========================================================
 # dashboard_dse.py
 # DASHBOARD HIERARCHY DSE
-# FOKUS INPUT BY DSE
 # =========================================================
 
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 
 from st_aggrid import (
     AgGrid,
-    GridOptionsBuilder
+    GridOptionsBuilder,
+    GridUpdateMode
 )
 
 from database import (
@@ -54,62 +55,88 @@ def load_biometrik():
             "tanggal_biometrik"
         ]
     ].drop_duplicates()
+
 # =========================================================
 # GRID
 # =========================================================
 
-def show_grid(df):
+def show_grid(
+    df,
+    selectable=False,
+    key=None
+):
 
     if df.empty:
-
         st.info("Tidak ada data.")
-        return
-
-    # =====================================================
-    # CSS
-    # =====================================================
-
-    st.markdown(
-        """
-        <style>
-
-        .ag-theme-balham .ag-pinned-bottom {
-
-            font-weight: 700 !important;
-            min-height: 42px !important;
-            line-height: 42px !important;
-
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # =====================================================
-    # GRID BUILDER
-    # =====================================================
+        return None
 
     gb = GridOptionsBuilder.from_dataframe(df)
+
+    # =====================================================
+    # DEFAULT COLUMN STYLE (CENTER ALL + WRAP SAFE)
+    # =====================================================
 
     gb.configure_default_column(
 
         resizable=True,
         sortable=True,
-        filter=True
+        filter=True,
 
-    )
+        minWidth=90,
 
-    gb.configure_grid_options(
+        wrapText=False,
 
-        headerHeight=45,
-        rowHeight=42,
-        domLayout="normal"
+        cellStyle={
+
+            "textAlign": "center",
+            "display": "flex",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "fontSize": "13px"
+
+        }
 
     )
 
     # =====================================================
-    # TOTAL ROW
+    # PIN FIRST COLUMN (BIAR RAPI TABLE BESAR)
+    # =====================================================
+
+    first_col = df.columns[0]
+
+    gb.configure_column(
+
+        first_col,
+
+        pinned="left",
+
+        cellStyle={
+
+            "fontWeight": "600",
+            "textAlign": "center",
+            "display": "flex",
+            "justifyContent": "center",
+            "alignItems": "center"
+
+        }
+
+    )
+
+    # =====================================================
+    # SELECTABLE
+    # =====================================================
+
+    if selectable:
+
+        gb.configure_selection(
+
+            selection_mode="single",
+            use_checkbox=False
+
+        )
+
+    # =====================================================
+    # TOTAL ROW (PINNED BOTTOM)
     # =====================================================
 
     total_row = {}
@@ -118,9 +145,7 @@ def show_grid(df):
 
         if pd.api.types.is_numeric_dtype(df[col]):
 
-            total_row[col] = int(
-                df[col].sum()
-            )
+            total_row[col] = int(df[col].sum())
 
         else:
 
@@ -135,48 +160,82 @@ def show_grid(df):
 
             ]:
 
-                total_row[col] = (
-                    df[col].nunique()
-                )
+                total_row[col] = df[col].nunique()
 
             else:
 
                 total_row[col] = ""
 
+    gb.configure_grid_options(
+
+        pinnedBottomRowData=[total_row],
+
+        headerHeight=45,
+        rowHeight=42,
+        domLayout="normal"
+
+    )
+
     grid_options = gb.build()
 
-    grid_options["pinnedBottomRowData"] = [
-
-        total_row
-
-    ]
-
     # =====================================================
-    # HEIGHT
+    # AUTO HEIGHT (BIAR 1 VIEW TANPA SCROLL KE BAWAH PANJANG)
     # =====================================================
-
-    header_height = 45
-    row_height = 42
-    footer_height = 45
 
     table_height = min(
 
-        header_height
-        + (len(df) * row_height)
-        + footer_height
-        + 10,
-
-        560
+        520,
+        (len(df) + 2) * 42
 
     )
 
     # =====================================================
-    # GRID
+    # GRID CSS (FULL CENTER CLEAN UI)
     # =====================================================
 
-    AgGrid(
+    custom_css = {
+
+        ".ag-theme-balham": {
+
+            "font-family": "Poppins",
+            "font-size": "13px"
+
+        },
+
+        ".ag-header-cell-label": {
+
+            "justify-content": "center",
+            "font-weight": "700"
+
+        },
+
+        ".ag-cell": {
+
+            "display": "flex",
+            "justify-content": "center",
+            "align-items": "center",
+            "text-align": "center"
+
+        },
+
+        ".ag-pinned-bottom-row": {
+
+            "background-color": "#eef2ff",
+            "font-weight": "700"
+
+        }
+
+    }
+
+    # =====================================================
+    # GRID RENDER
+    # =====================================================
+
+    grid_response = AgGrid(
 
         df,
+
+        key=key,
 
         gridOptions=grid_options,
 
@@ -186,42 +245,42 @@ def show_grid(df):
 
         theme="balham",
 
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+
         allow_unsafe_jscode=True,
 
-        custom_css={
-
-            ".ag-root-wrapper": {
-
-                "border": "1px solid #e5e7eb",
-                "border-radius": "14px"
-
-            },
-
-            ".ag-header": {
-
-                "background-color": "#f8fafc",
-                "font-weight": "700"
-
-            },
-
-            ".ag-row": {
-
-                "font-size": "14px"
-
-            },
-
-            ".ag-pinned-bottom": {
-
-                "background-color": "#eef2ff",
-                "font-weight": "700",
-                "border-top": "2px solid #6366f1",
-                "min-height": "42px"
-
-            }
-
-        }
+        custom_css=custom_css
 
     )
+
+    return grid_response
+
+# =========================================================
+# EXPORT EXCEL
+# =========================================================
+
+def to_excel(df):
+
+    output = BytesIO()
+
+    with pd.ExcelWriter(
+
+        output,
+        engine="openpyxl"
+
+    ) as writer:
+
+        df.to_excel(
+
+            writer,
+
+            index=False,
+
+            sheet_name="Dashboard"
+
+        )
+
+    return output.getvalue()
 # =========================================================
 # DASHBOARD
 # =========================================================
@@ -239,10 +298,7 @@ def show():
 
     if len(data) == 0:
 
-        st.info(
-            "Belum ada data."
-        )
-
+        st.info("Belum ada data.")
         return
 
     # =====================================================
@@ -275,7 +331,6 @@ def show():
     df["MSISDN"] = (
 
         df["MSISDN"]
-
         .fillna("")
         .astype(str)
         .str.strip()
@@ -285,14 +340,9 @@ def show():
     df["Tanggal"] = (
 
         pd.to_datetime(
-
             df["Tanggal"],
-
             errors="coerce"
-
-        )
-
-        .dt.date
+        ).dt.date
 
     )
 
@@ -301,19 +351,13 @@ def show():
         biometrik,
 
         left_on=[
-
             "MSISDN",
-
             "Tanggal"
-
         ],
 
         right_on=[
-
             "msisdn",
-
             "tanggal_biometrik"
-
         ],
 
         how="left"
@@ -321,21 +365,14 @@ def show():
     )
 
     df["Biometrik"] = (
-
-        df["tanggal_biometrik"]
-
-        .notna()
-
+        df["tanggal_biometrik"].notna()
     )
 
     df.drop(
 
         columns=[
-
             "msisdn",
-
             "tanggal_biometrik"
-
         ],
 
         inplace=True
@@ -367,6 +404,9 @@ def show():
     role = st.session_state.outlet_role
     user = st.session_state.outlet_user
 
+    # =====================================================
+    # FILTER TANGGAL
+    # =====================================================
 
     tanggal = st.date_input(
 
@@ -381,9 +421,7 @@ def show():
     if tanggal:
 
         df = df[
-
             df["Tanggal"] == tanggal
-
         ]
 
     st.divider()
@@ -422,25 +460,18 @@ def show():
         ]["USER"].tolist()
 
         df = df[
-
-            df["Input By"]
-            .isin(daftar_dse)
-
+            df["Input By"].isin(daftar_dse)
         ]
-
 
     elif role == "BSM":
 
         daftar_cse = df_user[
-
             df_user["ATASAN"] == user
-
         ]["USER"].tolist()
 
         daftar_dse = df_user[
 
-            (df_user["ATASAN"]
-            .isin(daftar_cse))
+            (df_user["ATASAN"].isin(daftar_cse))
 
             &
 
@@ -449,35 +480,28 @@ def show():
         ]["USER"].tolist()
 
         df = df[
-
-            df["Input By"]
-            .isin(daftar_dse)
-
+            df["Input By"].isin(daftar_dse)
         ]
 
     elif role == "HOS":
 
         daftar_bsm = df_user[
-
             df_user["ATASAN"] == user
-
         ]["USER"].tolist()
 
         daftar_cse = df_user[
 
-            (df_user["ATASAN"]
-            .isin(daftar_bsm))
+            (df_user["ATASAN"].isin(daftar_bsm))
 
             &
 
-            (df_user["ROLE"] == "CSE")
+            (df_user["ROLE"].isin(["CSE", "RSE"]))
 
         ]["USER"].tolist()
 
         daftar_dse = df_user[
 
-            (df_user["ATASAN"]
-            .isin(daftar_cse))
+            (df_user["ATASAN"].isin(daftar_cse))
 
             &
 
@@ -486,106 +510,121 @@ def show():
         ]["USER"].tolist()
 
         df = df[
-
-            df["Input By"]
-            .isin(daftar_dse)
-
+            df["Input By"].isin(daftar_dse)
         ]
     # =====================================================
-    # KPI KHUSUS DSE
-    # HANYA HITUNG INPUT DARI USER ROLE DSE
+    # KPI (ROLE AWARE - FIXED)
     # =====================================================
 
-    daftar_dse = df_user[
+    df_dse = df.copy()
 
-        df_user["ROLE"] == "DSE"
-
+    # semua DSE yang ADA DI DATA YANG SUDAH DIFILTER
+    list_dse_in_view = df_user[
+    df_user["ROLE"] == "DSE"
     ]["USER"].tolist()
 
-    # ==============================================
-    # DATA KHUSUS INPUT DSE
-    # ==============================================
+    df_dse = df_dse[df_dse["Input By"].isin(list_dse_in_view)]
 
-    df_dse = df[
+    # =====================================================
+    # TOTAL METRICS
+    # =====================================================
 
-        df["Input By"]
-        .isin(daftar_dse)
+    total_dse = len(list_dse_in_view)
 
-    ]
+    dse_aktif = df_dse["Input By"].nunique()
+    total_outlet = df_dse["ID Outlet"].nunique()
+    total_msisdn = len(df_dse)
+    total_bio = df_dse["Biometrik"].sum()
 
-    # ==============================================
-    # KPI
-    # ==============================================
+    # =====================================================
+    # PERSENTASE
+    # =====================================================
 
-    dse_aktif = (
+    persen_dse_aktif = round(
+        (dse_aktif / total_dse) * 100,
+        2
+    ) if total_dse > 0 else 0
 
-        df_dse["Input By"]
-        .nunique()
+    persen_bio = round(
+        (total_bio / total_msisdn) * 100,
+        2
+    ) if total_msisdn > 0 else 0
 
-    )
 
-    jumlah_outlet = (
+    # =====================================================
+    # UI KPI
+    # =====================================================
 
-        df_dse["ID Outlet"]
-        .nunique()
-
-    )
-
-    jumlah_msisdn = len(
-        df_dse
-    )
-
-    jumlah_biometrik = (
-
-        df_dse["Biometrik"]
-        .sum()
-
-    )
-
-    # ==============================================
-    # KPI UI
-    # ==============================================
-
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     col1.metric(
-
-        "👤 DSE Aktif",
-
-        dse_aktif
-
+        "🏪 Outlet",
+        total_outlet
     )
 
     col2.metric(
-
-        "🏪 Outlet Input DSE",
-
-        jumlah_outlet
-
+        "👤 DSE Aktif",
+        dse_aktif
     )
 
     col3.metric(
-
-        "📱 MSISDN Input DSE",
-
-        jumlah_msisdn
-
+        "% DSE Aktif",
+        f"{persen_dse_aktif}%"
     )
 
     col4.metric(
-
-        "✅ Biometrik Input DSE",
-
-        jumlah_biometrik
-
+        "📱 MSISDN",
+        total_msisdn
     )
+
+    col5.metric(
+        "✅ Biometrik",
+        total_bio
+    )
+
+    col6.metric(
+        "% Biometrik",
+        f"{persen_bio}%"
+    )
+
+    st.divider()
+    # =====================================================
+    # RESET FILTER BUTTON (KANAN SEJAJAR TITLE)
+    # =====================================================
+
+    header_col, reset_col = st.columns([5, 1])
+
+    with header_col:
+        st.subheader("📋 Rekap")
+
+    with reset_col:
+        if st.button(
+            "🔄 Reset",
+            use_container_width=True
+        ):
+            st.session_state.selected_hos = None
+            st.session_state.selected_bsm = None
+            st.session_state.selected_cse = None
+            st.rerun()
+
+
+    # =====================================================
+    # DEFAULT SESSION
+    # =====================================================
+
+    if "selected_hos" not in st.session_state:
+        st.session_state.selected_hos = None
+
+    if "selected_bsm" not in st.session_state:
+        st.session_state.selected_bsm = None
+
+    if "selected_cse" not in st.session_state:
+        st.session_state.selected_cse = None
     # =====================================================
     # REKAP HOS
     # =====================================================
 
     if role == "ADMIN":
-
-        st.subheader("📋 Rekap HOS")
 
         rekap_hos = []
 
@@ -602,14 +641,21 @@ def show():
             ]["USER"].tolist()
 
             daftar_cse = df_user[
-                df_user["ATASAN"]
-                .isin(daftar_bsm)
+
+                (df_user["ATASAN"].isin(daftar_bsm))
+
+                &
+
+                (df_user["ROLE"].isin([
+                    "CSE",
+                    "RSE"
+                ]))
+
             ]["USER"].tolist()
 
             daftar_dse = df_user[
 
-                (df_user["ATASAN"]
-                .isin(daftar_cse))
+                (df_user["ATASAN"].isin(daftar_cse))
 
                 &
 
@@ -618,9 +664,36 @@ def show():
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"]
-                .isin(daftar_dse)
+                df["Input By"].isin(daftar_dse)
             ]
+
+            dse_aktif = temp["Input By"].nunique()
+
+            total_dse = len(daftar_dse)
+
+            total_msisdn = len(temp)
+
+            total_bio = temp["Biometrik"].sum()
+
+            persen_aktif = round(
+
+                (
+                    dse_aktif / total_dse
+                ) * 100,
+
+                2
+
+            ) if total_dse > 0 else 0
+
+            persen_bio = round(
+
+                (
+                    total_bio / total_msisdn
+                ) * 100,
+
+                2
+
+            ) if total_msisdn > 0 else 0
 
             rekap_hos.append({
 
@@ -633,31 +706,26 @@ def show():
                 "CSE/RSE":
                     len(daftar_cse),
 
-                # ======================================
-                # TOTAL DSE
-                # ======================================
-
                 "DSE":
-                    len(daftar_dse),
-
-                # ======================================
-                # DSE AKTIF
-                # ======================================
+                    total_dse,
 
                 "DSE Aktif":
-                    temp["Input By"]
-                    .nunique(),
+                    dse_aktif,
+
+                "% User Aktif":
+                    f"{persen_aktif}%",
 
                 "Outlet":
-                    temp["ID Outlet"]
-                    .nunique(),
+                    temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    len(temp),
+                    total_msisdn,
 
                 "Biometrik":
-                    temp["Biometrik"]
-                    .sum()
+                    total_bio,
+
+                "% Biometrik":
+                    f"{persen_bio}%"
 
             })
 
@@ -665,23 +733,65 @@ def show():
             rekap_hos
         )
 
-        if not summary_hos.empty:
+        st.download_button(
 
-            summary_hos = (
+            label="⬇️ Download Rekap HOS",
 
-                summary_hos
+            data=to_excel(summary_hos),
 
-                .sort_values(
+            file_name="rekap_hos.xlsx",
 
-                    "MSISDN",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                    ascending=False
+            key="download_hos"
 
-                )
+        )
 
+        hos_grid = show_grid(
+
+            summary_hos,
+
+            selectable=True,
+
+            key="hos"
+
+        )
+
+        if hos_grid:
+
+            selected = hos_grid.get(
+                "selected_rows"
             )
 
-        show_grid(summary_hos)
+            if selected is not None:
+
+                if isinstance(
+                    selected,
+                    pd.DataFrame
+                ):
+
+                    if not selected.empty:
+
+                        st.session_state.selected_hos = (
+                            selected.iloc[0]["HOS"]
+                        )
+
+                        st.session_state.selected_bsm = None
+                        st.session_state.selected_cse = None
+
+                elif isinstance(
+                    selected,
+                    list
+                ):
+
+                    if len(selected) > 0:
+
+                        st.session_state.selected_hos = (
+                            selected[0]["HOS"]
+                        )
+
+                        st.session_state.selected_bsm = None
+                        st.session_state.selected_cse = None
 
         st.divider()
 
@@ -689,12 +799,7 @@ def show():
     # REKAP BSM
     # =====================================================
 
-    if role in [
-
-        "HOS",
-        "ADMIN"
-
-    ]:
+    if role in ["ADMIN", "HOS"]:
 
         st.subheader("📋 Rekap BSM")
 
@@ -706,16 +811,30 @@ def show():
 
         for _, row in bsm_list.iterrows():
 
+            if st.session_state.selected_hos:
+
+                if row["ATASAN"] != st.session_state.selected_hos:
+
+                    continue
+
             nama_bsm = row["USER"]
 
             daftar_cse = df_user[
-                df_user["ATASAN"] == nama_bsm
+
+                (df_user["ATASAN"] == nama_bsm)
+
+                &
+
+                (df_user["ROLE"].isin([
+                    "CSE",
+                    "RSE"
+                ]))
+
             ]["USER"].tolist()
 
             daftar_dse = df_user[
 
-                (df_user["ATASAN"]
-                .isin(daftar_cse))
+                (df_user["ATASAN"].isin(daftar_cse))
 
                 &
 
@@ -724,14 +843,36 @@ def show():
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"]
-                .isin(daftar_dse)
+                df["Input By"].isin(daftar_dse)
             ]
 
-            if role != "ADMIN":
+            dse_aktif = temp["Input By"].nunique()
 
-                if len(temp) == 0:
-                    continue
+            total_dse = len(daftar_dse)
+
+            total_msisdn = len(temp)
+
+            total_bio = temp["Biometrik"].sum()
+
+            persen_aktif = round(
+
+                (
+                    dse_aktif / total_dse
+                ) * 100,
+
+                2
+
+            ) if total_dse > 0 else 0
+
+            persen_bio = round(
+
+                (
+                    total_bio / total_msisdn
+                ) * 100,
+
+                2
+
+            ) if total_msisdn > 0 else 0
 
             rekap_bsm.append({
 
@@ -741,31 +882,26 @@ def show():
                 "CSE/RSE":
                     len(daftar_cse),
 
-                # ======================================
-                # TOTAL DSE
-                # ======================================
-
                 "DSE":
-                    len(daftar_dse),
-
-                # ======================================
-                # DSE AKTIF
-                # ======================================
+                    total_dse,
 
                 "DSE Aktif":
-                    temp["Input By"]
-                    .nunique(),
+                    dse_aktif,
+
+                "% User Aktif":
+                    f"{persen_aktif}%",
 
                 "Outlet":
-                    temp["ID Outlet"]
-                    .nunique(),
+                    temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    len(temp),
+                    total_msisdn,
 
                 "Biometrik":
-                    temp["Biometrik"]
-                    .sum()
+                    total_bio,
+
+                "% Biometrik":
+                    f"{persen_bio}%"
 
             })
 
@@ -773,23 +909,63 @@ def show():
             rekap_bsm
         )
 
-        if not summary_bsm.empty:
+        st.download_button(
 
-            summary_bsm = (
+            label="⬇️ Download Rekap BSM",
 
-                summary_bsm
+            data=to_excel(summary_bsm),
 
-                .sort_values(
+            file_name="rekap_bsm.xlsx",
 
-                    "MSISDN",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                    ascending=False
+            key="download_bsm"
 
-                )
+        )
 
+        bsm_grid = show_grid(
+
+            summary_bsm,
+
+            selectable=True,
+
+            key="bsm"
+
+        )
+
+        if bsm_grid:
+
+            selected = bsm_grid.get(
+                "selected_rows"
             )
 
-        show_grid(summary_bsm)
+            if selected is not None:
+
+                if isinstance(
+                    selected,
+                    pd.DataFrame
+                ):
+
+                    if not selected.empty:
+
+                        st.session_state.selected_bsm = (
+                            selected.iloc[0]["BSM"]
+                        )
+
+                        st.session_state.selected_cse = None
+
+                elif isinstance(
+                    selected,
+                    list
+                ):
+
+                    if len(selected) > 0:
+
+                        st.session_state.selected_bsm = (
+                            selected[0]["BSM"]
+                        )
+
+                        st.session_state.selected_cse = None
 
         st.divider()
 
@@ -797,27 +973,28 @@ def show():
     # REKAP CSE/RSE
     # =====================================================
 
-    if role in [
-
-        "BSM",
-        "HOS",
-        "ADMIN"
-
-    ]:
+    if role in ["ADMIN", "HOS", "BSM"]:
 
         st.subheader("📋 Rekap CSE/RSE")
 
         rekap_cse = []
 
         cse_list = df_user[
-            df_user["ROLE"]
-            .isin([
+
+            df_user["ROLE"].isin([
                 "CSE",
                 "RSE"
             ])
+
         ]
 
         for _, row in cse_list.iterrows():
+
+            if st.session_state.selected_bsm:
+
+                if row["ATASAN"] != st.session_state.selected_bsm:
+
+                    continue
 
             nama_cse = row["USER"]
 
@@ -831,47 +1008,66 @@ def show():
 
             ]["USER"].tolist()
 
-
             temp = df[
-                df["Input By"]
-                .isin(daftar_dse)
+                df["Input By"].isin(daftar_dse)
             ]
 
-            if len(temp) > 0:
+            dse_aktif = temp["Input By"].nunique()
 
-                rekap_cse.append({
+            total_dse = len(daftar_dse)
+
+            total_msisdn = len(temp)
+
+            total_bio = temp["Biometrik"].sum()
+
+            persen_aktif = round(
+
+                (
+                    dse_aktif / total_dse
+                ) * 100,
+
+                2
+
+            ) if total_dse > 0 else 0
+
+            persen_bio = round(
+
+                (
+                    total_bio / total_msisdn
+                ) * 100,
+
+                2
+
+            ) if total_msisdn > 0 else 0
+
+            rekap_cse.append({
 
                 "CSE/RSE":
                     nama_cse,
 
-                # ======================================
-                # TOTAL DSE DI BAWAH CSE
-                # ======================================
-
-                "DSE":
-                    len(daftar_dse),
-
-                # ======================================
-                # DSE YANG BENAR2 INPUT
-                # ======================================
-
-                "DSE Aktif":
-                    temp["Input By"]
-                    .nunique(),
-
                 "Branch":
                     row["ATASAN"],
 
+                "DSE":
+                    total_dse,
+
+                "DSE Aktif":
+                    dse_aktif,
+
+                "% User Aktif":
+                    f"{persen_aktif}%",
+
                 "Outlet":
-                    temp["ID Outlet"]
-                    .nunique(),
+                    temp["ID Outlet"].nunique(),
 
                 "MSISDN":
-                    len(temp),
+                    total_msisdn,
 
                 "Biometrik":
-                    temp["Biometrik"]
-                    .sum()
+                    total_bio,
+
+                "% Biometrik":
+                    f"{persen_bio}%"
 
             })
 
@@ -879,23 +1075,59 @@ def show():
             rekap_cse
         )
 
-        if not summary_cse.empty:
+        st.download_button(
 
-            summary_cse = (
+            label="⬇️ Download Rekap CSE",
 
-                summary_cse
+            data=to_excel(summary_cse),
 
-                .sort_values(
+            file_name="rekap_cse.xlsx",
 
-                    "MSISDN",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                    ascending=False
+            key="download_cse"
 
-                )
+        )
 
+        cse_grid = show_grid(
+
+            summary_cse,
+
+            selectable=True,
+
+            key="cse"
+
+        )
+
+        if cse_grid:
+
+            selected = cse_grid.get(
+                "selected_rows"
             )
 
-        show_grid(summary_cse)
+            if selected is not None:
+
+                if isinstance(
+                    selected,
+                    pd.DataFrame
+                ):
+
+                    if not selected.empty:
+
+                        st.session_state.selected_cse = (
+                            selected.iloc[0]["CSE/RSE"]
+                        )
+
+                elif isinstance(
+                    selected,
+                    list
+                ):
+
+                    if len(selected) > 0:
+
+                        st.session_state.selected_cse = (
+                            selected[0]["CSE/RSE"]
+                        )
 
         st.divider()
 
@@ -913,34 +1145,64 @@ def show():
 
     for _, row in dse_user.iterrows():
 
+        if st.session_state.selected_cse:
+
+            if row["ATASAN"] != st.session_state.selected_cse:
+
+                continue
+
         nama_dse = row["USER"]
 
         temp = df[
             df["Input By"] == nama_dse
         ]
 
-        if len(temp) > 0:
+        total_msisdn = len(temp)
 
-            rekap_dse.append({
+        total_bio = temp["Biometrik"].sum()
 
-                "DSE":
-                    nama_dse,
+        persen_bio = round(
 
-                "Atasan":
-                    row["ATASAN"],
+            (
+                total_bio / total_msisdn
+            ) * 100,
 
-                "Outlet":
-                    temp["ID Outlet"]
-                    .nunique(),
+            2
 
-                "MSISDN":
-                    len(temp),
+        ) if total_msisdn > 0 else 0
 
-                "Biometrik":
-                    temp["Biometrik"]
-                    .sum()
+        rekap_dse.append({
 
-            })
+            "DSE":
+                nama_dse,
+
+            "Upline":
+                row["ATASAN"],
+
+            "Status":
+
+                "Aktif"
+
+                if len(temp) > 0
+
+                else
+
+                "Belum Input",
+
+            "Outlet":
+                temp["ID Outlet"]
+                .nunique(),
+
+            "MSISDN":
+                total_msisdn,
+
+            "Biometrik":
+                total_bio,
+
+            "% Biometrik":
+                f"{persen_bio}%"
+
+        })
 
     summary_dse = pd.DataFrame(
         rekap_dse
@@ -962,4 +1224,26 @@ def show():
 
         )
 
-    show_grid(summary_dse)
+    st.download_button(
+
+        label="⬇️ Download Rekap DSE",
+
+        data=to_excel(summary_dse),
+
+        file_name="rekap_dse.xlsx",
+
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+        key="download_dse"
+
+    )
+
+    show_grid(
+
+        summary_dse,
+
+        selectable=False,
+
+        key="dse"
+
+    )

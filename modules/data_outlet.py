@@ -162,9 +162,9 @@ def show():
 
         {
 
-            True: "YES",
+            True: "Valid",
 
-            False: "NO"
+            False: "Unvalid"
 
         }
 
@@ -319,68 +319,74 @@ def show():
 
         ]
     # ===========================
-    # SUMMARY
+    # SUMMARY KPI (DSE STYLE - 6 COL)
     # ===========================
 
-    total_biometrik = (
+    total_data = len(df)
 
-        (
+    total_outlet = df["ID Outlet"].nunique()
+    total_msisdn = df["MSISDN"].nunique()
+    total_user = df["Input By"].nunique()
 
-            df["Biometrik H-1"]
+    total_biometrik = (df["Biometrik H-1"] == "YES").sum()
 
-            ==
+    total_user_all = users["USER"].nunique()
 
-            "YES"
-
-        )
-
-        .sum()
-
+    persen_user_aktif = (
+        round((total_user / total_user_all) * 100, 2)
+        if total_user_all > 0 else 0
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    persen_biometrik = (
+        round((total_biometrik / total_data) * 100, 2)
+        if total_data > 0 else 0
+    )
+
+    avg_msisdn_per_user = (
+        round(total_msisdn / total_user, 2)
+        if total_user > 0 else 0
+    )
+
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-
         st.metric(
-
             "🏪 Outlet",
-
-            df["ID Outlet"].nunique()
-
+            total_outlet
         )
 
     with col2:
-
         st.metric(
-
             "📱 MSISDN",
-
-            df["MSISDN"].nunique()
-
+            total_msisdn
         )
 
     with col3:
-
         st.metric(
-
-            "👤 User",
-
-            df["Input By"].nunique()
-
+            "👤 User Aktif",
+            total_user
         )
 
     with col4:
-
         st.metric(
+            "📊 % User Aktif",
+            f"{persen_user_aktif}%"
+        )
 
+    with col5:
+        st.metric(
             "✅ Biometrik",
-
             total_biometrik
+        )
 
+    with col6:
+        st.metric(
+            "📈 % Biometrik",
+            f"{persen_biometrik}%"
         )
 
     st.divider()
+
     # ===========================
     # ROLE MAP
     # ===========================
