@@ -90,7 +90,7 @@ def show():
                 "user",
                 "password",
                 "role",
-                "Upline",
+                "atasan",
                 "status",
                 "created_at"
             ]
@@ -230,7 +230,6 @@ def show():
                 except Exception as e:
 
                     st.error(str(e))
-
     # =====================================
     # EDIT / HAPUS
     # =====================================
@@ -245,13 +244,14 @@ def show():
 
         else:
 
-            pilih = st.selectbox(
-                "Pilih Username",
-                df["user"].tolist(),
+            pilih_id = st.selectbox(
+                "Pilih User",
+                df["id"].tolist(),
+                format_func=lambda x: df[df["id"] == x]["user"].values[0],
                 key="pilih_user"
             )
 
-            row = df[df["user"] == pilih].iloc[0]
+            row = df[df["id"] == pilih_id].iloc[0]
 
             user_edit = st.text_input(
                 "Username",
@@ -279,26 +279,37 @@ def show():
             col1, col2 = st.columns(2)
 
             with col1:
-
                 if st.button(
                     "💾 Update",
                     use_container_width=True
                 ):
 
-                    update_user(
-                        row["id"],
+                    st.write("DEBUG ROW")
+                    st.write(row.to_dict())
+
+                    hasil = update_user(
+                        row["user"],
                         user_edit,
                         password_edit,
                         row["role"],
-                        row["Upline"]
+                        row["atasan"]
                     )
 
-                    st.session_state["notif"] = (
-                        f"✏️ User '{user_edit}' berhasil diupdate."
-                    )
+                    if hasil:
 
-                    st.rerun()
+                        st.session_state["notif"] = (
+                            f"✏️ User '{user_edit}' berhasil diupdate."
+                        )
 
+                        st.cache_data.clear()
+
+                        st.rerun()
+
+                    else:
+
+                        st.error(
+                            "❌ Data tidak berhasil diupdate."
+                        )
             with col2:
 
                 if st.button(

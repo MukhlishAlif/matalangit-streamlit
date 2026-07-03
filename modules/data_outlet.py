@@ -45,7 +45,7 @@ def load_biometrik():
 
         errors="coerce"
 
-    ).dt.date
+    )
 
     return biometrik[
 
@@ -110,7 +110,7 @@ def show():
 
         errors="coerce"
 
-    ).dt.date
+    )
 
     df = df.merge(
 
@@ -152,11 +152,11 @@ def show():
 
     df["Biometrik H-1"] = (
 
-        df["Tanggal"]
+        df["Tanggal"].dt.date
 
         ==
 
-        df["Tanggal Biometrik"]
+        df["Tanggal Biometrik"].dt.date
 
     ).map(
 
@@ -307,7 +307,7 @@ def show():
 
             "Semua",
 
-            value=True
+            value=False
 
         )
 
@@ -318,68 +318,441 @@ def show():
             df["Tanggal"].dt.date == tanggal
 
         ]
-    # ===========================
-    # SUMMARY KPI (DSE STYLE - 6 COL)
+     # ===========================
+    # SUMMARY KPI (ROLE AWARE)
     # ===========================
 
     total_data = len(df)
 
     total_outlet = df["ID Outlet"].nunique()
     total_msisdn = df["MSISDN"].nunique()
-    total_user = df["Input By"].nunique()
 
-    total_biometrik = (df["Biometrik H-1"] == "YES").sum()
+    # ===========================
+    # USER AKTIF (ROLE AWARE)
+    # ===========================
 
-    total_user_all = users["USER"].nunique()
+    if role == "ADMIN":
 
-    persen_user_aktif = (
-        round((total_user / total_user_all) * 100, 2)
-        if total_user_all > 0 else 0
-    )
+        # =======================
+        # TOTAL USER
+        # =======================
 
-    persen_biometrik = (
-        round((total_biometrik / total_data) * 100, 2)
-        if total_data > 0 else 0
-    )
+        total_cse = len(
 
-    avg_msisdn_per_user = (
-        round(total_msisdn / total_user, 2)
-        if total_user > 0 else 0
-    )
+            users[
+
+                users["ROLE"].isin([
+
+                    "CSE",
+                    "RSE"
+
+                ])
+
+            ]
+
+        )
+
+        total_dse = len(
+
+            users[
+
+                users["ROLE"].isin([
+
+                    "DSE",
+                    "PROMOTOR",
+                    "FRONTLINER"
+
+                ])
+
+            ]
+
+        )
+
+        total_user_all = (
+
+            total_cse
+
+            +
+
+            total_dse
+
+        )
+
+        # =======================
+        # USER AKTIF
+        # =======================
+
+        aktif_cse = df[
+
+            df["Input By"].isin(
+
+                users[
+
+                    users["ROLE"].isin([
+
+                        "CSE",
+                        "RSE"
+
+                    ])
+
+                ]["USER"].tolist()
+
+            )
+
+        ]["Input By"].nunique()
+
+        aktif_dse = df[
+
+            df["Input By"].isin(
+
+                users[
+
+                    users["ROLE"].isin([
+
+                        "DSE",
+                        "PROMOTOR",
+                        "FRONTLINER"
+
+                    ])
+
+                ]["USER"].tolist()
+
+            )
+
+        ]["Input By"].nunique()
+
+        total_user = (
+
+            aktif_cse
+
+            +
+
+            aktif_dse
+
+        )
+
+    elif role == "HOS":
+
+        # =======================
+        # GET BSM
+        # =======================
+
+        daftar_bsm = users[
+
+            (users["ATASAN"] == user)
+
+            &
+
+            (users["ROLE"] == "BSM")
+
+        ]["USER"].tolist()
+
+        # =======================
+        # GET CSE/RSE
+        # =======================
+
+        daftar_cse = users[
+
+            (users["ATASAN"].isin(
+                daftar_bsm
+            ))
+
+            &
+
+            (users["ROLE"].isin([
+
+                "CSE",
+                "RSE"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        # =======================
+        # GET DSE/PM/FL
+        # =======================
+
+        daftar_dse = users[
+
+            (users["ATASAN"].isin(
+                daftar_cse
+            ))
+
+            &
+
+            (users["ROLE"].isin([
+
+                "DSE",
+                "PROMOTOR",
+                "FRONTLINER"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        total_user_all = (
+
+            len(daftar_cse)
+
+            +
+
+            len(daftar_dse)
+
+        )
+
+        aktif_cse = df[
+
+            df["Input By"].isin(
+                daftar_cse
+            )
+
+        ]["Input By"].nunique()
+
+        aktif_dse = df[
+
+            df["Input By"].isin(
+                daftar_dse
+            )
+
+        ]["Input By"].nunique()
+
+        total_user = (
+
+            aktif_cse
+
+            +
+
+            aktif_dse
+
+        )
+
+    elif role == "BSM":
+
+        # =======================
+        # GET CSE/RSE
+        # =======================
+
+        daftar_cse = users[
+
+            (users["ATASAN"] == user)
+
+            &
+
+            (users["ROLE"].isin([
+
+                "CSE",
+                "RSE"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        # =======================
+        # GET DSE/PM/FL
+        # =======================
+
+        daftar_dse = users[
+
+            (users["ATASAN"].isin(
+                daftar_cse
+            ))
+
+            &
+
+            (users["ROLE"].isin([
+
+                "DSE",
+                "PROMOTOR",
+                "FRONTLINER"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        total_user_all = (
+
+            len(daftar_cse)
+
+            +
+
+            len(daftar_dse)
+
+        )
+
+        aktif_cse = df[
+
+            df["Input By"].isin(
+                daftar_cse
+            )
+
+        ]["Input By"].nunique()
+
+        aktif_dse = df[
+
+            df["Input By"].isin(
+                daftar_dse
+            )
+
+        ]["Input By"].nunique()
+
+        total_user = (
+
+            aktif_cse
+
+            +
+
+            aktif_dse
+
+        )
+
+    elif role in [
+
+        "CSE",
+        "RSE"
+
+    ]:
+
+        # =======================
+        # GET DSE/PM/FL
+        # =======================
+
+        daftar_dse = users[
+
+            (users["ATASAN"] == user)
+
+            &
+
+            (users["ROLE"].isin([
+
+                "DSE",
+                "PROMOTOR",
+                "FRONTLINER"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        total_user_all = (
+
+            1
+
+            +
+
+            len(daftar_dse)
+
+        )
+
+        # =======================
+        # CSE ITU SENDIRI AKTIF
+        # =======================
+
+        aktif_cse = 1 if len(df) > 0 else 0
+
+        aktif_dse = df[
+
+            df["Input By"].isin(
+                daftar_dse
+            )
+
+        ]["Input By"].nunique()
+
+        total_user = (
+
+            aktif_cse
+
+            +
+
+            aktif_dse
+
+        )
+
+    else:
+
+        total_user_all = 1
+        total_user = 1 if len(df) > 0 else 0
+
+    # ===========================
+    # KPI LAIN
+    # ===========================
+
+    total_data = len(df)
+
+    total_outlet = df["ID Outlet"].nunique()
+
+    total_msisdn = df["MSISDN"].nunique()
+
+    total_biometrik = (
+
+        df["Biometrik H-1"] == "Valid"
+
+    ).sum()
+
+    # ===========================
+    # PERSENTASE
+    # ===========================
+
+    persen_user_aktif = round(
+
+        (
+            total_user / total_user_all
+        ) * 100,
+
+        2
+
+    ) if total_user_all > 0 else 0
+
+    persen_biometrik = round(
+
+        (
+            total_biometrik / total_data
+        ) * 100,
+
+        2
+
+    ) if total_data > 0 else 0
+    # ===========================
+    # KPI UI
+    # ===========================
 
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
+
         st.metric(
             "🏪 Outlet",
             total_outlet
         )
 
-    with col2:
+    with col4:
+
         st.metric(
             "📱 MSISDN",
             total_msisdn
         )
 
-    with col3:
+    with col2:
+
         st.metric(
             "👤 User Aktif",
             total_user
         )
 
-    with col4:
+    with col3:
+
         st.metric(
             "📊 % User Aktif",
             f"{persen_user_aktif}%"
         )
 
     with col5:
+
         st.metric(
             "✅ Biometrik",
             total_biometrik
         )
 
     with col6:
+
         st.metric(
             "📈 % Biometrik",
             f"{persen_biometrik}%"
@@ -490,79 +863,119 @@ def show():
 
         tampil = temp_df.copy()
 
-        id_map = tampil["ID"]
-
-        tampil = tampil.drop(
-            columns=["ID"]
-        )
-
         tampil["Hapus"] = False
 
         edited = st.data_editor(
-
             tampil,
-
             use_container_width=True,
-
             hide_index=True,
-
             disabled=[
-
+                "ID",
                 "Nama Outlet",
                 "ID Outlet",
                 "MSISDN",
                 "Input By",
                 "Tanggal",
-                "ROLE", 
+                "ROLE",
                 "Biometrik H-1"
-
             ],
-
             column_config={
 
-                "Hapus":
-                st.column_config.CheckboxColumn(
+                "ID": st.column_config.NumberColumn(
+                    "ID",
+                    width="small"
+                ),
+
+                "Hapus": st.column_config.CheckboxColumn(
                     "Hapus"
                 )
 
             },
-
+            column_order=[
+                "Hapus",
+                "Nama Outlet",
+                "ID Outlet",
+                "MSISDN",
+                "Input By",
+                "Tanggal",
+                "Biometrik H-1",
+                "ROLE",
+                "ID"
+            ],
             key=f"editor_{nama_role}"
-
         )
 
         # ===========================
         # DELETE
         # ===========================
 
-        if role == "ADMIN":
+        hapus = edited[
+            edited["Hapus"]
+        ]
 
-            hapus = edited[
-                edited["Hapus"]
-            ]
+        if not hapus.empty:
 
-            if not hapus.empty:
+            st.warning(
+                f"⚠️ {len(hapus)} data dipilih untuk dihapus."
+            )
 
-                if st.button(
+            if st.button(
+                "🗑️ HAPUS DATA",
+                type="primary",
+                key=f"hapus_btn_{nama_role}"
+            ):
 
-                    f"🗑️ Hapus {len(hapus)} Data {nama_role}",
+                deleted = 0
+                gagal = 0
 
-                    type="primary",
+                progress = st.progress(0)
 
-                    key=f"hapus_{nama_role}"
+                for i, id_data in enumerate(hapus["ID"]):
 
-                ):
+                    try:
 
-                    for idx in hapus.index:
-
-                        hapus_data(
-                            id_map.iloc[idx]
+                        hasil = hapus_data(
+                            int(id_data)
                         )
 
-                    st.success(
-                        "Data berhasil dihapus."
+                        if hasil > 0:
+
+                            deleted += 1
+
+                        else:
+
+                            gagal += 1
+
+                    except Exception as e:
+
+                        gagal += 1
+
+                        st.error(
+                            f"ID {id_data} gagal dihapus: {e}"
+                        )
+
+                    progress.progress(
+                        (i + 1) / len(hapus)
                     )
+
+                progress.empty()
+
+                if deleted > 0:
+
+                    st.success(
+                        f"✅ Berhasil menghapus {deleted} data."
+                    )
+
+                    st.toast(
+                        f"🗑️ {deleted} data berhasil dihapus!"
+                    )
+
+                    st.cache_data.clear()
 
                     st.rerun()
 
-        st.divider()
+                if gagal > 0:
+
+                    st.error(
+                        f"❌ {gagal} data gagal dihapus."
+                    )

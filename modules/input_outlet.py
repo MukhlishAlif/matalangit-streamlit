@@ -1,10 +1,44 @@
 import streamlit as st
+import pandas as pd
 
 from database import (
     simpan_data,
     cek_msisdn
 )
 
+# =====================
+# LOAD BIOMETRIK
+# =====================
+
+@st.cache_data
+def load_biometrik():
+
+    biometrik = pd.read_csv(
+        "ga_biometrics_cj.csv",
+        dtype=str,
+        low_memory=False
+    )
+
+    biometrik.columns = (
+        biometrik.columns
+        .str.strip()
+        .str.lower()
+    )
+
+    biometrik["msisdn"] = (
+
+        biometrik["msisdn"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    return biometrik
+
+
+# =====================
+# HALAMAN INPUT
+# =====================
 
 def show():
 
@@ -16,13 +50,18 @@ def show():
         st.session_state.jumlah_msisdn = 1
 
     # =====================
+    # LOAD BIOMETRIK
+    # =====================
+
+    biometrik = load_biometrik()
+
+    # =====================
     # FORM
     # =====================
 
     st.title("📝 Input Outlet")
 
     nama_outlet = st.text_input("Nama Outlet *")
-
     id_outlet = st.text_input("ID Outlet *")
 
     st.divider()
@@ -31,19 +70,33 @@ def show():
 
     col1, col2 = st.columns(2)
 
+    # =====================
+    # TAMBAH
+    # =====================
+
     with col1:
+
         if st.button("➕ Tambah MSISDN", use_container_width=True):
 
             if st.session_state.jumlah_msisdn < 10:
                 st.session_state.jumlah_msisdn += 1
                 st.rerun()
 
+    # =====================
+    # KURANGI
+    # =====================
+
     with col2:
+
         if st.button("➖ Kurangi MSISDN", use_container_width=True):
 
             if st.session_state.jumlah_msisdn > 1:
                 st.session_state.jumlah_msisdn -= 1
                 st.rerun()
+
+    # =====================
+    # INPUT MSISDN
+    # =====================
 
     msisdn_list = []
 
@@ -54,8 +107,9 @@ def show():
             key=f"msisdn_{i}",
             placeholder="628xxxxxxxxxx"
         ).strip()
-
         msisdn_list.append(nomor)
+ 
+
 
     st.divider()
 
@@ -65,6 +119,10 @@ def show():
 
     if st.button("💾 Simpan", use_container_width=True):
 
+        # =====================
+        # VALIDASI OUTLET
+        # =====================
+
         if nama_outlet == "":
             st.error("Nama Outlet wajib diisi.")
             st.stop()
@@ -73,19 +131,35 @@ def show():
             st.error("ID Outlet wajib diisi.")
             st.stop()
 
-        nomor_isi = [x for x in msisdn_list if x != ""]
+        # =====================
+        # FILTER NOMOR ISI
+        # =====================
+
+        nomor_isi = [
+
+            str(x).strip()
+
+            for x in msisdn_list
+
+            if str(x).strip() != ""
+
+        ]
 
         if len(nomor_isi) == 0:
             st.error("Minimal isi 1 MSISDN.")
             st.stop()
 
-        # Cek duplikat di form
+        # =====================
+        # DUPLIKAT FORM
+        # =====================
 
         if len(nomor_isi) != len(set(nomor_isi)):
             st.error("Ada MSISDN yang sama pada form.")
             st.stop()
 
-        # Validasi format
+        # =====================
+        # VALIDASI FORMAT
+        # =====================
 
         for nomor in nomor_isi:
 
@@ -97,31 +171,97 @@ def show():
                 st.error(f"{nomor} harus diawali 62.")
                 st.stop()
 
-        # Cek database
+        # =====================
+        # CEK DB + GA BIOMETRIK (FINAL LOGIC)
+        # =====================
+
+        sudah_input_db = []
+        sudah_biometrik_ga = []
+        valid_input = []
 
         for nomor in nomor_isi:
 
+            # 1. CEK DATABASE
             cek = cek_msisdn(nomor)
 
             if cek:
 
+                sudah_input_db.append({
+                    "msisdn": nomor,
+                    "input_by": cek["input_by"],
+                    "created_at": cek["created_at"]
+                })
+                continue
+
+            # 2. CEK GA BIOMETRIK
+            cek_bio = biometrik[
+                biometrik["msisdn"] == nomor
+            ]
+
+            if not cek_bio.empty:
+
+                sudah_biometrik_ga.append({
+                    "msisdn": nomor,
+                    "tanggal": cek_bio.iloc[0].get("ga_dt", "-")
+                })
+
+                continue
+
+            # 3. AMAN
+            valid_input.append(nomor)
+
+        # =====================
+        # OUTPUT DB DUPLICATE
+        # =====================
+
+        if sudah_input_db:
+
+            for item in sudah_input_db:
+
                 st.error(
                     f"""
-MSISDN **{nomor}**
+MSISDN **{item['msisdn']}**
 
 Sudah pernah diinput.
 
-Input By : **{cek['input_by']}**
-
-Tanggal : **{cek['created_at']}**
+Input By : **{item['input_by']}**
+Tanggal : **{item['created_at']}**
 """
                 )
 
-                st.stop()
+            st.stop()
 
-        # Simpan ke database
+        # =====================
+        # OUTPUT GA BIOMETRIK INFO
+        # =====================
 
-        for nomor in nomor_isi:
+        if sudah_biometrik_ga:
+
+            for item in sudah_biometrik_ga:
+
+                st.warning(
+                    f"""
+MSISDN **{item['msisdn']}**
+
+Sudah ada di data GA Biometrik.
+
+Tanggal : **{item['tanggal']}**
+"""
+                )
+
+        # =====================
+        # STOP JIKA TIDAK ADA YANG VALID
+        # =====================
+
+        if len(valid_input) == 0:
+            st.error("Tidak ada MSISDN yang bisa disimpan.")
+            st.stop()
+
+        # =====================
+        # SIMPAN DATABASE
+        # =====================
+
+        for nomor in valid_input:
 
             simpan_data(
                 nama_outlet,
@@ -130,18 +270,17 @@ Tanggal : **{cek['created_at']}**
                 st.session_state.outlet_user
             )
 
-        st.success(f"Berhasil menyimpan {len(nomor_isi)} MSISDN.")
-
+        st.success(f"Berhasil menyimpan {len(valid_input)} MSISDN.")
         st.balloons()
 
-        # Reset form
+        # =====================
+        # RESET FORM
+        # =====================
 
         st.session_state.jumlah_msisdn = 1
 
         for i in range(10):
-
             key = f"msisdn_{i}"
-
             if key in st.session_state:
                 del st.session_state[key]
 

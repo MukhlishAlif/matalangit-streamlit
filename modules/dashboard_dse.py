@@ -408,6 +408,14 @@ def show():
     # FILTER TANGGAL
     # =====================================================
 
+    df["Tanggal"] = pd.to_datetime(
+
+        df["Tanggal"],
+
+        errors="coerce"
+
+    ).dt.date
+
     tanggal = st.date_input(
 
         "📅 Filter Tanggal",
@@ -423,6 +431,12 @@ def show():
         df = df[
             df["Tanggal"] == tanggal
         ]
+
+    # =====================================================
+    # MASTER DATA
+    # =====================================================
+
+    df_master = df.copy()
 
     st.divider()
 
@@ -455,101 +469,362 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "DSE")
+            (df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ]))
 
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(daftar_dse)
+            df["Input By"].isin(
+                daftar_dse
+            )
         ]
 
     elif role == "BSM":
 
         daftar_cse = df_user[
-            df_user["ATASAN"] == user
+
+            (df_user["ATASAN"] == user)
+
+            &
+
+            (df_user["ROLE"].isin([
+
+                "CSE",
+                "RSE"
+
+            ]))
+
         ]["USER"].tolist()
 
         daftar_dse = df_user[
 
-            (df_user["ATASAN"].isin(daftar_cse))
+            (df_user["ATASAN"].isin(
+                daftar_cse
+            ))
 
             &
 
-            (df_user["ROLE"] == "DSE")
+            (df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ]))
 
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(daftar_dse)
+            df["Input By"].isin(
+                daftar_dse
+            )
         ]
 
     elif role == "HOS":
 
         daftar_bsm = df_user[
-            df_user["ATASAN"] == user
+
+            (df_user["ATASAN"] == user)
+
+            &
+
+            (df_user["ROLE"] == "BSM")
+
         ]["USER"].tolist()
 
         daftar_cse = df_user[
 
-            (df_user["ATASAN"].isin(daftar_bsm))
+            (df_user["ATASAN"].isin(
+                daftar_bsm
+            ))
 
             &
 
-            (df_user["ROLE"].isin(["CSE", "RSE"]))
+            (df_user["ROLE"].isin([
+
+                "CSE",
+                "RSE"
+
+            ]))
 
         ]["USER"].tolist()
 
         daftar_dse = df_user[
 
-            (df_user["ATASAN"].isin(daftar_cse))
+            (df_user["ATASAN"].isin(
+                daftar_cse
+            ))
 
             &
 
-            (df_user["ROLE"] == "DSE")
+            (df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ]))
 
         ]["USER"].tolist()
 
         df = df[
-            df["Input By"].isin(daftar_dse)
+            df["Input By"].isin(
+                daftar_dse
+            )
         ]
+
+    else:
+
+        daftar_dse = df_user[
+
+            df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ])
+
+        ]["USER"].tolist()
+
+        df = df[
+            df["Input By"].isin(
+                daftar_dse
+            )
+        ]
+
     # =====================================================
-    # KPI (ROLE AWARE - FIXED)
+    # KPI ROLE AWARE
     # =====================================================
 
-    df_dse = df.copy()
+    if role in [
 
-    # semua DSE yang ADA DI DATA YANG SUDAH DIFILTER
-    list_dse_in_view = df_user[
-    df_user["ROLE"] == "DSE"
-    ]["USER"].tolist()
+        "DSE",
+        "PROMOTOR",
+        "FRONTLINER"
 
-    df_dse = df_dse[df_dse["Input By"].isin(list_dse_in_view)]
+    ]:
+
+        total_dse = 1
+
+        dse_aktif = (
+
+            1
+
+            if len(df_master[
+                df_master["Input By"] == user
+            ]) > 0
+
+            else 0
+
+        )
+
+    elif role in [
+
+        "CSE",
+        "RSE"
+
+    ]:
+
+        daftar_dse = df_user[
+
+            (df_user["ATASAN"] == user)
+
+            &
+
+            (df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        total_dse = len(
+            daftar_dse
+        )
+
+        dse_aktif = df_master[
+
+            df_master["Input By"].isin(
+                daftar_dse
+            )
+
+        ]["Input By"].nunique()
+
+    elif role == "BSM":
+
+        daftar_cse = df_user[
+
+            (df_user["ATASAN"] == user)
+
+            &
+
+            (df_user["ROLE"].isin([
+
+                "CSE",
+                "RSE"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        daftar_dse = df_user[
+
+            (df_user["ATASAN"].isin(
+                daftar_cse
+            ))
+
+            &
+
+            (df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        total_dse = len(
+            daftar_dse
+        )
+
+        dse_aktif = df_master[
+
+            df_master["Input By"].isin(
+                daftar_dse
+            )
+
+        ]["Input By"].nunique()
+
+    elif role == "HOS":
+
+        daftar_bsm = df_user[
+
+            (df_user["ATASAN"] == user)
+
+            &
+
+            (df_user["ROLE"] == "BSM")
+
+        ]["USER"].tolist()
+
+        daftar_cse = df_user[
+
+            (df_user["ATASAN"].isin(
+                daftar_bsm
+            ))
+
+            &
+
+            (df_user["ROLE"].isin([
+
+                "CSE",
+                "RSE"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        daftar_dse = df_user[
+
+            (df_user["ATASAN"].isin(
+                daftar_cse
+            ))
+
+            &
+
+            (df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ]))
+
+        ]["USER"].tolist()
+
+        total_dse = len(
+            daftar_dse
+        )
+
+        dse_aktif = df_master[
+
+            df_master["Input By"].isin(
+                daftar_dse
+            )
+
+        ]["Input By"].nunique()
+
+    else:
+
+        daftar_dse = df_user[
+
+            df_user["ROLE"].isin([
+
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
+
+            ])
+
+        ]["USER"].tolist()
+
+        total_dse = len(
+            daftar_dse
+        )
+
+        dse_aktif = df_master[
+
+            df_master["Input By"].isin(
+                daftar_dse
+            )
+
+        ]["Input By"].nunique()
 
     # =====================================================
-    # TOTAL METRICS
+    # KPI TOTAL
     # =====================================================
 
-    total_dse = len(list_dse_in_view)
+    total_outlet = df["ID Outlet"].nunique()
 
-    dse_aktif = df_dse["Input By"].nunique()
-    total_outlet = df_dse["ID Outlet"].nunique()
-    total_msisdn = len(df_dse)
-    total_bio = df_dse["Biometrik"].sum()
+    total_msisdn = len(df)
+
+    total_bio = df["Biometrik"].sum()
 
     # =====================================================
     # PERSENTASE
     # =====================================================
 
     persen_dse_aktif = round(
-        (dse_aktif / total_dse) * 100,
+
+        (
+            dse_aktif / total_dse
+        ) * 100,
+
         2
+
     ) if total_dse > 0 else 0
 
     persen_bio = round(
-        (total_bio / total_msisdn) * 100,
-        2
-    ) if total_msisdn > 0 else 0
 
+        (
+            total_bio / total_msisdn
+        ) * 100,
+
+        2
+
+    ) if total_msisdn > 0 else 0
 
     # =====================================================
     # UI KPI
@@ -588,38 +863,128 @@ def show():
     )
 
     st.divider()
+
     # =====================================================
-    # RESET FILTER BUTTON (KANAN SEJAJAR TITLE)
+    # HEADER + RESET
+    # =====================================================
+
+    if role == "ADMIN":
+
+        title_rekap = "📋 Rekap HOS"
+
+    elif role == "HOS":
+
+        title_rekap = "📋 Rekap BSM"
+
+    elif role == "BSM":
+
+        title_rekap = "📋 Rekap CSE/RSE"
+
+    else:
+
+        title_rekap = ""
+
+    # =====================================================
+    # RESET SESSION KHUSUS CSE/RSE
+    # =====================================================
+
+    if role in [
+
+        "CSE",
+        "RSE"
+
+    ]:
+
+        st.session_state.selected_hos = None
+        st.session_state.selected_bsm = None
+
+    # =====================================================
+    # HEADER
     # =====================================================
 
     header_col, reset_col = st.columns([5, 1])
 
     with header_col:
-        st.subheader("📋 Rekap")
+
+        st.subheader(title_rekap)
 
     with reset_col:
+
         if st.button(
+
             "🔄 Reset",
+
             use_container_width=True
+
         ):
+
             st.session_state.selected_hos = None
             st.session_state.selected_bsm = None
             st.session_state.selected_cse = None
-            st.rerun()
 
+            st.rerun()
 
     # =====================================================
     # DEFAULT SESSION
     # =====================================================
 
     if "selected_hos" not in st.session_state:
+
         st.session_state.selected_hos = None
 
     if "selected_bsm" not in st.session_state:
+
         st.session_state.selected_bsm = None
 
     if "selected_cse" not in st.session_state:
+
         st.session_state.selected_cse = None
+
+    # =====================================================
+    # GET SELECTED VALUE
+    # =====================================================
+
+    def get_selected_value(
+
+        grid_response,
+        column_name
+
+    ):
+
+        if grid_response is None:
+
+            return None
+
+        selected = grid_response.get(
+            "selected_rows"
+        )
+
+        if selected is None:
+
+            return None
+
+        if isinstance(selected, pd.DataFrame):
+
+            if selected.empty:
+
+                return None
+
+            return selected.iloc[0][
+                column_name
+            ]
+
+        elif isinstance(selected, list):
+
+            if len(selected) == 0:
+
+                return None
+
+            return selected[0][
+                column_name
+            ]
+
+        return None
+
     # =====================================================
     # REKAP HOS
     # =====================================================
@@ -642,7 +1007,9 @@ def show():
 
             daftar_cse = df_user[
 
-                (df_user["ATASAN"].isin(daftar_bsm))
+                (df_user["ATASAN"].isin(
+                    daftar_bsm
+                ))
 
                 &
 
@@ -655,7 +1022,9 @@ def show():
 
             daftar_dse = df_user[
 
-                (df_user["ATASAN"].isin(daftar_cse))
+                (df_user["ATASAN"].isin(
+                    daftar_cse
+                ))
 
                 &
 
@@ -664,16 +1033,26 @@ def show():
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"].isin(daftar_dse)
+                df["Input By"].isin(
+                    daftar_dse
+                )
             ]
 
-            dse_aktif = temp["Input By"].nunique()
+            # =============================================
+            # KPI
+            # =============================================
 
             total_dse = len(daftar_dse)
 
+            dse_aktif = temp[
+                "Input By"
+            ].nunique()
+
             total_msisdn = len(temp)
 
-            total_bio = temp["Biometrik"].sum()
+            total_bio = temp[
+                "Biometrik"
+            ].sum()
 
             persen_aktif = round(
 
@@ -694,6 +1073,10 @@ def show():
                 2
 
             ) if total_msisdn > 0 else 0
+
+            # =============================================
+            # APPEND
+            # =============================================
 
             rekap_hos.append({
 
@@ -716,7 +1099,8 @@ def show():
                     f"{persen_aktif}%",
 
                 "Outlet":
-                    temp["ID Outlet"].nunique(),
+                    temp["ID Outlet"]
+                    .nunique(),
 
                 "MSISDN":
                     total_msisdn,
@@ -732,6 +1116,13 @@ def show():
         summary_hos = pd.DataFrame(
             rekap_hos
         )
+
+        if not summary_hos.empty:
+
+            summary_hos = summary_hos.sort_values(
+                "MSISDN",
+                ascending=False
+            )
 
         st.download_button(
 
@@ -753,69 +1144,72 @@ def show():
 
             selectable=True,
 
-            key="hos"
+            key=f"hos_{tanggal}_{role}_{user}"
 
         )
 
-        if hos_grid:
+        selected_hos = get_selected_value(
+            hos_grid,
+            "HOS"
+        )
 
-            selected = hos_grid.get(
-                "selected_rows"
-            )
+        if selected_hos:
 
-            if selected is not None:
+            if st.session_state.selected_hos != selected_hos:
 
-                if isinstance(
-                    selected,
-                    pd.DataFrame
-                ):
+                st.session_state.selected_hos = (
+                    selected_hos
+                )
 
-                    if not selected.empty:
+                st.session_state.selected_bsm = None
+                st.session_state.selected_cse = None
 
-                        st.session_state.selected_hos = (
-                            selected.iloc[0]["HOS"]
-                        )
-
-                        st.session_state.selected_bsm = None
-                        st.session_state.selected_cse = None
-
-                elif isinstance(
-                    selected,
-                    list
-                ):
-
-                    if len(selected) > 0:
-
-                        st.session_state.selected_hos = (
-                            selected[0]["HOS"]
-                        )
-
-                        st.session_state.selected_bsm = None
-                        st.session_state.selected_cse = None
+                st.rerun()
 
         st.divider()
-
     # =====================================================
     # REKAP BSM
     # =====================================================
 
     if role in ["ADMIN", "HOS"]:
 
-        st.subheader("📋 Rekap BSM")
+        # =============================================
+        # TITLE TABLE
+        # =============================================
+
+        if role == "ADMIN":
+
+            st.subheader("📋 Rekap BSM")
 
         rekap_bsm = []
 
-        bsm_list = df_user[
-            df_user["ROLE"] == "BSM"
-        ]
+        if role == "HOS":
+
+            bsm_list = df_user[
+
+                (df_user["ROLE"] == "BSM")
+
+                &
+
+                (df_user["ATASAN"] == user)
+
+            ]
+
+        else:
+
+            bsm_list = df_user[
+                df_user["ROLE"] == "BSM"
+            ]
 
         for _, row in bsm_list.iterrows():
 
-            if st.session_state.selected_hos:
+            if role == "ADMIN":
 
-                if row["ATASAN"] != st.session_state.selected_hos:
+                if st.session_state.selected_hos:
 
-                    continue
+                    if row["ATASAN"] != st.session_state.selected_hos:
+
+                        continue
 
             nama_bsm = row["USER"]
 
@@ -834,7 +1228,9 @@ def show():
 
             daftar_dse = df_user[
 
-                (df_user["ATASAN"].isin(daftar_cse))
+                (df_user["ATASAN"].isin(
+                    daftar_cse
+                ))
 
                 &
 
@@ -843,35 +1239,31 @@ def show():
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"].isin(daftar_dse)
+                df["Input By"].isin(
+                    daftar_dse
+                )
             ]
 
-            dse_aktif = temp["Input By"].nunique()
-
             total_dse = len(daftar_dse)
+
+            dse_aktif = temp["Input By"].nunique()
 
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
 
             persen_aktif = round(
-
                 (
                     dse_aktif / total_dse
                 ) * 100,
-
                 2
-
             ) if total_dse > 0 else 0
 
             persen_bio = round(
-
                 (
                     total_bio / total_msisdn
                 ) * 100,
-
                 2
-
             ) if total_msisdn > 0 else 0
 
             rekap_bsm.append({
@@ -909,6 +1301,13 @@ def show():
             rekap_bsm
         )
 
+        if not summary_bsm.empty:
+
+            summary_bsm = summary_bsm.sort_values(
+                "MSISDN",
+                ascending=False
+            )
+
         st.download_button(
 
             label="⬇️ Download Rekap BSM",
@@ -929,43 +1328,26 @@ def show():
 
             selectable=True,
 
-            key="bsm"
+            key=f"bsm_{tanggal}_{role}_{user}"
 
         )
 
-        if bsm_grid:
+        selected_bsm = get_selected_value(
+            bsm_grid,
+            "BSM"
+        )
 
-            selected = bsm_grid.get(
-                "selected_rows"
-            )
+        if selected_bsm:
 
-            if selected is not None:
+            if st.session_state.selected_bsm != selected_bsm:
 
-                if isinstance(
-                    selected,
-                    pd.DataFrame
-                ):
+                st.session_state.selected_bsm = (
+                    selected_bsm
+                )
 
-                    if not selected.empty:
+                st.session_state.selected_cse = None
 
-                        st.session_state.selected_bsm = (
-                            selected.iloc[0]["BSM"]
-                        )
-
-                        st.session_state.selected_cse = None
-
-                elif isinstance(
-                    selected,
-                    list
-                ):
-
-                    if len(selected) > 0:
-
-                        st.session_state.selected_bsm = (
-                            selected[0]["BSM"]
-                        )
-
-                        st.session_state.selected_cse = None
+                st.rerun()
 
         st.divider()
 
@@ -979,22 +1361,66 @@ def show():
 
         rekap_cse = []
 
-        cse_list = df_user[
+        if role == "BSM":
 
-            df_user["ROLE"].isin([
-                "CSE",
-                "RSE"
-            ])
+            cse_list = df_user[
 
-        ]
+                (df_user["ROLE"].isin([
+                    "CSE",
+                    "RSE"
+                ]))
+
+                &
+
+                (df_user["ATASAN"] == user)
+
+            ]
+
+        elif role == "HOS":
+
+            daftar_bsm = df_user[
+
+                (df_user["ATASAN"] == user)
+
+                &
+
+                (df_user["ROLE"] == "BSM")
+
+            ]["USER"].tolist()
+
+            cse_list = df_user[
+
+                (df_user["ROLE"].isin([
+                    "CSE",
+                    "RSE"
+                ]))
+
+                &
+
+                (df_user["ATASAN"].isin(
+                    daftar_bsm
+                ))
+
+            ]
+
+        else:
+
+            cse_list = df_user[
+                df_user["ROLE"].isin([
+                    "CSE",
+                    "RSE"
+                ])
+            ]
 
         for _, row in cse_list.iterrows():
 
-            if st.session_state.selected_bsm:
+            if role in ["ADMIN", "HOS"]:
 
-                if row["ATASAN"] != st.session_state.selected_bsm:
+                if st.session_state.selected_bsm:
 
-                    continue
+                    if row["ATASAN"] != st.session_state.selected_bsm:
+
+                        continue
 
             nama_cse = row["USER"]
 
@@ -1009,35 +1435,31 @@ def show():
             ]["USER"].tolist()
 
             temp = df[
-                df["Input By"].isin(daftar_dse)
+                df["Input By"].isin(
+                    daftar_dse
+                )
             ]
 
-            dse_aktif = temp["Input By"].nunique()
-
             total_dse = len(daftar_dse)
+
+            dse_aktif = temp["Input By"].nunique()
 
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
 
             persen_aktif = round(
-
                 (
                     dse_aktif / total_dse
                 ) * 100,
-
                 2
-
             ) if total_dse > 0 else 0
 
             persen_bio = round(
-
                 (
                     total_bio / total_msisdn
                 ) * 100,
-
                 2
-
             ) if total_msisdn > 0 else 0
 
             rekap_cse.append({
@@ -1075,6 +1497,13 @@ def show():
             rekap_cse
         )
 
+        if not summary_cse.empty:
+
+            summary_cse = summary_cse.sort_values(
+                "MSISDN",
+                ascending=False
+            )
+
         st.download_button(
 
             label="⬇️ Download Rekap CSE",
@@ -1095,126 +1524,331 @@ def show():
 
             selectable=True,
 
-            key="cse"
+            key=f"cse_{tanggal}_{role}_{user}"
 
         )
 
-        if cse_grid:
+        selected_cse = get_selected_value(
+            cse_grid,
+            "CSE/RSE"
+        )
 
-            selected = cse_grid.get(
-                "selected_rows"
-            )
+        if selected_cse:
 
-            if selected is not None:
+            if st.session_state.selected_cse != selected_cse:
 
-                if isinstance(
-                    selected,
-                    pd.DataFrame
-                ):
+                st.session_state.selected_cse = (
+                    selected_cse
+                )
 
-                    if not selected.empty:
-
-                        st.session_state.selected_cse = (
-                            selected.iloc[0]["CSE/RSE"]
-                        )
-
-                elif isinstance(
-                    selected,
-                    list
-                ):
-
-                    if len(selected) > 0:
-
-                        st.session_state.selected_cse = (
-                            selected[0]["CSE/RSE"]
-                        )
+                st.rerun()
 
         st.divider()
 
     # =====================================================
-    # REKAP DSE
+    # REKAP DSE / PM / FL
     # =====================================================
 
-    st.subheader("📋 Rekap DSE")
+    if role in [
 
-    rekap_dse = []
+        "ADMIN",
+        "HOS",
+        "BSM",
+        "CSE",
+        "RSE"
 
-    dse_user = df_user[
-        df_user["ROLE"] == "DSE"
-    ]
+    ]:
 
-    for _, row in dse_user.iterrows():
+        st.subheader("📋 Rekap DSE")
 
-        if st.session_state.selected_cse:
+        rekap_dse = []
 
-            if row["ATASAN"] != st.session_state.selected_cse:
+        # =================================================
+        # BASE USER
+        # =================================================
 
-                continue
+        user_bawahan = df_user[
 
-        nama_dse = row["USER"]
+            df_user["ROLE"].isin([
 
-        temp = df[
-            df["Input By"] == nama_dse
-        ]
+                "DSE",
+                "FRONTLINER",
+                "PROMOTOR"
 
-        total_msisdn = len(temp)
+            ])
 
-        total_bio = temp["Biometrik"].sum()
+        ].copy()
 
-        persen_bio = round(
+        # =================================================
+        # FILTER HIERARKI USER
+        # =================================================
 
-            (
-                total_bio / total_msisdn
-            ) * 100,
+        if role in ["CSE", "RSE"]:
 
-            2
+            filtered_user = user_bawahan[
 
-        ) if total_msisdn > 0 else 0
+                user_bawahan["ATASAN"] == user
 
-        rekap_dse.append({
+            ]
 
-            "DSE":
-                nama_dse,
+        elif role == "BSM":
 
-            "Upline":
-                row["ATASAN"],
+            daftar_cse = df_user[
 
-            "Status":
+                (df_user["ATASAN"] == user)
+
+                &
+
+                (df_user["ROLE"].isin([
+
+                    "CSE",
+                    "RSE"
+
+                ]))
+
+            ]["USER"].tolist()
+
+            filtered_user = user_bawahan[
+
+                user_bawahan["ATASAN"]
+                .isin(daftar_cse)
+
+            ]
+
+            # CLICK CSE
+            if st.session_state.selected_cse:
+
+                filtered_user = filtered_user[
+
+                    filtered_user["ATASAN"]
+                    == st.session_state.selected_cse
+
+                ]
+
+        elif role == "HOS":
+
+            daftar_bsm = df_user[
+
+                (df_user["ATASAN"] == user)
+
+                &
+
+                (df_user["ROLE"] == "BSM")
+
+            ]["USER"].tolist()
+
+            daftar_cse = df_user[
+
+                (df_user["ATASAN"]
+                .isin(daftar_bsm))
+
+                &
+
+                (df_user["ROLE"].isin([
+
+                    "CSE",
+                    "RSE"
+
+                ]))
+
+            ]["USER"].tolist()
+
+            filtered_user = user_bawahan[
+
+                user_bawahan["ATASAN"]
+                .isin(daftar_cse)
+
+            ]
+
+            # CLICK BSM
+            if st.session_state.selected_bsm:
+
+                daftar_cse_bsm = df_user[
+
+                    (df_user["ATASAN"]
+                    == st.session_state.selected_bsm)
+
+                    &
+
+                    (df_user["ROLE"].isin([
+
+                        "CSE",
+                        "RSE"
+
+                    ]))
+
+                ]["USER"].tolist()
+
+                filtered_user = filtered_user[
+
+                    filtered_user["ATASAN"]
+                    .isin(daftar_cse_bsm)
+
+                ]
+
+            # CLICK CSE
+            if st.session_state.selected_cse:
+
+                filtered_user = filtered_user[
+
+                    filtered_user["ATASAN"]
+                    == st.session_state.selected_cse
+
+                ]
+
+        else:
+
+            filtered_user = user_bawahan.copy()
+
+            # CLICK HOS
+            if st.session_state.selected_hos:
+
+                daftar_bsm = df_user[
+
+                    df_user["ATASAN"]
+                    == st.session_state.selected_hos
+
+                ]["USER"].tolist()
+
+                daftar_cse = df_user[
+
+                    (df_user["ATASAN"]
+                    .isin(daftar_bsm))
+
+                    &
+
+                    (df_user["ROLE"].isin([
+
+                        "CSE",
+                        "RSE"
+
+                    ]))
+
+                ]["USER"].tolist()
+
+                filtered_user = filtered_user[
+
+                    filtered_user["ATASAN"]
+                    .isin(daftar_cse)
+
+                ]
+
+            # CLICK BSM
+            if st.session_state.selected_bsm:
+
+                daftar_cse = df_user[
+
+                    (df_user["ATASAN"]
+                    == st.session_state.selected_bsm)
+
+                    &
+
+                    (df_user["ROLE"].isin([
+
+                        "CSE",
+                        "RSE"
+
+                    ]))
+
+                ]["USER"].tolist()
+
+                filtered_user = filtered_user[
+
+                    filtered_user["ATASAN"]
+                    .isin(daftar_cse)
+
+                ]
+
+            # CLICK CSE
+            if st.session_state.selected_cse:
+
+                filtered_user = filtered_user[
+
+                    filtered_user["ATASAN"]
+                    == st.session_state.selected_cse
+
+                ]
+
+        # =================================================
+        # LOOP FINAL
+        # =================================================
+
+        for _, row in filtered_user.iterrows():
+
+            nama_user = row["USER"]
+
+            # =============================================
+            # PAKAI DF YANG SUDAH FILTER TANGGAL
+            # =============================================
+
+            temp = df[
+
+                df["Input By"] == nama_user
+
+            ]
+
+            total_msisdn = len(temp)
+
+            total_bio = temp["Biometrik"].sum()
+
+            persen_bio = round(
+
+                (
+                    total_bio / total_msisdn
+                ) * 100,
+
+                2
+
+            ) if total_msisdn > 0 else 0
+
+            status_user = (
 
                 "Aktif"
 
-                if len(temp) > 0
+                if total_msisdn > 0
 
                 else
 
-                "Belum Input",
+                "Belum Input"
 
-            "Outlet":
-                temp["ID Outlet"]
-                .nunique(),
+            )
 
-            "MSISDN":
-                total_msisdn,
+            rekap_dse.append({
 
-            "Biometrik":
-                total_bio,
+                "Nama":
+                    nama_user,
 
-            "% Biometrik":
-                f"{persen_bio}%"
+                "Role":
+                    row["ROLE"],
 
-        })
+                "Upline":
+                    row["ATASAN"],
 
-    summary_dse = pd.DataFrame(
-        rekap_dse
-    )
+                "Status":
+                    status_user,
 
-    if not summary_dse.empty:
+                "Outlet":
+                    temp["ID Outlet"]
+                    .nunique(),
 
-        summary_dse = (
+                "MSISDN":
+                    total_msisdn,
 
-            summary_dse
+                "Biometrik":
+                    total_bio,
 
-            .sort_values(
+                "% Biometrik":
+                    f"{persen_bio}%"
+
+            })
+
+        summary_dse = pd.DataFrame(
+            rekap_dse
+        )
+
+        if not summary_dse.empty:
+
+            summary_dse = summary_dse.sort_values(
 
                 "MSISDN",
 
@@ -1222,28 +1856,26 @@ def show():
 
             )
 
+        st.download_button(
+
+            label="⬇️ Download Rekap",
+
+            data=to_excel(summary_dse),
+
+            file_name="rekap_dse_pm_fl.xlsx",
+
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+            key="download_dse"
+
         )
 
-    st.download_button(
+        show_grid(
 
-        label="⬇️ Download Rekap DSE",
+            summary_dse,
 
-        data=to_excel(summary_dse),
+            selectable=False,
 
-        file_name="rekap_dse.xlsx",
+            key="dse"
 
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-        key="download_dse"
-
-    )
-
-    show_grid(
-
-        summary_dse,
-
-        selectable=False,
-
-        key="dse"
-
-    )
+        )

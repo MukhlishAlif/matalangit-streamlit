@@ -12,13 +12,14 @@ DB_PATH = os.path.join(BASE_DIR, "outlet.db")
 
 print("DATABASE:", DB_PATH)
 
-# =====================================
-# KONEKSI DATABASE
-# =====================================
-
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
+
+# BARU BOLEH PAKAI CURSOR
+cursor.execute("PRAGMA database_list")
+print(cursor.fetchall())
+
 # =====================================
 # TABEL USER
 # =====================================
@@ -119,7 +120,13 @@ def tampil_user_master():
 # UPDATE USER
 # =====================================
 
-def update_user(old_user, user, password, role, atasan):
+def update_user(
+        old_user,
+        new_user,
+        password,
+        role,
+        atasan
+):
 
     cursor.execute("""
         UPDATE users
@@ -130,7 +137,7 @@ def update_user(old_user, user, password, role, atasan):
             atasan=?
         WHERE user=?
     """, (
-        user,
+        new_user,
         password,
         role,
         atasan,
@@ -139,7 +146,7 @@ def update_user(old_user, user, password, role, atasan):
 
     conn.commit()
 
-
+    return cursor.rowcount > 0
 # =====================================
 # HAPUS USER
 # =====================================
@@ -208,16 +215,19 @@ def tampil_data():
     return cursor.fetchall()
 
 
-def hapus_data(id):
+def hapus_data(id_data):
 
     cursor.execute(
-        "DELETE FROM outlet WHERE id=?",
-        (id,)
+        """
+        DELETE FROM outlet
+        WHERE id = ?
+        """,
+        (id_data,)
     )
 
     conn.commit()
 
-
+    return cursor.rowcount
 # =====================================
 # DASHBOARD
 # =====================================
@@ -464,35 +474,26 @@ def cek_msisdn(msisdn):
 
 def get_downline(user):
 
-    conn = sqlite3.connect("outlet.db")
-    cursor = conn.cursor()
-
     hasil = []
 
     def cari(atasan):
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT user
             FROM users
             WHERE atasan=?
-            """,
-            (atasan,)
-        )
+        """, (atasan,))
 
-        bawahan = cursor.fetchall()
+        rows = cursor.fetchall()
 
-        for row in bawahan:
+        for row in rows:
 
-            nama = row[0]
+            nama = row["user"]
 
-            hasil.append(nama)
-
-            # Cari bawahan berikutnya
-            cari(nama)
+            if nama not in hasil:
+                hasil.append(nama)
+                cari(nama)
 
     cari(user)
-
-    conn.close()
 
     return hasil
