@@ -2,9 +2,6 @@
 __pycache__/
 *.pyc
 
-# Database
-*.db
-outlet.db
 
 # Excel / temp files
 *.xlsx
