@@ -6,6 +6,7 @@
 
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 
 from st_aggrid import (
     AgGrid,

@@ -7,6 +7,7 @@
 
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 
 from st_aggrid import (
     AgGrid,
@@ -849,7 +850,7 @@ def show():
 
         rekap_promotor.append({
             "Promotor": nama_promotor,
-            "Atasan": row["ATASAN"],
+            "Upline": row["ATASAN"],
             "Status": "Aktif" if total_msisdn > 0 else "Belum Input",
             "Outlet": temp["ID Outlet"].nunique(),
             "MSISDN": total_msisdn,
