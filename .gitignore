@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Database
+*.db
+outlet.db
+
+# Excel / temp files
+*.xlsx
+~$*
+
+# Environment (kalau ada nanti)
+.env
+
+# OS
+.DS_Store
