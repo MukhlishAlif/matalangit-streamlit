@@ -182,6 +182,7 @@ def show_grid(
                 "Branch",
                 "CSE/RSE",
                 "Frontliner",
+                "Frontliner Inaktif",
                 "Atasan"
 
             ]:
@@ -675,6 +676,9 @@ def show():
 
             fl_aktif = temp["Input By"].nunique()
 
+            # Dynamic Inactive Calculation
+            fl_inaktif = total_fl - fl_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -705,6 +709,9 @@ def show():
 
                 "Frontliner Aktif":
                     fl_aktif,
+
+                "Frontliner Inaktif":
+                    fl_inaktif,
 
                 "% Active":
                     f"{persen_active}%",
@@ -856,6 +863,9 @@ def show():
                 "Input By"
             ].nunique()
 
+            # Dynamic Inactive Calculation
+            fl_inaktif = total_fl - fl_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp[
@@ -869,12 +879,13 @@ def show():
                 2
             ) if total_fl > 0 else 0
 
+            print(fl_aktif, total_fl)
             persen_bio = round(
                 (
                     total_bio / total_msisdn
                 ) * 100,
                 2
-            ) if total_msisdn > 0 else 0
+            ) if jumlah_msisdn > 0 else 0
 
             rekap_bsm.append({
 
@@ -889,6 +900,9 @@ def show():
 
                 "Frontliner Aktif":
                     fl_aktif,
+
+                "Frontliner Inaktif":
+                    fl_inaktif,
 
                 "% Active":
                     f"{persen_active}%",
@@ -1056,6 +1070,9 @@ def show():
                 "Input By"
             ].nunique()
 
+            # Dynamic Inactive Calculation
+            fl_inaktif = total_fl - fl_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp[
@@ -1095,6 +1112,9 @@ def show():
 
                 "Frontliner Aktif":
                     fl_aktif,
+
+                "Frontliner Inaktif":
+                    fl_inaktif,
 
                 "% Active":
                     f"{persen_active}%",

@@ -1,4 +1,3 @@
-
 # =========================================================
 # dashboard_promotor.py
 # DASHBOARD PROMOTOR
@@ -175,6 +174,7 @@ def show_grid(
                 "Branch",
                 "CSE/RSE",
                 "Promotor",
+                "Promotor Inaktif",
                 "Atasan"
 
             ]:
@@ -822,6 +822,9 @@ def show():
                 .nunique()
             )
 
+            # Perhitungan Promotor Inaktif Dinamis
+            promotor_inaktif = total_promotor - promotor_aktif
+
             total_msisdn = len(temp)
 
             total_bio = (
@@ -856,6 +859,8 @@ def show():
                 "Promotor": total_promotor,
 
                 "Promotor Aktif": promotor_aktif,
+
+                "Promotor Inaktif": promotor_inaktif,
 
                 "% User Aktif": f"{persen_aktif}%",
 
@@ -1007,6 +1012,9 @@ def show():
                 .nunique()
             )
 
+            # Perhitungan Promotor Inaktif Dinamis
+            promotor_inaktif = total_promotor - promotor_aktif
+
             total_msisdn = len(temp)
 
             total_bio = (
@@ -1043,6 +1051,9 @@ def show():
 
                 "Promotor Aktif":
                     promotor_aktif,
+
+                "Promotor Inaktif":
+                    promotor_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",
@@ -1229,6 +1240,9 @@ def show():
                 .nunique()
             )
 
+            # Perhitungan Promotor Inaktif Dinamis
+            promotor_inaktif = total_promotor - promotor_aktif
+
             total_msisdn = len(temp)
 
             total_bio = (
@@ -1265,6 +1279,9 @@ def show():
 
                 "Promotor Aktif":
                     promotor_aktif,
+
+                "Promotor Inaktif":
+                    promotor_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",

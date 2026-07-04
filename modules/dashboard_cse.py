@@ -143,7 +143,9 @@ def show_grid(
                 "HOS",
                 "BSM",
                 "Branch",
-                "CSE/RSE"
+                "CSE/RSE",
+                "CSE/RSE Inaktif",
+                "DSE Inaktif"
 
             ]:
 
@@ -941,6 +943,9 @@ def show():
                 temp["Input By"].isin(bawahan)
             ]["Input By"].nunique()
 
+            # Dynamic Inactive Calculation
+            cse_inaktif = total_cse - cse_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -970,6 +975,9 @@ def show():
 
                 "CSE/RSE Aktif":
                     cse_aktif,
+
+                "CSE/RSE Inaktif":
+                    cse_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",
@@ -1230,6 +1238,9 @@ def show():
 
             total_aktif = temp["Input By"].nunique()
 
+            # Dynamic Inactive Calculation
+            cse_inaktif = total_cse - total_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -1267,6 +1278,9 @@ def show():
 
                 "CSE/RSE Aktif":
                     total_aktif,
+
+                "CSE/RSE Inaktif":
+                    cse_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",
@@ -1386,6 +1400,9 @@ def show():
 
             total_aktif = temp["Input By"].nunique()
 
+            # Dynamic Inactive Calculation
+            cse_inaktif = total_cse - total_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -1420,6 +1437,9 @@ def show():
 
                 "CSE/RSE Aktif":
                     total_aktif,
+
+                "CSE/RSE Inaktif":
+                    cse_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",
@@ -1548,6 +1568,9 @@ def show():
                 .nunique()
             )
 
+            # Dynamic Inactive Calculation
+            dse_inaktif = total_dse - dse_aktif
+
             total_msisdn = len(
                 temp
             )
@@ -1592,6 +1615,9 @@ def show():
 
                 "DSE Aktif":
                     dse_aktif,
+
+                "DSE Inaktif":
+                    dse_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",

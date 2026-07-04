@@ -156,6 +156,7 @@ def show_grid(
                 "Branch",
                 "CSE/RSE",
                 "DSE",
+                "DSE Inaktif",
                 "Atasan"
 
             ]:
@@ -1048,6 +1049,9 @@ def show():
                 "Input By"
             ].nunique()
 
+            # Dynamic calculation for inactive users
+            dse_inaktif = total_dse - dse_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp[
@@ -1095,6 +1099,9 @@ def show():
                 "DSE Aktif":
                     dse_aktif,
 
+                "DSE Inaktif":
+                    dse_inaktif,
+
                 "% User Aktif":
                     f"{persen_aktif}%",
 
@@ -1126,7 +1133,7 @@ def show():
 
         st.download_button(
 
-            label="⬇️ Download Rekap HOS",
+            label="⬇ *️ Download Rekap HOS*",
 
             data=to_excel(summary_hos),
 
@@ -1248,6 +1255,9 @@ def show():
 
             dse_aktif = temp["Input By"].nunique()
 
+            # Dynamic calculation for inactive users
+            dse_inaktif = total_dse - dse_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -1280,6 +1290,9 @@ def show():
                 "DSE Aktif":
                     dse_aktif,
 
+                "DSE Inaktif":
+                    dse_inaktif,
+
                 "% User Aktif":
                     f"{persen_aktif}%",
 
@@ -1310,7 +1323,7 @@ def show():
 
         st.download_button(
 
-            label="⬇️ Download Rekap BSM",
+            label="⬇ *️ Download Rekap BSM*",
 
             data=to_excel(summary_bsm),
 
@@ -1444,6 +1457,9 @@ def show():
 
             dse_aktif = temp["Input By"].nunique()
 
+            # Dynamic calculation for inactive users
+            dse_inaktif = total_dse - dse_aktif
+
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -1476,6 +1492,9 @@ def show():
                 "DSE Aktif":
                     dse_aktif,
 
+                "DSE Inaktif":
+                    dse_inaktif,
+
                 "% User Aktif":
                     f"{persen_aktif}%",
 
@@ -1506,7 +1525,7 @@ def show():
 
         st.download_button(
 
-            label="⬇️ Download Rekap CSE",
+            label="⬇ *️ Download Rekap CSE*",
 
             data=to_excel(summary_cse),
 
@@ -1858,7 +1877,7 @@ def show():
 
         st.download_button(
 
-            label="⬇️ Download Rekap",
+            label="⬇ *️ Download Rekap*",
 
             data=to_excel(summary_dse),
 
