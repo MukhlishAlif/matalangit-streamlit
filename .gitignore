@@ -1,14 +1,18 @@
-# Python cache
+# Python cache and environment
 __pycache__/
 *.pyc
-
-
-# Excel / temp files
-*.xlsx
-~$*
-
-# Environment (kalau ada nanti)
+venv/
+.venv/
+env/
 .env
 
-# OS
+# Database and secrets (Crucial for security)
+outlet.db
+.env
+
+# IDE and OS files
+.vscode/
 .DS_Store
+
+# Data files (Optional: only include if they are not part of your repo)
+useroutlet.xlsx
