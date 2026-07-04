@@ -19,10 +19,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the new port Streamlit runs on
-EXPOSE 8502
+EXPOSE 8501
 
 # Healthcheck using the updated port
-HEALTHCHECK CMD curl --fail http://localhost:8502/_stcore/health || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
 # Command to run the application
 CMD ["streamlit", "run", "main.py"]
