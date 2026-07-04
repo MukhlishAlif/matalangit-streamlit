@@ -143,9 +143,7 @@ def show_grid(
                 "HOS",
                 "BSM",
                 "Branch",
-                "CSE/RSE",
-                "CSE/RSE Inaktif",
-                "DSE Inaktif"
+                "CSE/RSE"
 
             ]:
 
@@ -943,9 +941,6 @@ def show():
                 temp["Input By"].isin(bawahan)
             ]["Input By"].nunique()
 
-            # Dynamic Inactive Calculation
-            cse_inaktif = total_cse - cse_aktif
-
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -975,9 +970,6 @@ def show():
 
                 "CSE/RSE Aktif":
                     cse_aktif,
-
-                "CSE/RSE Inaktif":
-                    cse_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",
@@ -1238,9 +1230,6 @@ def show():
 
             total_aktif = temp["Input By"].nunique()
 
-            # Dynamic Inactive Calculation
-            cse_inaktif = total_cse - total_aktif
-
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -1278,9 +1267,6 @@ def show():
 
                 "CSE/RSE Aktif":
                     total_aktif,
-
-                "CSE/RSE Inaktif":
-                    cse_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",
@@ -1400,9 +1386,6 @@ def show():
 
             total_aktif = temp["Input By"].nunique()
 
-            # Dynamic Inactive Calculation
-            cse_inaktif = total_cse - total_aktif
-
             total_msisdn = len(temp)
 
             total_bio = temp["Biometrik"].sum()
@@ -1437,9 +1420,6 @@ def show():
 
                 "CSE/RSE Aktif":
                     total_aktif,
-
-                "CSE/RSE Inaktif":
-                    cse_inaktif,
 
                 "% User Aktif":
                     f"{persen_aktif}%",
@@ -1533,63 +1513,63 @@ def show():
 
         ]
 
+        # ================================================
+        # FILTER HOS
+        # ================================================
+
+        if selected_hos:
+
+            daftar_bsm_hos = df_user[
+
+                df_user["ATASAN"]
+                == selected_hos
+
+            ]["USER"].tolist()
+
+            cse_list = cse_list[
+
+                cse_list["ATASAN"]
+                .isin(daftar_bsm_hos)
+
+            ]
+
+        # ================================================
+        # FILTER BSM
+        # ================================================
+
+        if selected_bsm:
+
+            cse_list = cse_list[
+
+                cse_list["ATASAN"]
+                == selected_bsm
+
+            ]
+
+        # ================================================
+        # LOOP
+        # ================================================
+
         for _, row in cse_list.iterrows():
-
-            if selected_bsm:
-
-                if row["ATASAN"] != selected_bsm:
-                    continue
 
             nama_cse = row["USER"]
 
-            daftar_dse = df_user[
-
-                (df_user["ATASAN"] == nama_cse)
-
-                &
-
-                (df_user["ROLE"] == "DSE")
-
-            ]["USER"].tolist()
+            # ============================================
+            # PENJUALAN CSE ITU SENDIRI
+            # ============================================
 
             temp = df[
 
                 df["Input By"]
-                .isin(daftar_dse)
+                == nama_cse
 
             ]
 
-            total_dse = len(
-                daftar_dse
-            )
+            total_msisdn = len(temp)
 
-            dse_aktif = (
-                temp["Input By"]
-                .nunique()
-            )
-
-            # Dynamic Inactive Calculation
-            dse_inaktif = total_dse - dse_aktif
-
-            total_msisdn = len(
-                temp
-            )
-
-            total_bio = (
-                temp["Biometrik"]
-                .sum()
-            )
-
-            persen_aktif = round(
-
-                (
-                    dse_aktif
-                    / total_dse
-                ) * 100,
-
-                2
-
-            ) if total_dse > 0 else 0
+            total_bio = temp[
+                "Biometrik"
+            ].sum()
 
             persen_bio = round(
 
@@ -1602,6 +1582,22 @@ def show():
 
             ) if total_msisdn > 0 else 0
 
+            # ============================================
+            # STATUS
+            # ============================================
+
+            status_user = (
+
+                "Aktif"
+
+                if total_msisdn > 0
+
+                else
+
+                "Belum Input"
+
+            )
+
             rekap_cse.append({
 
                 "CSE/RSE":
@@ -1610,17 +1606,8 @@ def show():
                 "Branch":
                     row["ATASAN"],
 
-                "DSE":
-                    total_dse,
-
-                "DSE Aktif":
-                    dse_aktif,
-
-                "DSE Inaktif":
-                    dse_inaktif,
-
-                "% User Aktif":
-                    f"{persen_aktif}%",
+                "Status":
+                    status_user,
 
                 "Outlet":
                     temp["ID Outlet"]
@@ -1659,11 +1646,11 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap BSM",
+            "⬇️ Download Rekap CSE",
 
             data=to_excel(summary_cse),
 
-            file_name="rekap_bsm.xlsx",
+            file_name="rekap_cse.xlsx",
 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
@@ -1671,8 +1658,7 @@ def show():
 
         )
 
-
-        show_grid(
+        cse_grid = show_grid(
 
             summary_cse,
 
@@ -1680,4 +1666,15 @@ def show():
 
             key="cse_admin"
 
+        )
+
+        selected_cse = get_selected_value(
+
+            cse_grid,
+            "CSE/RSE"
+
+        )
+
+        st.session_state.selected_cse = (
+            selected_cse
         )
