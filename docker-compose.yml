@@ -3,7 +3,7 @@ services:
     build: .
     container_name: matalangit-streamlit
     ports:
-      - "8503:8501"
+      - "8502:8501"
     volumes:
       - .:/app
     environment:
