@@ -133,29 +133,31 @@ def show_grid(
 
     total_row = {}
 
-    count_cols = [
-
-        "HOS",
-        "BSM",
-        "Branch",
-        "CSE/RSE",
-        "Atasan"
-
-    ]
-
     for col in df.columns:
 
-        if col in count_cols:
+        if pd.api.types.is_numeric_dtype(df[col]):
 
-            total_row[col] = int(df[col].nunique())
+            total_row[col] = int(
+                df[col].sum()
+            )
 
-        elif pd.api.types.is_numeric_dtype(df[col]):
+        elif col in [
 
-            total_row[col] = int(df[col].sum())
+            "HOS",
+            "BSM",
+            "Branch",
+            "CSE/RSE",
+            "Atasan",
+            "Nama"
+
+        ]:
+
+            total_row[col] = df[col].nunique()
 
         else:
 
             total_row[col] = ""
+
     # =====================================================
     # GRID OPTIONS
     # =====================================================
@@ -1199,9 +1201,17 @@ def show():
 
             nama_hos = row["USER"]
 
-            daftar_bsm = df_user[
-                df_user["ATASAN"] == nama_hos
-            ]["USER"].tolist()
+            bsm_hos = df_user[
+
+                (df_user["ATASAN"] == nama_hos)
+
+                &
+
+                (df_user["ROLE"] == "BSM")
+
+            ]
+            daftar_bsm = bsm_hos["USER"].unique().tolist()
+
 
             daftar_cse = df_user[
 
@@ -1216,7 +1226,7 @@ def show():
                     "RSE"
                 ]))
 
-            ]["USER"].tolist()
+            ]["USER"].unique().tolist()
 
             daftar_dse = df_user[
 
@@ -1228,7 +1238,7 @@ def show():
 
                 (df_user["ROLE"] == "DSE")
 
-            ]["USER"].tolist()
+            ]["USER"].drop_duplicates().tolist()
 
             temp = df[
                 df["Input By"].isin(
