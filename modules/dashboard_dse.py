@@ -1144,9 +1144,17 @@ def show():
 
             return None
 
+        # ==========================================
+        # DATAFRAME
+        # ==========================================
+
         if isinstance(selected, pd.DataFrame):
 
             if selected.empty:
+
+                return None
+
+            if column_name not in selected.columns:
 
                 return None
 
@@ -1154,9 +1162,17 @@ def show():
                 column_name
             ]
 
+        # ==========================================
+        # LIST
+        # ==========================================
+
         elif isinstance(selected, list):
 
             if len(selected) == 0:
+
+                return None
+
+            if column_name not in selected[0]:
 
                 return None
 
@@ -1165,7 +1181,6 @@ def show():
             ]
 
         return None
-
     # =====================================================
     # REKAP HOS
     # =====================================================
@@ -1226,8 +1241,6 @@ def show():
             # =============================================
             # KPI
             # =============================================
-
-            total_dse = len(daftar_dse)
 
             dse_aktif = temp[
                 "Input By"
@@ -1362,18 +1375,16 @@ def show():
             "HOS"
         )
 
-        if selected_hos:
+        if selected_hos != st.session_state.selected_hos:
 
-            if st.session_state.selected_hos != selected_hos:
+            st.session_state.selected_hos = (
+                selected_hos
+            )
 
-                st.session_state.selected_hos = (
-                    selected_hos
-                )
+            st.session_state.selected_bsm = None
+            st.session_state.selected_cse = None
 
-                st.session_state.selected_bsm = None
-                st.session_state.selected_cse = None
-
-                st.rerun()
+            st.rerun()
 
         st.divider()
     # =====================================================
@@ -1423,6 +1434,7 @@ def show():
                     if row["ATASAN"] != st.session_state.selected_hos:
 
                         continue
+
 
             nama_bsm = row["USER"]
 
@@ -1581,17 +1593,15 @@ def show():
             "BSM"
         )
 
-        if selected_bsm:
+        if selected_bsm != st.session_state.selected_bsm:
 
-            if st.session_state.selected_bsm != selected_bsm:
+            st.session_state.selected_bsm = (
+                selected_bsm
+            )
 
-                st.session_state.selected_bsm = (
-                    selected_bsm
-                )
+            st.session_state.selected_cse = None
 
-                st.session_state.selected_cse = None
-
-                st.rerun()
+            st.rerun()
 
         st.divider()
 
@@ -1655,6 +1665,26 @@ def show():
                     "RSE"
                 ])
             ]
+
+            # ==========================================
+            # FILTER HOS
+            # ==========================================
+
+            if st.session_state.selected_hos:
+
+                daftar_bsm_hos = df_user[
+
+                    df_user["ATASAN"]
+                    == st.session_state.selected_hos
+
+                ]["USER"].tolist()
+
+                cse_list = cse_list[
+
+                    cse_list["ATASAN"]
+                    .isin(daftar_bsm_hos)
+
+                ]
 
         for _, row in cse_list.iterrows():
 
@@ -1801,15 +1831,13 @@ def show():
             "CSE/RSE"
         )
 
-        if selected_cse:
+        if selected_cse != st.session_state.selected_cse:
 
-            if st.session_state.selected_cse != selected_cse:
+            st.session_state.selected_cse = (
+                selected_cse
+            )
 
-                st.session_state.selected_cse = (
-                    selected_cse
-                )
-
-                st.rerun()
+            st.rerun()
 
         st.divider()
 
