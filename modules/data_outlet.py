@@ -13,20 +13,47 @@ from database import (
 # LOAD BIOMETRIK
 # ===========================
 
+import requests
+import pandas as pd
+import streamlit as st
+
+
 @st.cache_data
 def load_biometrik():
 
-    biometrik = pd.read_csv(
-        "ga_biometrics_cj.csv",
-        dtype=str,
-        low_memory=False
-    )
+    # ===========================
+    # URL JSON
+    # ===========================
+
+    url = "https://api.matalangit.cloud/bio/fetch-derfrtgty"
+
+    # ===========================
+    # REQUEST
+    # ===========================
+
+    response = requests.get(url)
+
+    data = response.json()
+
+    # ===========================
+    # DATAFRAME
+    # ===========================
+
+    biometrik = pd.json_normalize(data["data"])
+
+    # ===========================
+    # CLEAN COLUMN
+    # ===========================
 
     biometrik.columns = (
         biometrik.columns
         .str.strip()
         .str.lower()
     )
+
+    # ===========================
+    # CLEAN MSISDN
+    # ===========================
 
     biometrik["msisdn"] = (
         biometrik["msisdn"]
@@ -42,6 +69,8 @@ def load_biometrik():
     biometrik["tanggal_biometrik"] = pd.to_datetime(
 
         biometrik["ga_dt"],
+
+        dayfirst=True,
 
         errors="coerce"
 
@@ -359,7 +388,8 @@ def show():
                 users["ROLE"].isin([
 
                     "DSE",
-                    "PROMOTOR",
+                    "AE",
+                    "GSE",
                     "FRONTLINER"
 
                 ])
@@ -410,7 +440,8 @@ def show():
                     users["ROLE"].isin([
 
                         "DSE",
-                        "PROMOTOR",
+                        "AE",
+                        "GSE",
                         "FRONTLINER"
 
                     ])
@@ -483,7 +514,8 @@ def show():
             (users["ROLE"].isin([
 
                 "DSE",
-                "PROMOTOR",
+                "AE",
+                "GSE",
                 "FRONTLINER"
 
             ]))
@@ -562,7 +594,8 @@ def show():
             (users["ROLE"].isin([
 
                 "DSE",
-                "PROMOTOR",
+                "AE",
+                "GSE",
                 "FRONTLINER"
 
             ]))
@@ -625,7 +658,8 @@ def show():
             (users["ROLE"].isin([
 
                 "DSE",
-                "PROMOTOR",
+                "AE",
+                "GSE",
                 "FRONTLINER"
 
             ]))
@@ -792,8 +826,12 @@ def show():
             df["ROLE"] == "FRONTLINER"
         ],
 
-        "PROMOTOR": df[
-            df["ROLE"] == "PROMOTOR"
+        "AE": df[
+            df["ROLE"] == "AE"
+        ],
+
+        "GSE": df[
+            df["ROLE"] == "GSE"
         ]
 
     }
@@ -898,6 +936,7 @@ def show():
                 "MSISDN",
                 "Input By",
                 "Tanggal",
+                "Tanggal Biometrik",
                 "Biometrik H-1",
                 "ROLE",
                 "ID"

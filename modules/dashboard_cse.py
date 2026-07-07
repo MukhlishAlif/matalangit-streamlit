@@ -95,17 +95,23 @@ def show_grid(
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
+    # =====================================================
+    # DEFAULT COLUMN
+    # =====================================================
+
     gb.configure_default_column(
 
         resizable=True,
         sortable=True,
-        filter=True
+        filter=False,
+        suppressMenu=True,
+        floatingFilter=False
 
     )
 
-    # ======================================================
+    # =====================================================
     # SELECTABLE
-    # ======================================================
+    # =====================================================
 
     if selectable:
 
@@ -116,17 +122,23 @@ def show_grid(
 
         )
 
+    # =====================================================
+    # GRID OPTIONS
+    # =====================================================
+
     gb.configure_grid_options(
 
         headerHeight=45,
         rowHeight=42,
-        domLayout="normal"
+        domLayout="normal",
+
+        suppressMovableColumns=True
 
     )
 
-    # ======================================================
+    # =====================================================
     # TOTAL ROW
-    # ======================================================
+    # =====================================================
 
     total_row = {}
 
@@ -134,7 +146,9 @@ def show_grid(
 
         if pd.api.types.is_numeric_dtype(df[col]):
 
-            total_row[col] = int(df[col].sum())
+            total_row[col] = int(
+                df[col].sum()
+            )
 
         else:
 
@@ -143,7 +157,9 @@ def show_grid(
                 "HOS",
                 "BSM",
                 "Branch",
-                "CSE/RSE"
+                "CSE/RSE",
+                "AE",
+                "Atasan"
 
             ]:
 
@@ -155,7 +171,81 @@ def show_grid(
 
                 total_row[col] = ""
 
+    # =====================================================
+    # BUILD GRID
+    # =====================================================
+
     grid_options = gb.build()
+
+    # =====================================================
+    # FIX WIDTH + FREEZE FIRST COLUMN
+    # =====================================================
+
+    first_col = df.columns[0]
+
+    for col in grid_options["columnDefs"]:
+
+        field = col["field"]
+
+        # Hitung panjang isi terpanjang
+        max_len = max(
+            len(str(field)),
+            df[field].fillna("").astype(str).str.len().max()
+        )
+
+        # Estimasi lebar (±9 px per karakter)
+        width = max(120, min(max_len * 9 + 30, 450))
+
+        col["width"] = int(width)
+        col["minWidth"] = int(width)
+        col["maxWidth"] = int(width)
+
+        # Freeze kolom pertama
+        if field == first_col:
+
+            col["pinned"] = "left"
+            col["lockPinned"] = True
+            col["lockPosition"] = True
+            col["suppressMovable"] = True
+
+            col["width"] = max(260, int(width))
+            col["minWidth"] = max(260, int(width))
+            col["maxWidth"] = max(260, int(width))
+
+            col["cellStyle"] = {
+
+                "textAlign": "left",
+                "display": "flex",
+                "justifyContent": "flex-start",
+                "alignItems": "center",
+                "paddingLeft": "12px",
+                "fontWeight": "600"
+
+            }
+
+        else:
+
+            col["cellStyle"] = {
+
+                "textAlign": "center",
+                "display": "flex",
+                "justifyContent": "center",
+                "alignItems": "center"
+
+            }
+    # =====================================================
+    # HILANGKAN CORONG SEMUA KOLOM
+    # =====================================================
+
+    for col in grid_options["columnDefs"]:
+
+        col["filter"] = False
+        col["floatingFilter"] = False
+        col["suppressMenu"] = True
+
+    # =====================================================
+    # FOOTER
+    # =====================================================
 
     grid_options["pinnedBottomRowData"] = [
         total_row
@@ -192,7 +282,7 @@ def show_grid(
 
         gridOptions=grid_options,
 
-        fit_columns_on_grid_load=True,
+        fit_columns_on_grid_load=False,
 
         height=table_height,
 
@@ -218,6 +308,44 @@ def show_grid(
 
             },
 
+            # Header semua kolom center
+            ".ag-header-cell-label": {
+
+                "display": "flex",
+                "justify-content": "center",
+                "align-items": "center",
+                "width": "100%",
+                "text-align": "center"
+
+            },
+
+            # Isi semua kolom center
+            ".ag-cell": {
+
+                "display": "flex",
+                "justify-content": "center",
+                "align-items": "center",
+                "text-align": "center"
+
+            },
+
+            # Khusus kolom pertama rata kiri
+            ".ag-pinned-left-cols-container .ag-cell": {
+
+                "justify-content": "flex-start !important",
+                "text-align": "left !important",
+                "padding-left": "12px"
+
+            },
+
+            # Khusus header kolom pertama rata kiri
+            ".ag-pinned-left-header .ag-header-cell-label": {
+
+                "justify-content": "flex-start !important",
+                "padding-left": "12px"
+
+            },
+
             ".ag-row": {
 
                 "font-size": "14px"
@@ -236,7 +364,6 @@ def show_grid(
         }
 
     )
-
     return grid_response
 
 # ==========================================================
@@ -325,6 +452,7 @@ def show():
     # ======================================================
 
     data = tampil_data()
+    users = tampil_user()
 
     # ======================================================
     # USER DATAFRAME
@@ -338,20 +466,37 @@ def show():
 
     )
 
-    df_user.columns = df_user.columns.str.upper()
+    df_user.columns = (
+        df_user.columns.str.upper()
+    )
 
-    # ======================================================
-    # EMPTY
-    # ======================================================
+    # =====================================================
+    # USER BRAND
+    # =====================================================
 
-    if len(data) == 0:
+    df_user["BRAND"] = ""
 
-        st.info(
-            "Belum ada data."
-        )
+    df_user.loc[
 
-        return
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_im3", na=False),
 
+        "BRAND"
+
+    ] = "IM3"
+
+    df_user.loc[
+
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_3id", na=False),
+
+        "BRAND"
+
+    ] = "3ID"
     # ======================================================
     # DATAFRAME
     # ======================================================
@@ -372,7 +517,6 @@ def show():
         ]
 
     )
-
     # ======================================================
     # BIOMETRIK
     # ======================================================
@@ -412,23 +556,6 @@ def show():
         .astype(int)
     )
 
-    # ======================================================
-    # USER DATAFRAME
-    # ======================================================
-
-    df_user = pd.DataFrame(
-
-        users,
-
-        columns=[
-
-            "USER",
-            "ROLE",
-            "ATASAN"
-
-        ]
-
-    )
 
     # ======================================================
     # SESSION
@@ -438,9 +565,9 @@ def show():
 
     user = st.session_state.outlet_user
 
-    # ======================================================
-    # FILTER TANGGAL
-    # ======================================================
+    # =====================================================
+    # FILTER
+    # =====================================================
 
     df["Tanggal"] = pd.to_datetime(
 
@@ -448,27 +575,47 @@ def show():
 
         errors="coerce"
 
-    )
+    ).dt.date
 
-    tanggal = st.date_input(
+    col_tgl, col_brand = st.columns(2)
 
-        "📅 Filter Tanggal",
+    with col_tgl:
 
-        value=None,
+        tanggal = st.date_input(
 
-        key="dashboard_tanggal"
+            "📅 Filter Tanggal",
 
-    )
+            value=None,
+
+            key="pm_tanggal"
+
+        )
+
+    with col_brand:
+
+        brand = st.selectbox(
+
+            "📶 Filter Brand",
+
+            options=[
+                "Semua",
+                "IM3",
+                "3ID"
+            ],
+
+            index=0
+
+        )
+
+    # =====================================================
+    # FILTER TANGGAL
+    # =====================================================
 
     if tanggal:
 
         df = df[
-
-            df["Tanggal"].dt.date
-            == tanggal
-
+            df["Tanggal"] == tanggal
         ]
-
     st.divider()
 
     # ======================================================
@@ -520,16 +667,73 @@ def show():
             df["Input By"].isin(bawahan)
         ]
 
+
+    # ======================================================
+    # BRAND MAP
+    # ======================================================
+
+    brand_map = df_user.set_index(
+        "USER"
+    )["BRAND"].to_dict()
+
+    df["BRAND"] = df["Input By"].map(
+        brand_map
+    )
+
+    # ======================================================
+    # FILTER BRAND
+    # ======================================================
+
+    if brand != "Semua":
+
+        df = df[
+            df["BRAND"] == brand
+        ]
+
+    # =====================================================
+    # DATA KHUSUS INPUT CSE/RSE
+    # =====================================================
+
+    daftar_cse_rse = df_user[
+
+        df_user["ROLE"].isin([
+
+            "CSE",
+            "RSE"
+
+        ])
+
+    ]["USER"].tolist()
+
+    df_cse = df[
+
+        df["Input By"].isin(
+            daftar_cse_rse
+        )
+
+    ]
+
     # =====================================================
     # KPI ROLE AWARE
     # =====================================================
 
-    if role in ["CSE", "RSE"]:
+    if role in [
+
+        "CSE",
+        "RSE"
+
+    ]:
 
         total_user = 1
 
         user_aktif = (
-            1 if len(df) > 0 else 0
+
+            1
+
+            if len(df_cse) > 0
+
+            else 0
+
         )
 
     elif role == "BSM":
@@ -541,18 +745,24 @@ def show():
             &
 
             (df_user["ROLE"].isin([
+
                 "CSE",
                 "RSE"
+
             ]))
 
         ]["USER"].tolist()
 
-        total_user = len(daftar_user)
+        total_user = len(
+            daftar_user
+        )
 
-        user_aktif = df[
-            df["Input By"].isin(
+        user_aktif = df_cse[
+
+            df_cse["Input By"].isin(
                 daftar_user
             )
+
         ]["Input By"].nunique()
 
     elif role == "HOS":
@@ -576,18 +786,24 @@ def show():
             &
 
             (df_user["ROLE"].isin([
+
                 "CSE",
                 "RSE"
+
             ]))
 
         ]["USER"].tolist()
 
-        total_user = len(daftar_user)
+        total_user = len(
+            daftar_user
+        )
 
-        user_aktif = df[
-            df["Input By"].isin(
+        user_aktif = df_cse[
+
+            df_cse["Input By"].isin(
                 daftar_user
             )
+
         ]["Input By"].nunique()
 
     else:
@@ -595,29 +811,35 @@ def show():
         daftar_user = df_user[
 
             df_user["ROLE"].isin([
+
                 "CSE",
                 "RSE"
+
             ])
 
         ]["USER"].tolist()
 
-        total_user = len(daftar_user)
+        total_user = len(
+            daftar_user
+        )
 
-        user_aktif = df[
-            df["Input By"].isin(
+        user_aktif = df_cse[
+
+            df_cse["Input By"].isin(
                 daftar_user
             )
+
         ]["Input By"].nunique()
 
     # =====================================================
     # KPI TOTAL
     # =====================================================
 
-    total_outlet = df["ID Outlet"].nunique()
+    total_outlet = df_cse["ID Outlet"].nunique()
 
-    total_msisdn = len(df)
+    total_msisdn = len(df_cse)
 
-    total_bio = df["Biometrik"].sum()
+    total_bio = df_cse["Biometrik"].sum()
 
     # =====================================================
     # PERSENTASE
@@ -828,6 +1050,25 @@ def show():
             rekap_cse
         )
 
+        # ======================================================
+        # FILTER BRAND
+        # ======================================================
+
+        if brand != "Semua":
+
+            summary_cse = summary_cse[
+
+                summary_cse["CSE/RSE"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
+
+
         if not summary_cse.empty:
 
             summary_cse = (
@@ -993,6 +1234,24 @@ def show():
             daftar
         )
 
+        # ======================================================
+        # FILTER BRAND
+        # ======================================================
+
+        if brand != "Semua":
+
+            summary_bsm = summary_bsm[
+
+                summary_bsm["BSM"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
+
         if not summary_bsm.empty:
 
             summary_bsm = (
@@ -1119,6 +1378,24 @@ def show():
         summary_cse = pd.DataFrame(
             rekap_cse
         )
+
+        # ======================================================
+        # FILTER BRAND
+        # ======================================================
+
+        if brand != "Semua":
+
+            summary_cse = summary_cse[
+
+                summary_cse["CSE/RSE"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
 
         if not summary_cse.empty:
 
@@ -1290,6 +1567,24 @@ def show():
             rekap_hos
         )
 
+        # ======================================================
+        # FILTER BRAND REKAP
+        # ======================================================
+
+        if brand != "Semua":
+
+            summary_hos = summary_hos[
+
+                summary_hos["HOS"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
+
         if not summary_hos.empty:
 
             summary_hos = (
@@ -1443,6 +1738,23 @@ def show():
             rekap_bsm
         )
 
+        # ======================================================
+        # FILTER BRAND
+        # ======================================================
+
+        if brand != "Semua":
+
+            summary_bsm = summary_bsm[
+
+                summary_bsm["BSM"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
         if not summary_bsm.empty:
 
             summary_bsm = (
@@ -1513,60 +1825,63 @@ def show():
 
         ]
 
+        # ================================================
+        # FILTER HOS
+        # ================================================
+
+        if selected_hos:
+
+            daftar_bsm_hos = df_user[
+
+                df_user["ATASAN"]
+                == selected_hos
+
+            ]["USER"].tolist()
+
+            cse_list = cse_list[
+
+                cse_list["ATASAN"]
+                .isin(daftar_bsm_hos)
+
+            ]
+
+        # ================================================
+        # FILTER BSM
+        # ================================================
+
+        if selected_bsm:
+
+            cse_list = cse_list[
+
+                cse_list["ATASAN"]
+                == selected_bsm
+
+            ]
+
+        # ================================================
+        # LOOP
+        # ================================================
+
         for _, row in cse_list.iterrows():
-
-            if selected_bsm:
-
-                if row["ATASAN"] != selected_bsm:
-                    continue
 
             nama_cse = row["USER"]
 
-            daftar_dse = df_user[
-
-                (df_user["ATASAN"] == nama_cse)
-
-                &
-
-                (df_user["ROLE"] == "DSE")
-
-            ]["USER"].tolist()
+            # ============================================
+            # PENJUALAN CSE ITU SENDIRI
+            # ============================================
 
             temp = df[
 
                 df["Input By"]
-                .isin(daftar_dse)
+                == nama_cse
 
             ]
 
-            total_dse = len(
-                daftar_dse
-            )
+            total_msisdn = len(temp)
 
-            dse_aktif = (
-                temp["Input By"]
-                .nunique()
-            )
-
-            total_msisdn = len(
-                temp
-            )
-
-            total_bio = (
-                temp["Biometrik"]
-                .sum()
-            )
-
-            persen_aktif = round(
-
-                (
-                    dse_aktif
-                    / total_dse
-                ) * 100,
-
-                2
-
-            ) if total_dse > 0 else 0
+            total_bio = temp[
+                "Biometrik"
+            ].sum()
 
             persen_bio = round(
 
@@ -1579,6 +1894,22 @@ def show():
 
             ) if total_msisdn > 0 else 0
 
+            # ============================================
+            # STATUS
+            # ============================================
+
+            status_user = (
+
+                "Aktif"
+
+                if total_msisdn > 0
+
+                else
+
+                "Belum Input"
+
+            )
+
             rekap_cse.append({
 
                 "CSE/RSE":
@@ -1587,14 +1918,8 @@ def show():
                 "Branch":
                     row["ATASAN"],
 
-                "DSE":
-                    total_dse,
-
-                "DSE Aktif":
-                    dse_aktif,
-
-                "% User Aktif":
-                    f"{persen_aktif}%",
+                "Status":
+                    status_user,
 
                 "Outlet":
                     temp["ID Outlet"]
@@ -1615,6 +1940,24 @@ def show():
             rekap_cse
         )
 
+        # ======================================================
+        # FILTER BRAND
+        # ======================================================
+
+        if brand != "Semua":
+
+            summary_cse = summary_cse[
+
+                summary_cse["Branch"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
+
         if not summary_cse.empty:
 
             summary_cse = (
@@ -1633,11 +1976,11 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap BSM",
+            "⬇️ Download Rekap CSE",
 
             data=to_excel(summary_cse),
 
-            file_name="rekap_bsm.xlsx",
+            file_name="rekap_cse.xlsx",
 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
@@ -1645,8 +1988,7 @@ def show():
 
         )
 
-
-        show_grid(
+        cse_grid = show_grid(
 
             summary_cse,
 
@@ -1654,4 +1996,15 @@ def show():
 
             key="cse_admin"
 
+        )
+
+        selected_cse = get_selected_value(
+
+            cse_grid,
+            "CSE/RSE"
+
+        )
+
+        st.session_state.selected_cse = (
+            selected_cse
         )

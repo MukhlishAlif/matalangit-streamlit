@@ -124,6 +124,13 @@ def show_grid(
 
         }
 
+        /* HEADER CENTER */
+        .header-center .ag-header-cell-label {
+
+            justify-content: center !important;
+
+        }
+
         </style>
         """,
         unsafe_allow_html=True
@@ -131,22 +138,54 @@ def show_grid(
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
+    # =========================
+    # DEFAULT COLUMN
+    # =========================
+
     gb.configure_default_column(
 
         resizable=True,
         sortable=True,
-        filter=True
+        filter=False,
+        suppressMenu=True,
+        floatingFilter=False,
+
+        flex=1,
+        minWidth=120,
+
+        cellStyle={
+            "textAlign": "center"
+        }
 
     )
 
-    if selectable:
+    # =========================
+    # FIRST COLUMN
+    # =========================
 
-        gb.configure_selection(
+    first_col = df.columns[0]
 
-            selection_mode="single",
-            use_checkbox=False
+    gb.configure_column(
 
-        )
+        first_col,
+        pinned="left",
+
+        flex=2,
+        minWidth=270,
+
+        cellStyle={
+            "textAlign": "left"
+        },
+
+        filter=False,
+        suppressMenu=True,
+        floatingFilter=False
+
+    )
+
+    # =========================
+    # GRID OPTIONS
+    # =========================
 
     gb.configure_grid_options(
 
@@ -155,6 +194,10 @@ def show_grid(
         domLayout="normal"
 
     )
+
+    # =====================================================
+    # TOTAL ROW
+    # =====================================================
 
     total_row = {}
 
@@ -174,7 +217,7 @@ def show_grid(
                 "BSM",
                 "Branch",
                 "CSE/RSE",
-                "Promotor",
+                "AE",
                 "Atasan"
 
             ]:
@@ -187,7 +230,25 @@ def show_grid(
 
                 total_row[col] = ""
 
+    # =====================================================
+    # BUILD GRID
+    # =====================================================
+
     grid_options = gb.build()
+
+    # =====================================================
+    # HILANGKAN CORONG
+    # =====================================================
+
+    for col in grid_options["columnDefs"]:
+
+        col["filter"] = False
+        col["floatingFilter"] = False
+        col["suppressMenu"] = True
+
+    # =====================================================
+    # PINNED BOTTOM
+    # =====================================================
 
     grid_options["pinnedBottomRowData"] = [
         total_row
@@ -216,7 +277,7 @@ def show_grid(
 
         gridOptions=grid_options,
 
-        fit_columns_on_grid_load=True,
+        fit_columns_on_grid_load=False,
 
         update_mode=GridUpdateMode.SELECTION_CHANGED,
 
@@ -235,10 +296,50 @@ def show_grid(
 
             },
 
-            ".ag-header": {
+            # =========================================
+            # HEADER DEFAULT CENTER
+            # =========================================
 
-                "background-color": "#f8fafc",
+            ".ag-header-cell-label": {
+
+                "justify-content": "center",
                 "font-weight": "700"
+
+            },
+
+            # =========================================
+            # HEADER FIRST COLUMN LEFT
+            # =========================================
+
+            ".ag-pinned-left-header .ag-header-cell-label": {
+
+                "justify-content": "flex-start !important",
+                "padding-left": "12px"
+
+            },
+
+            # =========================================
+            # SEMUA CELL CENTER
+            # =========================================
+
+            ".ag-cell": {
+
+                "display": "flex",
+                "justify-content": "center",
+                "align-items": "center",
+                "text-align": "center"
+
+            },
+
+            # =========================================
+            # FIRST COLUMN LEFT
+            # =========================================
+
+            ".ag-pinned-left-cols-container .ag-cell": {
+
+                "justify-content": "flex-start !important",
+                "text-align": "left !important",
+                "padding-left": "12px"
 
             },
 
@@ -290,7 +391,7 @@ def to_excel(df):
 
 def show():
 
-    st.title("📊 Dashboard Promotor")
+    st.title("📊 Dashboard AE")
 
     # =====================================================
     # LOAD DATA
@@ -402,6 +503,35 @@ def show():
 
     )
 
+
+    # =====================================================
+    # USER BRAND
+    # =====================================================
+
+    df_user["BRAND"] = ""
+
+    df_user.loc[
+
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_im3", na=False),
+
+        "BRAND"
+
+    ] = "IM3"
+
+    df_user.loc[
+
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_3id", na=False),
+
+        "BRAND"
+
+    ] = "3ID"
+
     # =====================================================
     # SESSION
     # =====================================================
@@ -421,15 +551,37 @@ def show():
 
     ).dt.date
 
-    tanggal = st.date_input(
+    col_tgl, col_brand = st.columns(2)
 
-        "📅 Filter Tanggal",
+    with col_tgl:
 
-        value=None,
+        tanggal = st.date_input(
 
-        key="pm_tanggal"
+            "📅 Filter Tanggal",
 
-    )
+            value=None,
+
+            key="pm_tanggal"
+
+        )
+
+    with col_brand:
+
+        brand = st.selectbox(
+
+            "📶 Filter Brand",
+
+            options=[
+
+                "Semua",
+                "IM3",
+                "3ID"
+
+            ],
+
+            index=0
+
+        )
 
     if tanggal:
 
@@ -443,7 +595,7 @@ def show():
     # FILTER ROLE
     # =====================================================
 
-    if role == "PROMOTOR":
+    if role == "AE":
 
         df = df[
             df["Input By"] == user
@@ -462,7 +614,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -484,7 +636,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -511,7 +663,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -521,10 +673,34 @@ def show():
         ]
 
     # =====================================================
+    # BRAND MAP
+    # =====================================================
+
+    brand_map = df_user.set_index(
+        "USER"
+    )["BRAND"].to_dict()
+
+    df["BRAND"] = df["Input By"].map(
+        brand_map
+    )
+
+    # =====================================================
+    # FILTER BRAND
+    # =====================================================
+
+    if brand != "Semua":
+
+        df = df[
+
+            df["BRAND"] == brand
+
+        ]
+
+    # =====================================================
     # KPI FILTER SESUAI ROLE
     # =====================================================
 
-    if role == "PROMOTOR":
+    if role == "AE":
 
         promotor_all = [user]
 
@@ -536,7 +712,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -563,7 +739,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -602,19 +778,43 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
     else:
 
         promotor_all = df_user[
-            df_user["ROLE"] == "PROMOTOR"
+            df_user["ROLE"] == "AE"
         ]["USER"].tolist()
 
     # =====================================================
-    # KPI DATA
+    # FILTER BRAND KPI
     # =====================================================
+
+    if brand != "Semua":
+
+        promotor_all = df_user[
+
+            (df_user["ROLE"] == "AE")
+
+            &
+
+            (
+                df_user["ATASAN"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+            )
+
+        ]["USER"].tolist()
+
+    total_promotor = len(
+        promotor_all
+    )
 
     df_promotor = df[
 
@@ -623,10 +823,6 @@ def show():
         )
 
     ]
-
-    total_promotor = len(
-        promotor_all
-    )
 
     promotor_aktif = (
         df_promotor["Input By"]
@@ -673,34 +869,29 @@ def show():
     # KPI UI
     # =====================================================
 
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
-    col2.metric(
-        "👤 Total Promotor",
+    col1.metric(
+        "👤 Total AE",
         total_promotor
     )
 
-    col3.metric(
-        "🔥 Promotor Aktif",
+    col2.metric(
+        "🔥 AE Aktif",
         promotor_aktif
     )
 
-    col4.metric(
-        "% User Aktif",
+    col3.metric(
+        "% AE Aktif",
         f"{persen_aktif}%"
     )
 
-    col1.metric(
-        "🏪 Outlet",
-        jumlah_outlet
-    )
-
-    col5.metric(
+    col4.metric(
         "📱 MSISDN",
         jumlah_msisdn
     )
 
-    col6.metric(
+    col5.metric(
         "% Biometrik",
         f"{persen_bio}%"
     )
@@ -744,7 +935,7 @@ def show():
 
         else:
 
-            st.subheader("📋 Rekap Promotor")
+            st.subheader("📋 Rekap AE")
 
     with col_reset:
 
@@ -803,7 +994,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "PROMOTOR")
+                (df_user["ROLE"] == "AE")
 
             ]["USER"].tolist()
 
@@ -853,13 +1044,11 @@ def show():
 
                 "CSE/RSE": len(daftar_cse),
 
-                "Promotor": total_promotor,
+                "AE": total_promotor,
 
-                "Promotor Aktif": promotor_aktif,
+                "AE Aktif": promotor_aktif,
 
-                "% User Aktif": f"{persen_aktif}%",
-
-                "Outlet": temp["ID Outlet"].nunique(),
+                "% AE Aktif": f"{persen_aktif}%",
 
                 "MSISDN": total_msisdn,
 
@@ -870,6 +1059,24 @@ def show():
             })
 
         summary_hos = pd.DataFrame(rekap_hos)
+
+        # =====================================================
+        # FILTER BRAND
+        # =====================================================
+
+        if brand != "Semua":
+
+            summary_hos = summary_hos[
+
+                summary_hos["HOS"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
 
         if not summary_hos.empty:
 
@@ -988,7 +1195,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "PROMOTOR")
+                (df_user["ROLE"] == "AE")
 
             ]["USER"].tolist()
 
@@ -1038,18 +1245,14 @@ def show():
                 "CSE/RSE":
                     len(daftar_cse),
 
-                "Promotor":
+                "AE":
                     total_promotor,
 
-                "Promotor Aktif":
+                "AE Aktif":
                     promotor_aktif,
 
-                "% User Aktif":
+                "% AE Aktif":
                     f"{persen_aktif}%",
-
-                "Outlet":
-                    temp["ID Outlet"]
-                    .nunique(),
 
                 "MSISDN":
                     total_msisdn,
@@ -1066,6 +1269,19 @@ def show():
             rekap_bsm
         )
 
+        if brand != "Semua":
+
+            summary_bsm = summary_bsm[
+
+                summary_bsm["BSM"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
         if not summary_bsm.empty:
 
             summary_bsm = (
@@ -1210,7 +1426,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "PROMOTOR")
+                (df_user["ROLE"] == "AE")
 
             ]["USER"].tolist()
 
@@ -1260,18 +1476,14 @@ def show():
                 "Branch":
                     row["ATASAN"],
 
-                "Promotor":
+                "AE":
                     total_promotor,
 
-                "Promotor Aktif":
+                "AE Aktif":
                     promotor_aktif,
 
-                "% User Aktif":
+                "% AE Aktif":
                     f"{persen_aktif}%",
-
-                "Outlet":
-                    temp["ID Outlet"]
-                    .nunique(),
 
                 "MSISDN":
                     total_msisdn,
@@ -1288,6 +1500,19 @@ def show():
             rekap_cse
         )
 
+        if brand != "Semua":
+
+            summary_cse = summary_cse[
+
+                summary_cse["CSE/RSE"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
         if not summary_cse.empty:
 
             summary_cse = (
@@ -1351,13 +1576,13 @@ def show():
 
     if role not in ["CSE", "RSE"]:
 
-        st.subheader("📋 Rekap Promotor")
+        st.subheader("📋 Rekap AE")
 
     rekap_promotor = []
 
     promotor_user = df_user[
 
-        df_user["ROLE"] == "PROMOTOR"
+        df_user["ROLE"] == "AE"
 
     ]
 
@@ -1552,7 +1777,7 @@ def show():
 
         rekap_promotor.append({
 
-            "Promotor":
+            "AE":
                 nama_promotor,
 
             "Upline":
@@ -1567,10 +1792,6 @@ def show():
                 else
 
                 "Belum Input",
-
-            "Outlet":
-                temp["ID Outlet"]
-                .nunique(),
 
             "MSISDN":
                 total_msisdn,
@@ -1587,6 +1808,24 @@ def show():
         rekap_promotor
     )
 
+    # =====================================================
+    # FILTER BRAND
+    # =====================================================
+
+    if brand != "Semua":
+
+        summary_promotor = summary_promotor[
+
+            summary_promotor["Upline"]
+            .astype(str)
+            .str.contains(
+                brand,
+                case=False,
+                na=False
+            )
+
+        ]
+
     if not summary_promotor.empty:
 
         summary_promotor = (
@@ -1599,11 +1838,11 @@ def show():
 
         st.download_button(
 
-            label="⬇️ Download Rekap Promotor",
+            label="⬇️ Download Rekap AE",
 
             data=to_excel(summary_promotor),
 
-            file_name="rekap_promotor.xlsx",
+            file_name="rekap_AE.xlsx",
 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
@@ -1617,6 +1856,6 @@ def show():
 
             selectable=False,
 
-            key="promotor"
+            key="AE"
 
         )
