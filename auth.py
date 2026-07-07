@@ -1,12 +1,16 @@
+
 import streamlit as st
 from database import login
 
-
 # =====================================
-# LOGIN
+# LOGIN PAGE
 # =====================================
 
 def login_page():
+
+    # =====================================
+    # SESSION INIT
+    # =====================================
 
     if "outlet_login" not in st.session_state:
         st.session_state.outlet_login = False
@@ -21,22 +25,24 @@ def login_page():
         st.session_state.outlet_atasan = ""
 
     # =====================================
-    # AUTO LOGIN DARI COOKIE
+    # SUDAH LOGIN
     # =====================================
 
     if st.session_state.outlet_login:
         return
 
     # =====================================
-    # KURANGI PADDING ATAS
+    # CSS
     # =====================================
 
     st.markdown(
         """
         <style>
+
             .block-container {
                 padding-top: 0.2rem;
             }
+
         </style>
         """,
         unsafe_allow_html=True
@@ -58,16 +64,18 @@ def login_page():
     st.markdown(
         """
         <style>
+
             div[data-testid="stImage"]{
                 margin-bottom:-130px;
             }
+
         </style>
         """,
         unsafe_allow_html=True
     )
 
     # =====================================
-    # JUDUL
+    # TITLE
     # =====================================
 
     st.markdown(
@@ -119,12 +127,15 @@ def login_page():
                 st.session_state.outlet_role = hasil["role"]
                 st.session_state.outlet_atasan = hasil["atasan"]
 
+                st.rerun()
+
             else:
 
-                st.error("Username atau Password salah.")
+                st.error(
+                    "Username atau Password salah."
+                )
 
     st.stop()
-
 
 # =====================================
 # SIDEBAR
@@ -134,7 +145,9 @@ def sidebar():
 
     with st.sidebar:
 
-        st.success(f"👤 {st.session_state.outlet_user}")
+        st.success(
+            f"👤 {st.session_state.outlet_user}"
+        )
 
         st.caption(
             f"Role : {st.session_state.outlet_role}"
@@ -142,14 +155,15 @@ def sidebar():
 
         st.divider()
 
+        # =====================================
+        # LOGOUT
+        # =====================================
+
         if st.button(
             "🚪 Logout",
             use_container_width=True
         ):
 
-            st.session_state.outlet_login = False
-            st.session_state.outlet_user = ""
-            st.session_state.outlet_role = ""
-            st.session_state.outlet_atasan = ""
+            st.session_state.clear()
 
             st.rerun()

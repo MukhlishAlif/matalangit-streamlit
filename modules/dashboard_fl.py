@@ -103,7 +103,8 @@ def get_selected_value(
 def show_grid(
     df,
     selectable=False,
-    key=None
+    key=None,
+    total_outlet=None
 ):
 
     if df.empty:
@@ -130,11 +131,17 @@ def show_grid(
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
+    # =====================================================
+    # DEFAULT COLUMN
+    # =====================================================
+
     gb.configure_default_column(
 
-        resizable=True,
+        resizable=False,
         sortable=True,
-        filter=True
+        filter=False,
+        suppressMenu=True,
+        floatingFilter=False
 
     )
 
@@ -151,14 +158,19 @@ def show_grid(
 
         )
 
+    # =====================================================
+    # GRID OPTIONS
+    # =====================================================
+
     gb.configure_grid_options(
 
         headerHeight=45,
         rowHeight=42,
-        domLayout="normal"
+        domLayout="normal",
+
+        suppressMovableColumns=True
 
     )
-
     # =====================================================
     # TOTAL ROW
     # =====================================================
@@ -169,9 +181,25 @@ def show_grid(
 
         if pd.api.types.is_numeric_dtype(df[col]):
 
-            total_row[col] = int(
-                df[col].sum()
-            )
+            # =============================================
+            # KHUSUS OUTLET
+            # =============================================
+
+            if col == "Outlet":
+
+                total_row[col] = (
+
+                    total_outlet
+                    if total_outlet is not None
+                    else 0
+
+                )
+
+            else:
+
+                total_row[col] = int(
+                    df[col].sum()
+                )
 
         else:
 
@@ -181,8 +209,7 @@ def show_grid(
                 "BSM",
                 "Branch",
                 "CSE/RSE",
-                "Frontliner",
-                "Frontliner Inaktif",
+                "AE",
                 "Atasan"
 
             ]:
@@ -195,7 +222,80 @@ def show_grid(
 
                 total_row[col] = ""
 
+    # =====================================================
+    # BUILD GRID
+    # =====================================================
+
     grid_options = gb.build()
+
+    # =====================================================
+    # FIX COLUMN WIDTH BERDASARKAN ISI
+    # =====================================================
+
+    first_col = df.columns[0]
+
+    for col in grid_options["columnDefs"]:
+
+        field = col["field"]
+
+        max_len = max(
+
+            len(str(field)),
+            df[field].astype(str).str.len().max()
+
+        )
+
+        width = min(
+
+            max(
+                max_len * 10 + 30,
+                120
+            ),
+
+            450
+
+        )
+
+        col["width"] = int(width)
+        col["minWidth"] = int(width)
+        col["maxWidth"] = int(width)
+
+        if field == first_col:
+
+            col["width"] = 260
+            col["minWidth"] = 260
+            col["maxWidth"] = 260
+
+            # Freeze kolom pertama
+            col["pinned"] = "left"
+            col["lockPinned"] = True
+            col["lockPosition"] = True
+            col["suppressMovable"] = True
+
+            col["cellStyle"] = {
+
+                "textAlign": "left",
+                "display": "flex",
+                "justifyContent": "flex-start",
+                "alignItems": "center",
+                "paddingLeft": "12px",
+                "fontWeight": "600"
+
+            }
+
+    # =====================================================
+    # HILANGKAN CORONG SEMUA KOLOM
+    # =====================================================
+
+    for col in grid_options["columnDefs"]:
+
+        col["filter"] = False
+        col["floatingFilter"] = False
+        col["suppressMenu"] = True
+
+    # =====================================================
+    # FOOTER
+    # =====================================================
 
     grid_options["pinnedBottomRowData"] = [
         total_row
@@ -220,9 +320,9 @@ def show_grid(
 
     )
 
-    # =====================================================
+    # ======================================================
     # GRID
-    # =====================================================
+    # ======================================================
 
     grid_response = AgGrid(
 
@@ -232,13 +332,13 @@ def show_grid(
 
         gridOptions=grid_options,
 
-        fit_columns_on_grid_load=True,
-
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        fit_columns_on_grid_load=False,
 
         height=table_height,
 
         theme="balham",
+
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
 
         allow_unsafe_jscode=True,
 
@@ -255,6 +355,44 @@ def show_grid(
 
                 "background-color": "#f8fafc",
                 "font-weight": "700"
+
+            },
+
+            # Header semua kolom center
+            ".ag-header-cell-label": {
+
+                "display": "flex",
+                "justify-content": "center",
+                "align-items": "center",
+                "width": "100%",
+                "text-align": "center"
+
+            },
+
+            # Isi semua kolom center
+            ".ag-cell": {
+
+                "display": "flex",
+                "justify-content": "center",
+                "align-items": "center",
+                "text-align": "center"
+
+            },
+
+            # Khusus kolom pertama rata kiri
+            ".ag-cell:first-child": {
+
+                "justify-content": "flex-start !important",
+                "text-align": "left !important",
+                "padding-left": "12px"
+
+            },
+
+            # Khusus header kolom pertama rata kiri
+            ".ag-header-cell:first-child .ag-header-cell-label": {
+
+                "justify-content": "flex-start !important",
+                "padding-left": "12px"
 
             },
 
@@ -276,7 +414,6 @@ def show_grid(
         }
 
     )
-
     return grid_response
 
 # =========================================================
@@ -392,6 +529,34 @@ def show():
     )
 
     # =====================================================
+    # USER BRAND
+    # =====================================================
+
+    df_user["BRAND"] = ""
+
+    df_user.loc[
+
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_im3", na=False),
+
+        "BRAND"
+
+    ] = "IM3"
+
+    df_user.loc[
+
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_3id", na=False),
+
+        "BRAND"
+
+    ] = "3ID"
+
+    # =====================================================
     # SESSION
     # =====================================================
 
@@ -399,25 +564,40 @@ def show():
     user = st.session_state.outlet_user
 
     # =====================================================
-    # FILTER TANGGAL
+    # FILTER
     # =====================================================
 
-    tanggal = st.date_input(
+    col_tgl, col_brand = st.columns(2)
 
-        "📅 Filter Tanggal",
+    with col_tgl:
 
-        value=None,
+        tanggal = st.date_input(
 
-        key="fl_tanggal"
+            "📅 Filter Tanggal",
 
-    )
+            value=None,
 
-    if tanggal:
+            key="fl_tanggal"
 
-        df = df[
-            df["Tanggal"] == tanggal
-        ]
+        )
 
+    with col_brand:
+
+        brand = st.selectbox(
+
+            "📶 Filter Brand",
+
+            options=[
+
+                "Semua",
+                "IM3",
+                "3ID"
+
+            ],
+
+            index=0
+
+        )
     st.divider()
 
     # =====================================================
@@ -499,6 +679,30 @@ def show():
         df = df[
             df["Input By"]
             .isin(daftar_fl)
+        ]
+
+    # =====================================================
+    # BRAND MAP
+    # =====================================================
+
+    brand_map = df_user.set_index(
+        "USER"
+    )["BRAND"].to_dict()
+
+    df["BRAND"] = df["Input By"].map(
+        brand_map
+    )
+
+    # =====================================================
+    # FILTER BRAND
+    # =====================================================
+
+    if brand != "Semua":
+
+        df = df[
+
+            df["BRAND"] == brand
+
         ]
 
     # =====================================================
@@ -734,13 +938,46 @@ def show():
             rekap_hos
         )
 
+        # =====================================================
+        # FILTER BRAND
+        # =====================================================
+
+        if brand != "Semua":
+
+            summary_hos = summary_hos[
+
+                summary_hos["HOS"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
+
+
         hos_grid = show_grid(
 
             summary_hos,
 
             selectable=True,
 
-            key="hos_fl"
+            key=f"hos_{tanggal}_{role}_{user}",
+
+            total_outlet=(
+
+                df["ID Outlet"]
+
+                .dropna()
+
+                .astype(str)
+
+                .str.strip()
+
+                .nunique()
+
+            )
 
         )
 
@@ -925,13 +1162,41 @@ def show():
             rekap_bsm
         )
 
+        if brand != "Semua":
+
+            summary_bsm = summary_bsm[
+
+                summary_bsm["BSM"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
+
         bsm_grid = show_grid(
 
             summary_bsm,
 
             selectable=True,
 
-            key="bsm_fl"
+            key=f"bsm_{tanggal}_{role}_{user}",
+
+            total_outlet=(
+
+                df["ID Outlet"]
+
+                .dropna()
+
+                .astype(str)
+
+                .str.strip()
+
+                .nunique()
+
+            )
 
         )
 
@@ -1138,13 +1403,40 @@ def show():
             rekap_cse
         )
 
+        if brand != "Semua":
+
+            summary_cse = summary_cse[
+
+                summary_cse["CSE/RSE"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
+
+            ]
         cse_grid = show_grid(
 
             summary_cse,
 
             selectable=True,
 
-            key="cse_fl"
+            key=f"cse_{tanggal}_{role}_{user}",
+
+            total_outlet=(
+
+                df["ID Outlet"]
+
+                .dropna()
+
+                .astype(str)
+
+                .str.strip()
+
+                .nunique()
+
+            )
 
         )
 
@@ -1370,16 +1662,47 @@ def show():
         rekap_fl
     )
 
+    # =====================================================
+    # FILTER BRAND
+    # =====================================================
+
+    if brand != "Semua":
+
+        summary_fl = summary_fl[
+
+            summary_fl["Upline"]
+            .astype(str)
+            .str.contains(
+                brand,
+                case=False,
+                na=False
+            )
+
+        ]
+
     show_grid(
 
         summary_fl,
 
         selectable=False,
 
-        key="frontliner"
+        key="frontliner",
+
+        total_outlet=(
+
+            df["ID Outlet"]
+
+            .dropna()
+
+            .astype(str)
+
+            .str.strip()
+
+            .nunique()
+
+        )
 
     )
-
     buffer = BytesIO()
 
     with pd.ExcelWriter(

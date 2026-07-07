@@ -26,7 +26,8 @@ ROLE_LIST = [
     "RSE",
     "DSE",
     "FRONTLINER",
-    "PROMOTOR"
+    "AE",
+    "GSE"
 ]
 
 
@@ -48,7 +49,7 @@ def pilihan_atasan(role):
     if role in ["CSE", "RSE"]:
         return get_user_role("BSM")
 
-    if role in ["DSE", "FRONTLINER", "PROMOTOR"]:
+    if role in ["DSE", "FRONTLINER", "AE", "GSE"]:
         return get_user_role("CSE") + get_user_role("RSE")
 
     return ["-"]

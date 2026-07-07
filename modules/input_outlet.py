@@ -1,36 +1,80 @@
-import streamlit as st
-import pandas as pd
-
-from database import (
-    simpan_data,
-    cek_msisdn
-)
-
 # =====================
 # LOAD BIOMETRIK
 # =====================
 
+import requests
+import pandas as pd
+import streamlit as st
+
+from database import ( simpan_data, cek_msisdn )
+
 @st.cache_data
 def load_biometrik():
 
-    biometrik = pd.read_csv(
-        "ga_biometrics_cj.csv",
-        dtype=str,
-        low_memory=False
+    # =====================
+    # API URL
+    # =====================
+
+    url = "https://api.matalangit.cloud/bio/fetch-derfrtgty"
+
+    # =====================
+    # REQUEST
+    # =====================
+
+    response = requests.get(url)
+
+    data = response.json()
+
+    # =====================
+    # DATAFRAME
+    # =====================
+
+    biometrik = pd.json_normalize(
+        data["data"]
     )
 
+    # =====================
+    # CLEAN COLUMN
+    # =====================
+
     biometrik.columns = (
+
         biometrik.columns
+
         .str.strip()
+
         .str.lower()
+
     )
+
+    # =====================
+    # CLEAN MSISDN
+    # =====================
 
     biometrik["msisdn"] = (
 
         biometrik["msisdn"]
+
         .fillna("")
+
         .astype(str)
+
         .str.strip()
+
+    )
+
+    # =====================
+    # FORMAT TANGGAL
+    # =====================
+
+    biometrik["ga_dt"] = pd.to_datetime(
+
+        biometrik["ga_dt"],
+
+        dayfirst=True,
+
+        errors="coerce"
+
     )
 
     return biometrik
@@ -59,10 +103,32 @@ def show():
     # FORM
     # =====================
 
-    st.title("📝 Input Outlet")
+    st.title("Input Outlet")
 
-    nama_outlet = st.text_input("Nama Outlet *")
-    id_outlet = st.text_input("ID Outlet *")
+    # =====================
+    # ROLE
+    # =====================
+
+    role = st.session_state.outlet_role
+
+    # =====================
+    # KHUSUS AE & GSE
+    # =====================
+
+    if role in ["AE", "GSE"]:
+
+        nama_outlet = "-"
+        id_outlet = "-"
+
+    else:
+
+        nama_outlet = st.text_input(
+            "Nama Outlet *"
+        )
+
+        id_outlet = st.text_input(
+            "ID Outlet *"
+        )
 
     st.divider()
 
@@ -123,13 +189,15 @@ def show():
         # VALIDASI OUTLET
         # =====================
 
-        if nama_outlet == "":
-            st.error("Nama Outlet wajib diisi.")
-            st.stop()
+        if role not in ["AE", "GSE"]:
 
-        if id_outlet == "":
-            st.error("ID Outlet wajib diisi.")
-            st.stop()
+            if nama_outlet == "":
+                st.error("Nama Outlet wajib diisi.")
+                st.stop()
+
+            if id_outlet == "":
+                st.error("ID Outlet wajib diisi.")
+                st.stop()
 
         # =====================
         # FILTER NOMOR ISI
@@ -283,5 +351,3 @@ Tanggal : **{item['tanggal']}**
             key = f"msisdn_{i}"
             if key in st.session_state:
                 del st.session_state[key]
-
-        st.rerun()

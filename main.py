@@ -9,6 +9,7 @@ from modules.dashboard_cse import show as dashboard_cse
 from modules.dashboard_dse import show as dashboard_dse
 from modules.dashboard_fl import show as dashboard_fl
 from modules.dashboard_pm import show as dashboard_pm
+from modules.dashboard_gse import show as dashboard_gse
 from modules.master_user import show as master_user
 
 from auth import login_page, sidebar
@@ -140,7 +141,7 @@ role = st.session_state.outlet_role
 # MENU
 # =====================================
 
-if role in ["DSE", "FRONTLINER", "PROMOTOR"]:
+if role in ["DSE", "FRONTLINER", "AE", "GSE"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -158,7 +159,8 @@ elif role in ["CSE", "RSE"]:
         [
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard Promotor",
+            "Dashboard AE",
+            "Dashboard GSE",
             "Input MSISDN",
             "Data MSISDN"
         ],
@@ -172,7 +174,8 @@ elif role == "BSM":
         [
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard Promotor",
+            "Dashboard AE",
+            "Dashboard GSE",
             "Dashboard CSE/RSE",
             "Data MSISDN"
         ],
@@ -186,7 +189,8 @@ elif role == "HOS":
         [
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard Promotor",
+            "Dashboard AE",
+            "Dashboard GSE",
             "Dashboard CSE/RSE",
             "Data MSISDN"
         ],
@@ -200,7 +204,8 @@ elif role == "ADMIN":
         [
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard Promotor",
+            "Dashboard AE",
+            "Dashboard GSE",
             "Dashboard CSE/RSE",
             "Data MSISDN",
             "Master User"
@@ -225,9 +230,13 @@ elif menu == "Dashboard Frontliner":
 
     dashboard_fl()
 
-elif menu == "Dashboard Promotor":
+elif menu == "Dashboard AE":
 
     dashboard_pm()
+
+elif menu == "Dashboard GSE":
+
+    dashboard_gse() 
 
 elif menu == "Dashboard CSE/RSE":
 

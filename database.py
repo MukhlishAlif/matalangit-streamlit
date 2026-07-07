@@ -1,7 +1,11 @@
 import os
 import sqlite3
+import psycopg2
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from dotenv import load_dotenv
+from sshtunnel import SSHTunnelForwarder
+from dotenv import load_dotenv
 
 # =====================================
 # PATH DATABASE
@@ -20,6 +24,16 @@ cursor = conn.cursor()
 cursor.execute("PRAGMA database_list")
 print(cursor.fetchall())
 
+# =====================================
+# POSTGRE
+# =====================================
+import pandas as pd
+
+url = "https://api.matalangit.cloud/bio/fetch-derfrtgty"
+
+df = pd.read_json(url)
+
+print(df.head())
 # =====================================
 # TABEL USER
 # =====================================
