@@ -3,7 +3,6 @@ import sqlite3
 import psycopg2
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from sshtunnel import SSHTunnelForwarder
 
 # =====================================
 # PATH DATABASE
