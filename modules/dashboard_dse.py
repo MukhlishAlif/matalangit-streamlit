@@ -1240,6 +1240,8 @@ def show():
             # KPI
             # =============================================
 
+            total_dse = len(daftar_dse)
+
             dse_aktif = temp[
                 "Input By"
             ].nunique()
@@ -1811,13 +1813,15 @@ def show():
             "CSE/RSE"
         )
 
-        if selected_cse != st.session_state.selected_cse:
+        if selected_cse:
 
-            st.session_state.selected_cse = (
-                selected_cse
-            )
+            if st.session_state.selected_cse != selected_cse:
 
-            st.rerun()
+                st.session_state.selected_cse = (
+                    selected_cse
+                )
+
+                st.rerun()
 
         st.divider()
 
