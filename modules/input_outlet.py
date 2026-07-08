@@ -244,7 +244,6 @@ def show():
         # =====================
 
         sudah_input_db = []
-        sudah_biometrik_ga = []
         valid_input = []
 
         for nomor in nomor_isi:
@@ -260,21 +259,6 @@ def show():
                     "created_at": cek["created_at"]
                 })
                 continue
-
-            # 2. CEK GA BIOMETRIK
-            cek_bio = biometrik[
-                biometrik["msisdn"] == nomor
-            ]
-
-            if not cek_bio.empty:
-
-                sudah_biometrik_ga.append({
-                    "msisdn": nomor,
-                    "tanggal": cek_bio.iloc[0].get("ga_dt", "-")
-                })
-
-                continue
-
             # 3. AMAN
             valid_input.append(nomor)
 
@@ -300,24 +284,6 @@ Tanggal : **{item['created_at']}**
             st.stop()
 
         # =====================
-        # OUTPUT GA BIOMETRIK INFO
-        # =====================
-
-        if sudah_biometrik_ga:
-
-            for item in sudah_biometrik_ga:
-
-                st.warning(
-                    f"""
-MSISDN **{item['msisdn']}**
-
-Sudah ada di data GA Biometrik.
-
-Tanggal : **{item['tanggal']}**
-"""
-                )
-
-        # =====================
         # STOP JIKA TIDAK ADA YANG VALID
         # =====================
 
@@ -339,7 +305,6 @@ Tanggal : **{item['tanggal']}**
             )
 
         st.success(f"Berhasil menyimpan {len(valid_input)} MSISDN.")
-        st.balloons()
 
         # =====================
         # RESET FORM
