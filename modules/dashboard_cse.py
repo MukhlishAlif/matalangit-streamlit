@@ -497,7 +497,7 @@ def show():
     df["Tanggal"] = pd.to_datetime(
         df["Tanggal"],
         errors="coerce"
-    ).dt.date
+    )
 
     df = df.merge(
         biometrik,
@@ -513,13 +513,17 @@ def show():
 
     df["Biometrik"] = (
         (
-            df["Tanggal"] ==
-            df["tanggal_biometrik"]
+            df["Tanggal"]
+            .dt.to_period("M")
+            ==
+            pd.to_datetime(
+                df["tanggal_biometrik"],
+                errors="coerce"
+            ).dt.to_period("M")
         )
         .fillna(False)
         .astype(int)
     )
-
 
     # ======================================================
     # SESSION

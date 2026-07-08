@@ -181,11 +181,15 @@ def show():
 
     df["Biometrik H-1"] = (
 
-        df["Tanggal"].dt.date
+        df["Tanggal"]
+
+        .dt.to_period("M")
 
         ==
 
-        df["Tanggal Biometrik"].dt.date
+        df["Tanggal Biometrik"]
+
+        .dt.to_period("M")
 
     ).map(
 
@@ -198,6 +202,7 @@ def show():
         }
 
     )
+
 
     users = tampil_user()
 
@@ -390,7 +395,8 @@ def show():
                     "DSE",
                     "AE",
                     "GSE",
-                    "FRONTLINER"
+                    "FRONTLINER",
+                    "PROMOTOR"
 
                 ])
 
@@ -442,7 +448,8 @@ def show():
                         "DSE",
                         "AE",
                         "GSE",
-                        "FRONTLINER"
+                        "FRONTLINER",
+                        "PROMOTOR"
 
                     ])
 
@@ -516,7 +523,8 @@ def show():
                 "DSE",
                 "AE",
                 "GSE",
-                "FRONTLINER"
+                "FRONTLINER",
+                "PROMOTOR"
 
             ]))
 
@@ -596,7 +604,8 @@ def show():
                 "DSE",
                 "AE",
                 "GSE",
-                "FRONTLINER"
+                "FRONTLINER",
+                "PROMOTOR"
 
             ]))
 
@@ -660,7 +669,8 @@ def show():
                 "DSE",
                 "AE",
                 "GSE",
-                "FRONTLINER"
+                "FRONTLINER",
+                "PROMOTOR"
 
             ]))
 
@@ -832,7 +842,12 @@ def show():
 
         "GSE": df[
             df["ROLE"] == "GSE"
-        ]
+        ],
+
+        "PROMOTOR": df[
+            df["ROLE"] == "PROMOTOR"
+        ],
+
 
     }
 

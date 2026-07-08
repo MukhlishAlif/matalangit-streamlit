@@ -437,7 +437,7 @@ def show():
     df["Tanggal"] = pd.to_datetime(
         df["Tanggal"],
         errors="coerce"
-    ).dt.date
+    )
 
     df = df.merge(
 
@@ -455,9 +455,17 @@ def show():
 
         df["Tanggal"]
 
+        .dt.to_period("M")
+
         ==
 
-        df["tanggal_biometrik"]
+        pd.to_datetime(
+
+            df["tanggal_biometrik"],
+
+            errors="coerce"
+
+        ).dt.to_period("M")
 
     )
 

@@ -396,27 +396,61 @@ def show():
 
     )
 
-    df["Tanggal"] = (
+    df["Tanggal"] = pd.to_datetime(
 
-        pd.to_datetime(
-            df["Tanggal"],
-            errors="coerce"
-        ).dt.date
+        df["Tanggal"],
+
+        errors="coerce"
+
+    )
+
+    biometrik["tanggal_biometrik"] = pd.to_datetime(
+
+        biometrik["tanggal_biometrik"],
+
+        errors="coerce"
+
+    )
+
+    df["Bulan"] = (
+
+        df["Tanggal"]
+
+        .dt.to_period("M")
+
+    )
+
+    biometrik["Bulan"] = (
+
+        biometrik["tanggal_biometrik"]
+
+        .dt.to_period("M")
 
     )
 
     df = df.merge(
 
-        biometrik,
+        biometrik[
+
+            [
+                "msisdn",
+                "Bulan"
+            ]
+
+        ].drop_duplicates(),
 
         left_on=[
+
             "MSISDN",
-            "Tanggal"
+            "Bulan"
+
         ],
 
         right_on=[
+
             "msisdn",
-            "tanggal_biometrik"
+            "Bulan"
+
         ],
 
         how="left"
@@ -424,20 +458,25 @@ def show():
     )
 
     df["Biometrik"] = (
-        df["tanggal_biometrik"].notna()
+
+        df["msisdn"]
+
+        .notna()
+
     )
 
     df.drop(
 
         columns=[
+
             "msisdn",
-            "tanggal_biometrik"
+            "Bulan"
+
         ],
 
         inplace=True
 
     )
-
     # =====================================================
     # USER DF
     # =====================================================
