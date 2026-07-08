@@ -36,13 +36,46 @@ def get_connection():
 # =====================================
 # POSTGRE
 # =====================================
+import requests
 import pandas as pd
+import streamlit as st
 
-url = "https://api.matalangit.cloud/bio/fetch-derfrtgty"
 
-df = pd.read_json(url)
+@st.cache_data(ttl=300)
+def load_biometrik():
 
-print(df.head())
+    url = "https://api.matalangit.cloud/bio/fetch-derfrtgty"
+
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+
+    data = response.json()
+
+    biometrik = pd.json_normalize(data["data"])
+
+    biometrik.columns = (
+        biometrik.columns
+        .str.strip()
+        .str.lower()
+    )
+
+    biometrik["msisdn"] = (
+        biometrik["msisdn"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    biometrik["tanggal_biometrik"] = pd.to_datetime(
+        biometrik["ga_dt"],
+        dayfirst=True,
+        errors="coerce"
+    ).dt.date
+
+    return biometrik[
+        ["msisdn", "tanggal_biometrik"]
+    ].drop_duplicates()
+
 # =====================================
 # TABEL USER
 # =====================================

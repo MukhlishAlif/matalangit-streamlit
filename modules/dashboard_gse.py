@@ -17,46 +17,10 @@ from st_aggrid import (
 
 from database import (
     tampil_data,
-    tampil_user
+    tampil_user,
+    load_biometrik
 )
 
-# =========================================================
-# LOAD BIOMETRIK
-# =========================================================
-
-@st.cache_data
-def load_biometrik():
-
-    biometrik = pd.read_csv(
-        "ga_biometrics_cj.csv",
-        dtype=str,
-        low_memory=False
-    )
-
-    biometrik.columns = (
-        biometrik.columns
-        .str.strip()
-        .str.lower()
-    )
-
-    biometrik["msisdn"] = (
-        biometrik["msisdn"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-    )
-
-    biometrik["tanggal_biometrik"] = pd.to_datetime(
-        biometrik["ga_dt"],
-        errors="coerce"
-    ).dt.date
-
-    return biometrik[
-        [
-            "msisdn",
-            "tanggal_biometrik"
-        ]
-    ].drop_duplicates()
 
 # =========================================================
 # GET SELECTED VALUE
