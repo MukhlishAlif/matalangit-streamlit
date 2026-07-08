@@ -75,6 +75,81 @@ def load_biometrik():
         ["msisdn", "tanggal_biometrik"]
     ].drop_duplicates()
 
+
+# =====================================
+# MASTER MSISDN
+# =====================================
+
+import requests
+import pandas as pd
+import streamlit as st
+
+
+@st.cache_data(ttl=300)
+def load_master_msisdn():
+
+    # =====================
+    # API
+    # =====================
+
+    url = "https://api.matalangit.cloud/bio/fetch-derfrtgty2"
+
+    response = requests.get(
+        url,
+        timeout=30
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    # =====================
+    # DATAFRAME
+    # =====================
+
+    df = pd.json_normalize(
+        data["data"]
+    )
+
+    # =====================
+    # CLEAN COLUMN
+    # =====================
+
+    df.columns = (
+
+        df.columns
+
+        .str.strip()
+
+        .str.upper()
+
+    )
+
+    # =====================
+    # CLEAN MSISDN
+    # =====================
+
+    df["MSISDN"] = (
+
+        df["MSISDN"]
+
+        .fillna("")
+
+        .astype(str)
+
+        .str.strip()
+
+    )
+
+    # =====================
+    # RETURN
+    # =====================
+
+    return set(
+
+        df["MSISDN"]
+
+    )
 # =====================================
 # TABEL USER
 # =====================================

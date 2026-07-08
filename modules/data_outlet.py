@@ -894,7 +894,6 @@ def show():
 
         )
 
-        st.divider()
 
         # ===========================
         # JIKA TIDAK ADA DATA
@@ -958,7 +957,7 @@ def show():
             ],
             key=f"editor_{nama_role}"
         )
-
+        st.divider()
         # ===========================
         # DELETE
         # ===========================
