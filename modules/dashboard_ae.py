@@ -21,7 +21,6 @@ from database import (
     load_biometrik
 )
 
-
 # =========================================================
 # GET SELECTED VALUE
 # =========================================================
@@ -80,43 +79,18 @@ def show_grid(
         """
         <style>
 
-        /* HILANGKAN ICON FILTER */
-        .ag-theme-balham .ag-header-icon {
-            display: none !important;
-        }
-
-        /* HEADER */
-        .ag-theme-balham .ag-header-cell {
-            border-right: none !important;
-        }
-
-        .ag-theme-balham .ag-header-cell-label {
-            justify-content: flex-start !important;
-            font-weight: 700;
-        }
-
-        /* CELL */
-        .ag-theme-balham .ag-cell {
-            border-right: none !important;
-        }
-
-        /* KOLOM PERTAMA */
-        .ag-theme-balham .ag-cell:first-child {
-            text-align: left !important;
-            padding-left: 14px !important;
-        }
-
-        .ag-theme-balham .ag-header-cell:first-child {
-            padding-left: 14px !important;
-        }
-
-        /* FOOTER */
         .ag-theme-balham .ag-pinned-bottom {
 
             font-weight: 700 !important;
             min-height: 42px !important;
             line-height: 42px !important;
-            border-top: 2px solid #6366f1 !important;
+
+        }
+
+        /* HEADER CENTER */
+        .header-center .ag-header-cell-label {
+
+            justify-content: center !important;
 
         }
 
@@ -157,9 +131,10 @@ def show_grid(
     gb.configure_column(
 
         first_col,
+        pinned="left",
 
         flex=2,
-        minWidth=220,
+        minWidth=270,
 
         cellStyle={
             "textAlign": "left"
@@ -183,26 +158,9 @@ def show_grid(
 
     )
 
-
-    # =========================
-    # BUILD GRID
-    # =========================
-
-    grid_options = gb.build()
-
-    # =========================
-    # FORCE HILANGKAN CORONG
-    # =========================
-
-    for col in grid_options["columnDefs"]:
-
-        col["filter"] = False
-        col["floatingFilter"] = False
-        col["suppressMenu"] = True
-
-    # =========================
+    # =====================================================
     # TOTAL ROW
-    # =========================
+    # =====================================================
 
     total_row = {}
 
@@ -222,7 +180,7 @@ def show_grid(
                 "BSM",
                 "Branch",
                 "CSE/RSE",
-                "GSE",
+                "AE",
                 "Atasan"
 
             ]:
@@ -235,9 +193,25 @@ def show_grid(
 
                 total_row[col] = ""
 
-    # =========================
-    # FOOTER
-    # =========================
+    # =====================================================
+    # BUILD GRID
+    # =====================================================
+
+    grid_options = gb.build()
+
+    # =====================================================
+    # HILANGKAN CORONG
+    # =====================================================
+
+    for col in grid_options["columnDefs"]:
+
+        col["filter"] = False
+        col["floatingFilter"] = False
+        col["suppressMenu"] = True
+
+    # =====================================================
+    # PINNED BOTTOM
+    # =====================================================
 
     grid_options["pinnedBottomRowData"] = [
         total_row
@@ -258,10 +232,6 @@ def show_grid(
 
     )
 
-    # ======================================================
-    # GRID
-    # ======================================================
-
     grid_response = AgGrid(
 
         df,
@@ -272,11 +242,11 @@ def show_grid(
 
         fit_columns_on_grid_load=False,
 
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+
         height=table_height,
 
         theme="balham",
-
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
 
         allow_unsafe_jscode=True,
 
@@ -289,25 +259,32 @@ def show_grid(
 
             },
 
-            ".ag-header": {
+            # =========================================
+            # HEADER DEFAULT CENTER
+            # =========================================
 
-                "background-color": "#f8fafc",
+            ".ag-header-cell-label": {
+
+                "justify-content": "center",
                 "font-weight": "700"
 
             },
 
-            # Header semua kolom center
-            ".ag-header-cell-label": {
+            # =========================================
+            # HEADER FIRST COLUMN LEFT
+            # =========================================
 
-                "display": "flex",
-                "justify-content": "center",
-                "align-items": "center",
-                "width": "100%",
-                "text-align": "center"
+            ".ag-pinned-left-header .ag-header-cell-label": {
+
+                "justify-content": "flex-start !important",
+                "padding-left": "12px"
 
             },
 
-            # Isi semua kolom center
+            # =========================================
+            # SEMUA CELL CENTER
+            # =========================================
+
             ".ag-cell": {
 
                 "display": "flex",
@@ -317,19 +294,14 @@ def show_grid(
 
             },
 
-            # Khusus kolom pertama rata kiri
-            ".ag-cell:first-child": {
+            # =========================================
+            # FIRST COLUMN LEFT
+            # =========================================
+
+            ".ag-pinned-left-cols-container .ag-cell": {
 
                 "justify-content": "flex-start !important",
                 "text-align": "left !important",
-                "padding-left": "12px"
-
-            },
-
-            # Khusus header kolom pertama rata kiri
-            ".ag-header-cell:first-child .ag-header-cell-label": {
-
-                "justify-content": "flex-start !important",
                 "padding-left": "12px"
 
             },
@@ -352,6 +324,7 @@ def show_grid(
         }
 
     )
+
     return grid_response
 
 # =========================================================
@@ -381,7 +354,7 @@ def to_excel(df):
 
 def show():
 
-    st.title("📊 Dashboard GSE")
+    st.title("📊 Dashboard AE")
 
     # =====================================================
     # LOAD DATA
@@ -502,6 +475,35 @@ def show():
 
     )
 
+
+    # =====================================================
+    # USER BRAND
+    # =====================================================
+
+    df_user["BRAND"] = ""
+
+    df_user.loc[
+
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_im3", na=False),
+
+        "BRAND"
+
+    ] = "IM3"
+
+    df_user.loc[
+
+        df_user["ATASAN"]
+        .astype(str)
+        .str.lower()
+        .str.contains("_3id", na=False),
+
+        "BRAND"
+
+    ] = "3ID"
+
     # =====================================================
     # SESSION
     # =====================================================
@@ -559,44 +561,13 @@ def show():
             df["Tanggal"] == tanggal
         ]
 
-    # =====================================================
-    # FILTER BRAND DARI ATASAN
-    # =====================================================
-
-    if brand != "Semua":
-
-        df_user_filtered = df_user[
-
-            df_user["ATASAN"]
-            .astype(str)
-            .str.contains(
-                brand,
-                case=False,
-                na=False
-            )
-
-        ]
-
-        user_brand = df_user_filtered[
-            "USER"
-        ].tolist()
-
-        df = df[
-
-            df["Input By"]
-            .isin(user_brand)
-
-        ]
-
     st.divider()
-
-
 
     # =====================================================
     # FILTER ROLE
     # =====================================================
 
-    if role == "GSE":
+    if role == "AE":
 
         df = df[
             df["Input By"] == user
@@ -615,7 +586,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "GSE")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -637,7 +608,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "GSE")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -664,7 +635,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "GSE")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -674,10 +645,34 @@ def show():
         ]
 
     # =====================================================
+    # BRAND MAP
+    # =====================================================
+
+    brand_map = df_user.set_index(
+        "USER"
+    )["BRAND"].to_dict()
+
+    df["BRAND"] = df["Input By"].map(
+        brand_map
+    )
+
+    # =====================================================
+    # FILTER BRAND
+    # =====================================================
+
+    if brand != "Semua":
+
+        df = df[
+
+            df["BRAND"] == brand
+
+        ]
+
+    # =====================================================
     # KPI FILTER SESUAI ROLE
     # =====================================================
 
-    if role == "GSE":
+    if role == "AE":
 
         promotor_all = [user]
 
@@ -689,7 +684,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "GSE")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -716,7 +711,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "GSE")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
@@ -755,48 +750,43 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "GSE")
+            (df_user["ROLE"] == "AE")
 
         ]["USER"].tolist()
 
     else:
 
         promotor_all = df_user[
-            df_user["ROLE"] == "GSE"
+            df_user["ROLE"] == "AE"
         ]["USER"].tolist()
 
     # =====================================================
-    # FILTER BRAND KE KPI
+    # FILTER BRAND KPI
     # =====================================================
 
     if brand != "Semua":
 
-        df_user_filtered = df_user[
+        promotor_all = df_user[
 
-            df_user["ATASAN"]
-            .astype(str)
-            .str.contains(
-                brand,
-                case=False,
-                na=False
+            (df_user["ROLE"] == "AE")
+
+            &
+
+            (
+                df_user["ATASAN"]
+                .astype(str)
+                .str.contains(
+                    brand,
+                    case=False,
+                    na=False
+                )
             )
 
-        ]
+        ]["USER"].tolist()
 
-        user_brand = df_user_filtered[
-            "USER"
-        ].tolist()
-
-        promotor_all = [
-
-            x for x in promotor_all
-            if x in user_brand
-
-        ]
-
-    # =====================================================
-    # KPI DATA
-    # =====================================================
+    total_promotor = len(
+        promotor_all
+    )
 
     df_promotor = df[
 
@@ -805,10 +795,6 @@ def show():
         )
 
     ]
-
-    total_promotor = len(
-        promotor_all
-    )
 
     promotor_aktif = (
         df_promotor["Input By"]
@@ -851,8 +837,6 @@ def show():
 
     ) if jumlah_msisdn > 0 else 0
 
-
-
     # =====================================================
     # KPI UI
     # =====================================================
@@ -860,17 +844,17 @@ def show():
     col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
-        "👤 Total GSE",
+        "👤 Total AE",
         total_promotor
     )
 
     col2.metric(
-        "🔥 GSE Aktif",
+        "🔥 AE Aktif",
         promotor_aktif
     )
 
     col3.metric(
-        "% User Aktif",
+        "% AE Aktif",
         f"{persen_aktif}%"
     )
 
@@ -923,7 +907,7 @@ def show():
 
         else:
 
-            st.subheader("📋 Rekap GSE")
+            st.subheader("📋 Rekap AE")
 
     with col_reset:
 
@@ -982,7 +966,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "GSE")
+                (df_user["ROLE"] == "AE")
 
             ]["USER"].tolist()
 
@@ -1032,11 +1016,11 @@ def show():
 
                 "CSE/RSE": len(daftar_cse),
 
-                "Promotor": total_promotor,
+                "AE": total_promotor,
 
-                "Promotor Aktif": promotor_aktif,
+                "AE Aktif": promotor_aktif,
 
-                "% User Aktif": f"{persen_aktif}%",
+                "% AE Aktif": f"{persen_aktif}%",
 
                 "MSISDN": total_msisdn,
 
@@ -1046,9 +1030,7 @@ def show():
 
             })
 
-        summary_hos = pd.DataFrame(
-            rekap_hos
-        )
+        summary_hos = pd.DataFrame(rekap_hos)
 
         # =====================================================
         # FILTER BRAND
@@ -1067,13 +1049,6 @@ def show():
                 )
 
             ]
-
-        if not summary_hos.empty:
-
-            summary_hos = summary_hos.sort_values(
-                "MSISDN",
-                ascending=False
-            )
 
         if not summary_hos.empty:
 
@@ -1192,7 +1167,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "GSE")
+                (df_user["ROLE"] == "AE")
 
             ]["USER"].tolist()
 
@@ -1242,15 +1217,14 @@ def show():
                 "CSE/RSE":
                     len(daftar_cse),
 
-                "GSE":
+                "AE":
                     total_promotor,
 
-                "GSE Aktif":
+                "AE Aktif":
                     promotor_aktif,
 
-                "% User Aktif":
+                "% AE Aktif":
                     f"{persen_aktif}%",
-
 
                 "MSISDN":
                     total_msisdn,
@@ -1267,10 +1241,6 @@ def show():
             rekap_bsm
         )
 
-        # =====================================================
-        # FILTER BRAND
-        # =====================================================
-
         if brand != "Semua":
 
             summary_bsm = summary_bsm[
@@ -1284,7 +1254,6 @@ def show():
                 )
 
             ]
-
         if not summary_bsm.empty:
 
             summary_bsm = (
@@ -1429,7 +1398,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "GSE")
+                (df_user["ROLE"] == "AE")
 
             ]["USER"].tolist()
 
@@ -1479,13 +1448,13 @@ def show():
                 "Branch":
                     row["ATASAN"],
 
-                "GSE":
+                "AE":
                     total_promotor,
 
-                "GSE Aktif":
+                "AE Aktif":
                     promotor_aktif,
 
-                "% User Aktif":
+                "% AE Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1502,10 +1471,6 @@ def show():
         summary_cse = pd.DataFrame(
             rekap_cse
         )
-
-        # =====================================================
-        # FILTER BRAND
-        # =====================================================
 
         if brand != "Semua":
 
@@ -1583,13 +1548,13 @@ def show():
 
     if role not in ["CSE", "RSE"]:
 
-        st.subheader("📋 Rekap GSE")
+        st.subheader("📋 Rekap AE")
 
     rekap_promotor = []
 
     promotor_user = df_user[
 
-        df_user["ROLE"] == "GSE"
+        df_user["ROLE"] == "AE"
 
     ]
 
@@ -1784,7 +1749,7 @@ def show():
 
         rekap_promotor.append({
 
-            "GSE":
+            "AE":
                 nama_promotor,
 
             "Upline":
@@ -1810,6 +1775,7 @@ def show():
                 f"{persen_bio}%"
 
         })
+
     summary_promotor = pd.DataFrame(
         rekap_promotor
     )
@@ -1822,7 +1788,7 @@ def show():
 
         summary_promotor = summary_promotor[
 
-            summary_promotor["GSE"]
+            summary_promotor["Upline"]
             .astype(str)
             .str.contains(
                 brand,
@@ -1831,7 +1797,6 @@ def show():
             )
 
         ]
-
 
     if not summary_promotor.empty:
 
@@ -1845,11 +1810,11 @@ def show():
 
         st.download_button(
 
-            label="⬇️ Download Rekap GSE",
+            label="⬇️ Download Rekap AE",
 
             data=to_excel(summary_promotor),
 
-            file_name="rekap_GSE.xlsx",
+            file_name="rekap_AE.xlsx",
 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
@@ -1863,6 +1828,6 @@ def show():
 
             selectable=False,
 
-            key="GSE"
+            key="AE"
 
         )
