@@ -1,6 +1,20 @@
-
 import streamlit as st
-from database import login
+
+from streamlit_cookies_controller import CookieController
+
+from database import (
+
+    login,
+    buat_session,
+    cek_session,
+    hapus_session
+
+)
+# =====================================
+# COOKIE
+# =====================================
+
+cookies = CookieController()
 
 # =====================================
 # LOGIN PAGE
@@ -23,6 +37,36 @@ def login_page():
 
     if "outlet_atasan" not in st.session_state:
         st.session_state.outlet_atasan = ""
+    # =====================================
+    # RESTORE SESSION
+    # =====================================
+
+    if not st.session_state.outlet_login:
+
+        session_id = cookies.get(
+            "session_id"
+        )
+
+        if session_id:
+
+            session = cek_session(
+                session_id
+            )
+
+            if session:
+
+                st.session_state.outlet_login = True
+                st.session_state.outlet_user = session["username"]
+                st.session_state.outlet_role = session["role"]
+                st.session_state.outlet_atasan = session["atasan"]
+
+                st.rerun()
+    session_id = cookies.get("session_id")
+    st.write("COOKIE:", session_id)
+
+    session = cek_session(session_id)
+
+    st.write("SESSION DB:", dict(session) if session else None)
 
     # =====================================
     # SUDAH LOGIN
@@ -30,6 +74,7 @@ def login_page():
 
     if st.session_state.outlet_login:
         return
+    st.write("SESSION BARU:", session_id)
 
     # =====================================
     # CSS
@@ -122,6 +167,20 @@ def login_page():
 
             if hasil:
 
+                session_id = buat_session(
+
+                    hasil["user"],
+                    hasil["role"],
+                    hasil["atasan"]
+
+                )
+
+                cookies.set(
+                    "session_id",
+                    session_id,
+                    max_age=60 * 60 * 8   # 8 jam
+                )
+
                 st.session_state.outlet_login = True
                 st.session_state.outlet_user = hasil["user"]
                 st.session_state.outlet_role = hasil["role"]
@@ -134,7 +193,6 @@ def login_page():
                 st.error(
                     "Username atau Password salah."
                 )
-
     st.stop()
 
 # =====================================
@@ -163,6 +221,18 @@ def sidebar():
             "🚪 Logout",
             use_container_width=True
         ):
+
+            session_id = cookies.get(
+                "session_id"
+            )
+
+            if session_id:
+
+                hapus_session(
+                    session_id
+                )
+
+            cookies.remove("session_id")
 
             st.session_state.clear()
 

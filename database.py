@@ -1,7 +1,8 @@
 import os
 import sqlite3
 import psycopg2
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from sshtunnel import SSHTunnelForwarder
 
@@ -178,6 +179,17 @@ CREATE TABLE IF NOT EXISTS outlet (
     msisdn TEXT,
     input_by TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id TEXT PRIMARY KEY,
+    username TEXT,
+    role TEXT,
+    atasan TEXT,
+    created_at TIMESTAMP,
+    expired_at TIMESTAMP
 )
 """)
 
@@ -1035,3 +1047,174 @@ def cek_msisdn(
     conn.close()
 
     return hasil    
+
+# =====================================
+# SESSION
+# =====================================
+
+def buat_session(
+
+    username,
+    role,
+    atasan
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    session_id = str(
+
+        uuid.uuid4()
+
+    )
+
+    sekarang = datetime.now(
+
+        ZoneInfo("Asia/Jakarta")
+
+    )
+
+    expired = sekarang + timedelta(
+
+        hours=8
+
+    )
+
+    # =====================================
+    # HAPUS SESSION LAMA
+    # =====================================
+
+    cursor.execute("""
+
+        DELETE
+
+        FROM sessions
+
+        WHERE username=?
+
+    """, (
+
+        username,
+
+    ))
+
+    # =====================================
+    # BUAT SESSION BARU
+    # =====================================
+
+    cursor.execute("""
+
+        INSERT INTO sessions (
+
+            session_id,
+            username,
+            role,
+            atasan,
+            created_at,
+            expired_at
+
+        )
+
+        VALUES (
+
+            ?, ?, ?, ?, ?, ?
+
+        )
+
+    """, (
+
+        session_id,
+        username,
+        role,
+        atasan,
+        sekarang.strftime("%Y-%m-%d %H:%M:%S"),
+        expired.strftime("%Y-%m-%d %H:%M:%S")
+
+    ))
+
+    conn.commit()
+
+    conn.close()
+
+    return session_id
+
+
+def cek_session(
+
+    session_id
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    sekarang = datetime.now(
+
+        ZoneInfo(
+
+            "Asia/Jakarta"
+
+        )
+
+    ).strftime(
+
+        "%Y-%m-%d %H:%M:%S"
+
+    )
+
+    cursor.execute("""
+
+        SELECT *
+
+        FROM sessions
+
+        WHERE session_id=?
+
+        AND expired_at>?
+
+        LIMIT 1
+
+    """, (
+
+        session_id,
+        sekarang
+
+    ))
+
+    hasil = cursor.fetchone()
+
+    conn.close()
+
+    return hasil
+
+
+def hapus_session(
+
+    session_id
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        DELETE
+
+        FROM sessions
+
+        WHERE session_id=?
+
+    """, (
+
+        session_id,
+
+    ))
+
+    conn.commit()
+
+    conn.close()
