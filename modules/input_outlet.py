@@ -6,7 +6,11 @@ import requests
 import pandas as pd
 import streamlit as st
 
-from database import ( simpan_data, cek_msisdn )
+from database import (
+    simpan_data,
+    cek_msisdn,
+    load_master_msisdn
+)
 
 @st.cache_data
 def load_biometrik():
@@ -98,6 +102,12 @@ def show():
     # =====================
 
     biometrik = load_biometrik()
+
+    # =====================
+    # LOAD MASTER MSISDN
+    # =====================
+
+    master_msisdn = load_master_msisdn()
 
     # =====================
     # FORM
@@ -240,27 +250,61 @@ def show():
                 st.stop()
 
         # =====================
-        # CEK DB + GA BIOMETRIK (FINAL LOGIC)
+        # CEK DATABASE + MASTER MSISDN
         # =====================
 
         sudah_input_db = []
+        tidak_terdaftar = []
         valid_input = []
 
         for nomor in nomor_isi:
 
-            # 1. CEK DATABASE
+            # =====================
+            # CEK DATABASE
+            # =====================
+
             cek = cek_msisdn(nomor)
 
             if cek:
 
                 sudah_input_db.append({
+
                     "msisdn": nomor,
                     "input_by": cek["input_by"],
                     "created_at": cek["created_at"]
+
                 })
+
                 continue
-            # 3. AMAN
-            valid_input.append(nomor)
+
+            # =====================
+            # CEK MASTER MSISDN
+            # KHUSUS CSE / RSE / DSE
+            # =====================
+
+            if role in [
+
+                "CSE",
+                "RSE",
+                "DSE"
+
+            ]:
+
+                if nomor not in master_msisdn:
+
+                    tidak_terdaftar.append(
+                        nomor
+                    )
+
+                    continue
+
+            # =====================
+            # VALID
+            # =====================
+
+            valid_input.append(
+                nomor
+            )
 
         # =====================
         # OUTPUT DB DUPLICATE
@@ -279,6 +323,19 @@ Sudah pernah diinput.
 Input By : **{item['input_by']}**
 Tanggal : **{item['created_at']}**
 """
+                )
+
+            st.stop()
+        # =====================
+        # OUTPUT MASTER MSISDN
+        # =====================
+
+        if tidak_terdaftar:
+
+            for nomor in tidak_terdaftar:
+
+                st.error(
+                    f"MSISDN **{nomor}** tidak terdaftar pada database master."
                 )
 
             st.stop()
