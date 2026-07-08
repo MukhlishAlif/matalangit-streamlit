@@ -13,13 +13,24 @@ DB_PATH = os.path.join(BASE_DIR, "outlet.db")
 
 print("DATABASE:", DB_PATH)
 
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-conn.row_factory = sqlite3.Row
-cursor = conn.cursor()
+# =====================================
+# DATABASE CONNECTION
+# =====================================
 
-# BARU BOLEH PAKAI CURSOR
-cursor.execute("PRAGMA database_list")
-print(cursor.fetchall())
+def get_connection():
+
+    conn = sqlite3.connect(
+        DB_PATH,
+        check_same_thread=False,
+        timeout=30
+    )
+
+    conn.row_factory = sqlite3.Row
+
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+
+    return conn
 
 # =====================================
 # POSTGRE
@@ -35,6 +46,9 @@ print(df.head())
 # TABEL USER
 # =====================================
 
+conn = get_connection()
+cursor = conn.cursor()
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,10 +60,6 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """)
-
-# =====================================
-# TABEL OUTLET
-# =====================================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS outlet (
@@ -63,56 +73,133 @@ CREATE TABLE IF NOT EXISTS outlet (
 """)
 
 conn.commit()
+conn.close()
 
 # =====================================
 # USER
 # =====================================
 
-def login(user, password):
+def login(
+
+    user,
+    password
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
+
         SELECT *
+
         FROM users
+
         WHERE user = ?
+
         AND password = ?
-        AND status = 'AKTIF'
-    """, (user, password))
 
-    return cursor.fetchone()
+        AND status='AKTIF'
+
+    """, (
+
+        user,
+
+        password
+
+    ))
+
+    hasil = cursor.fetchone()
+
+    conn.close()
+
+    return hasil
 
 
-def tambah_user(user, password, role, atasan):
+def tambah_user(
+
+    user,
+    password,
+    role,
+    atasan
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO users
-        (user,password,role,atasan)
-        VALUES(?,?,?,?)
+
+        INSERT INTO users(
+
+            user,
+            password,
+            role,
+            atasan
+
+        )
+
+        VALUES(
+
+            ?,?,?,?
+
+        )
+
     """, (
+
         user,
+
         password,
+
         role,
+
         atasan
+
     ))
 
     conn.commit()
 
+    conn.close()
+
 
 def tampil_user():
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
+
         SELECT
+
             user,
+
             role,
+
             atasan
+
         FROM users
+
         ORDER BY user
+
     """)
 
-    return cursor.fetchall()
+    data = cursor.fetchall()
+
+    conn.close()
+
+    return data
 
 def tampil_user_master():
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
+
         SELECT
             id,
             user,
@@ -121,56 +208,108 @@ def tampil_user_master():
             atasan,
             status,
             created_at
+
         FROM users
+
         ORDER BY role, user
+
     """)
 
-    return cursor.fetchall()
+    data = cursor.fetchall()
+
+    conn.close()
+
+    return data
+
+
 
 # =====================================
 # UPDATE USER
 # =====================================
 
 def update_user(
-        old_user,
-        new_user,
-        password,
-        role,
-        atasan
+
+    old_user,
+    new_user,
+    password,
+    role,
+    atasan
+
 ):
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
+
         UPDATE users
+
         SET
+
             user=?,
+
             password=?,
+
             role=?,
+
             atasan=?
+
         WHERE user=?
+
     """, (
+
         new_user,
+
         password,
+
         role,
+
         atasan,
+
         old_user
+
     ))
 
     conn.commit()
 
-    return cursor.rowcount > 0
+    berhasil = cursor.rowcount > 0
+
+    conn.close()
+
+    return berhasil
+
 # =====================================
 # HAPUS USER
 # =====================================
 
-def hapus_user(user):
+def hapus_user(
+
+    user
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
-        DELETE FROM users
+
+        DELETE
+
+        FROM users
+
         WHERE user=?
-    """, (user,))
+
+    """, (
+
+        user,
+
+    ))
 
     conn.commit()
 
+    conn.close()
 
 
 # =====================================
@@ -178,156 +317,336 @@ def hapus_user(user):
 # =====================================
 
 def simpan_data(
+
     nama_outlet,
     id_outlet,
     msisdn,
     input_by
+
 ):
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     waktu = datetime.now(
+
         ZoneInfo("Asia/Jakarta")
+
     ).strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute("""
-        INSERT INTO outlet
-        (
+
+        INSERT INTO outlet (
+
             nama_outlet,
             id_outlet,
             msisdn,
             input_by,
             created_at
+
         )
-        VALUES(?,?,?,?,?)
+
+        VALUES (
+
+            ?, ?, ?, ?, ?
+
+        )
+
     """, (
+
         nama_outlet,
         id_outlet,
         msisdn,
         input_by,
         waktu
+
     ))
 
     conn.commit()
 
+    conn.close()
+
 
 def tampil_data():
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
+
         SELECT
+
             id,
             nama_outlet,
             id_outlet,
             msisdn,
             input_by,
             created_at
+
         FROM outlet
+
         ORDER BY created_at DESC
+
     """)
 
-    return cursor.fetchall()
+    data = cursor.fetchall()
+
+    conn.close()
+
+    return data
 
 
-def hapus_data(id_data):
+def hapus_data(
 
-    cursor.execute(
-        """
-        DELETE FROM outlet
+    id_data
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        DELETE
+
+        FROM outlet
+
         WHERE id = ?
-        """,
-        (id_data,)
-    )
+
+    """, (
+
+        id_data,
+
+    ))
 
     conn.commit()
 
-    return cursor.rowcount
+    hasil = cursor.rowcount
+
+    conn.close()
+
+    return hasil
 # =====================================
 # DASHBOARD
 # =====================================
 
 def total_outlet():
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
-        SELECT COUNT(DISTINCT id_outlet)
+
+        SELECT
+
+            COUNT(DISTINCT id_outlet)
+
         FROM outlet
+
     """)
 
-    return cursor.fetchone()[0]
+    hasil = cursor.fetchone()[0]
+
+    conn.close()
+
+    return hasil
 
 
 def total_msisdn():
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
-        SELECT COUNT(*)
+
+        SELECT
+
+            COUNT(*)
+
         FROM outlet
+
     """)
 
-    return cursor.fetchone()[0]
+    hasil = cursor.fetchone()[0]
+
+    conn.close()
+
+    return hasil
 
 
 def total_cse():
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
-        SELECT COUNT(*)
+
+        SELECT
+
+            COUNT(*)
+
         FROM users
-        WHERE role IN ('CSE','RSE')
+
+        WHERE role IN (
+
+            'CSE',
+            'RSE'
+
+        )
+
     """)
 
-    return cursor.fetchone()[0]
+    hasil = cursor.fetchone()[0]
+
+    conn.close()
+
+    return hasil
 
 
 def total_bsm():
 
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
     cursor.execute("""
-        SELECT COUNT(*)
+
+        SELECT
+
+            COUNT(*)
+
         FROM users
+
         WHERE role='BSM'
+
     """)
 
-    return cursor.fetchone()[0]
+    hasil = cursor.fetchone()[0]
 
-def last_input(limit=10):
+    conn.close()
+
+    return hasil
+
+
+def last_input(
+
+    limit=10
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
+
         SELECT
+
             nama_outlet,
             id_outlet,
             msisdn,
             input_by,
             created_at
-        FROM outlet
-        ORDER BY created_at DESC
-        LIMIT ?
-    """, (limit,))
 
-    return cursor.fetchall()
+        FROM outlet
+
+        ORDER BY created_at DESC
+
+        LIMIT ?
+
+    """, (
+
+        limit,
+
+    ))
+
+    data = cursor.fetchall()
+
+    conn.close()
+
+    return data
 # =====================================
 # HIRARKI USER
 # =====================================
 
-def bawahan(atasan):
+def bawahan(
+
+    atasan
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT user
+
+        SELECT
+
+            user
+
         FROM users
+
         WHERE atasan=?
-    """, (atasan,))
 
-    return [x["user"] for x in cursor.fetchall()]
+    """, (
+
+        atasan,
+
+    ))
+
+    hasil = [
+
+        x["user"]
+
+        for x in cursor.fetchall()
+
+    ]
+
+    conn.close()
+
+    return hasil
 
 
-def get_downline(user):
-    """
-    Mengambil seluruh bawahan secara recursive
-    """
+def get_downline(
+
+    user
+
+):
 
     hasil = []
 
-    def cari(atasan):
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    def cari(
+
+        atasan
+
+    ):
 
         cursor.execute("""
-            SELECT user
+
+            SELECT
+
+                user
+
             FROM users
+
             WHERE atasan=?
-        """, (atasan,))
+
+        """, (
+
+            atasan,
+
+        ))
 
         rows = cursor.fetchall()
 
@@ -337,11 +656,25 @@ def get_downline(user):
 
             if nama not in hasil:
 
-                hasil.append(nama)
+                hasil.append(
 
-                cari(nama)
+                    nama
 
-    cari(user)
+                )
+
+                cari(
+
+                    nama
+
+                )
+
+    cari(
+
+        user
+
+    )
+
+    conn.close()
 
     return hasil
 
@@ -350,45 +683,116 @@ def get_downline(user):
 # HELPER USER
 # =====================================
 
-def get_user_role(role):
+def get_user_role(
+
+    role
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT user
+
+        SELECT
+
+            user
+
         FROM users
+
         WHERE role=?
+
         ORDER BY user
-    """, (role,))
 
-    return [x["user"] for x in cursor.fetchall()]
+    """, (
+
+        role,
+
+    ))
+
+    hasil = [
+
+        x["user"]
+
+        for x in cursor.fetchall()
+
+    ]
+
+    conn.close()
+
+    return hasil
 
 
-def get_role(user):
+def get_role(
+
+    user
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT role
+
+        SELECT
+
+            role
+
         FROM users
+
         WHERE user=?
-    """, (user,))
+
+    """, (
+
+        user,
+
+    ))
 
     row = cursor.fetchone()
 
+    conn.close()
+
     if row:
+
         return row["role"]
 
     return ""
 
 
-def get_atasan(user):
+def get_atasan(
+
+    user
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT atasan
+
+        SELECT
+
+            atasan
+
         FROM users
+
         WHERE user=?
-    """, (user,))
+
+    """, (
+
+        user,
+
+    ))
 
     row = cursor.fetchone()
 
+    conn.close()
+
     if row:
+
         return row["atasan"]
 
     return ""
@@ -398,113 +802,127 @@ def get_atasan(user):
 # FILTER DATA OUTLET
 # =====================================
 
-def data_by_user(user):
+def data_by_user(
+
+    user
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
+
         SELECT
+
             id,
             nama_outlet,
             id_outlet,
             msisdn,
             input_by,
             created_at
+
         FROM outlet
+
         WHERE input_by=?
+
         ORDER BY created_at DESC
-    """, (user,))
 
-    return cursor.fetchall()
+    """, (
+
+        user,
+
+    ))
+
+    data = cursor.fetchall()
+
+    conn.close()
+
+    return data
 
 
-def data_by_users(user_list):
+def data_by_users(
+
+    user_list
+
+):
 
     if not user_list:
+
         return []
 
-    placeholder = ",".join(["?"] * len(user_list))
+    conn = get_connection()
+
+    cursor = conn.cursor()
+
+    placeholder = ",".join(
+
+        ["?"] * len(user_list)
+
+    )
 
     cursor.execute(f"""
+
         SELECT
+
             id,
             nama_outlet,
             id_outlet,
             msisdn,
             input_by,
             created_at
+
         FROM outlet
+
         WHERE input_by IN ({placeholder})
+
         ORDER BY created_at DESC
+
     """, user_list)
 
-    return cursor.fetchall()
+    data = cursor.fetchall()
 
-# =====================================
-# MASTER USER
-# =====================================
+    conn.close()
 
-def bawahan(atasan):
+    return data
 
-    cursor.execute("""
-        SELECT user
-        FROM users
-        WHERE atasan=?
-    """, (atasan,))
-
-    return [x["user"] for x in cursor.fetchall()]
-    
-cursor.execute("""
-SELECT name
-FROM sqlite_master
-WHERE type='table'
-""")
-
-for row in cursor.fetchall():
-    print(row["name"])
 
 # =====================================
 # VALIDASI
 # =====================================
 
+def cek_msisdn(
 
-def cek_msisdn(msisdn):
+    msisdn
+
+):
+
+    conn = get_connection()
+
+    cursor = conn.cursor()
 
     cursor.execute("""
+
         SELECT
+
             input_by,
             created_at
+
         FROM outlet
+
         WHERE msisdn=?
+
         LIMIT 1
-    """, (msisdn,))
 
-    return cursor.fetchone()
-    
-# ==========================================
-# AMBIL SEMUA BAWAHAN (RECURSIVE)
-# ==========================================
+    """, (
 
-def get_downline(user):
+        msisdn,
 
-    hasil = []
+    ))
 
-    def cari(atasan):
+    hasil = cursor.fetchone()
 
-        cursor.execute("""
-            SELECT user
-            FROM users
-            WHERE atasan=?
-        """, (atasan,))
+    conn.close()
 
-        rows = cursor.fetchall()
-
-        for row in rows:
-
-            nama = row["user"]
-
-            if nama not in hasil:
-                hasil.append(nama)
-                cari(nama)
-
-    cari(user)
-
-    return hasil
+    return hasil    
