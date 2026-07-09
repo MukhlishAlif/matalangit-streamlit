@@ -9,6 +9,7 @@ from modules.dashboard_cse import show as dashboard_cse
 from modules.dashboard_dse import show as dashboard_dse
 from modules.dashboard_fl import show as dashboard_fl
 from modules.dashboard_ae import show as dashboard_ae
+from modules.dashboard_rge import show as dashboard_rge
 from modules.dashboard_pm import show as dashboard_pm
 from modules.dashboard_gse import show as dashboard_gse
 from modules.master_user import show as master_user
@@ -142,7 +143,7 @@ role = st.session_state.outlet_role
 # MENU
 # =====================================
 
-if role in ["DSE", "FRONTLINER", "AE", "GSE", "PROMOTOR"]:
+if role in ["DSE", "FRONTLINER", "AE", "GSE", "PROMOTOR", "RGE"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -177,6 +178,7 @@ elif role == "BSM":
             "Dashboard Frontliner",
             "Dashboard AE",
             "Dashboard GSE",
+            "Dashboard RGE",
             "Dashboard Promotor",
             "Dashboard CSE/RSE",
             "Data MSISDN"
@@ -193,6 +195,7 @@ elif role == "HOS":
             "Dashboard Frontliner",
             "Dashboard AE",
             "Dashboard GSE",
+            "Dashboard RGE",
             "Dashboard Promotor",
             "Dashboard CSE/RSE",
             "Data MSISDN"
@@ -209,6 +212,7 @@ elif role == "ADMIN":
             "Dashboard Frontliner",
             "Dashboard AE",
             "Dashboard GSE",
+            "Dashboard RGE",
             "Dashboard Promotor",
             "Dashboard CSE/RSE",
             "Data MSISDN",
@@ -249,6 +253,10 @@ elif menu == "Dashboard CSE/RSE":
 elif menu == "Dashboard Promotor":
 
     dashboard_pm()
+
+elif menu == "Dashboard RGE":
+
+    dashboard_rge()
 
 elif menu == "Input MSISDN":
 
