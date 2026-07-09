@@ -714,16 +714,21 @@ def show():
     # KPI UI (6 COL DSE STYLE)
     # =========================
 
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-    col2.metric(
-        "👤 FL Aktif",
-        fl_aktif
-    )
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
         "🏪 Outlet",
         jumlah_outlet
+    )
+
+    col2.metric(
+        "👤 Frontliner",
+        total_fl
+    )
+
+    col3.metric(
+        "🔥 FL Aktif",
+        fl_aktif
     )
 
     col4.metric(
@@ -731,19 +736,9 @@ def show():
         jumlah_msisdn
     )
 
-    col3.metric(
+    col5.metric(
         "📊 % FL Aktif",
         f"{persen_fl_aktif}%"
-    )
-
-    col5.metric(
-        "✅ Biometrik",
-        jumlah_biometrik
-    )
-
-    col6.metric(
-        "📈 % Biometrik",
-        f"{persen_biometrik}%"
     )
 
     st.divider()
@@ -871,19 +866,13 @@ def show():
                 "HOS":
                     nama_hos,
 
-                "BSM":
-                    len(daftar_bsm),
-
-                "CSE/RSE":
-                    len(daftar_cse),
-
                 "Frontliner":
                     total_fl,
 
                 "Frontliner Aktif":
                     fl_aktif,
 
-                "% Active":
+                "% Frontliner Aktif":
                     f"{persen_active}%",
 
                 "Outlet":
@@ -1091,16 +1080,13 @@ def show():
                 "BSM":
                     nama_bsm,
 
-                "CSE/RSE":
-                    len(daftar_cse),
-
                 "Frontliner":
                     total_fl,
 
                 "Frontliner Aktif":
                     fl_aktif,
 
-                "% Active":
+                "% Frontliner Aktif":
                     f"{persen_active}%",
 
                 "Outlet":
@@ -1325,16 +1311,13 @@ def show():
                 "CSE/RSE":
                     nama_cse,
 
-                "Branch":
-                    row["ATASAN"],
-
                 "Frontliner":
                     total_fl,
 
                 "Frontliner Aktif":
                     fl_aktif,
 
-                "% Active":
+                "% Frontliner Aktif":
                     f"{persen_active}%",
 
                 "Outlet":

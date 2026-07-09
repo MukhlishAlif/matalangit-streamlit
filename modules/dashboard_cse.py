@@ -837,7 +837,7 @@ def show():
     # UI KPI
     # =====================================================
 
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
         "🏪 Outlet",
@@ -845,28 +845,24 @@ def show():
     )
 
     col2.metric(
-        "👤 CSE/RSE Aktif",
+        "👤 CSE/RSE",
+        total_user
+    )
+
+
+    col3.metric(
+        "🔥 CSE/RSE Aktif",
         user_aktif
     )
 
-    col3.metric(
+    col4.metric(
         "% CSE/RSE Aktif",
         f"{persen_user_aktif}%"
     )
 
-    col4.metric(
+    col5.metric(
         "📱 MSISDN",
         total_msisdn
-    )
-
-    col5.metric(
-        "✅ Biometrik",
-        total_bio
-    )
-
-    col6.metric(
-        "% Biometrik",
-        f"{persen_bio}%"
     )
 
     st.divider()
@@ -1325,9 +1321,6 @@ def show():
                     "CSE/RSE":
                         user_cse,
 
-                    "Branch":
-                        bsm,
-
                     "Outlet":
                         temp["ID Outlet"]
                         .nunique(),
@@ -1503,9 +1496,6 @@ def show():
 
                 "HOS":
                     nama_hos,
-
-                "BSM":
-                    len(daftar_bsm),
 
                 "CSE/RSE":
                     total_cse,
@@ -1882,9 +1872,6 @@ def show():
 
                 "CSE/RSE":
                     nama_cse,
-
-                "Branch":
-                    row["ATASAN"],
 
                 "Status":
                     status_user,

@@ -165,7 +165,7 @@ def show_grid(
         "Outlet": 100,
         "MSISDN": 110,
         "Biometrik": 110,
-        "% User Aktif": 130,
+        "% DSE Aktif": 130,
         "% Biometrik": 120
 
     }
@@ -1014,7 +1014,7 @@ def show():
     # UI KPI
     # =====================================================
 
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
         "🏪 Outlet",
@@ -1022,29 +1022,25 @@ def show():
     )
 
     col2.metric(
-        "👤 DSE Aktif",
-        dse_aktif
+        "👤 DSE",
+        total_dse
     )
 
     col3.metric(
+        "🔥 DSE Aktif",
+        dse_aktif
+    )
+
+    col4.metric(
         "% DSE Aktif",
         f"{persen_dse_aktif}%"
     )
 
-    col4.metric(
+    col5.metric(
         "📱 MSISDN",
         total_msisdn
     )
 
-    col5.metric(
-        "✅ Biometrik",
-        total_bio
-    )
-
-    col6.metric(
-        "% Biometrik",
-        f"{persen_bio}%"
-    )
 
     st.divider()
 
@@ -1293,19 +1289,13 @@ def show():
                 "HOS":
                     nama_hos,
 
-                "BSM":
-                    len(daftar_bsm),
-
-                "CSE/RSE":
-                    len(daftar_cse),
-
                 "DSE":
                     total_dse,
 
                 "DSE Aktif":
                     dse_aktif,
 
-                "% User Aktif":
+                "% DSE Aktif":
                     f"{persen_aktif}%",
 
                 "Outlet":
@@ -1509,16 +1499,13 @@ def show():
                 "BSM":
                     nama_bsm,
 
-                "CSE/RSE":
-                    len(daftar_cse),
-
                 "DSE":
                     total_dse,
 
                 "DSE Aktif":
                     dse_aktif,
 
-                "% User Aktif":
+                "% DSE Aktif":
                     f"{persen_aktif}%",
 
                 "Outlet":
@@ -1741,16 +1728,13 @@ def show():
                 "CSE/RSE":
                     nama_cse,
 
-                "Branch":
-                    row["ATASAN"],
-
                 "DSE":
                     total_dse,
 
                 "DSE Aktif":
                     dse_aktif,
 
-                "% User Aktif":
+                "% DSE Aktif":
                     f"{persen_aktif}%",
 
                 "Outlet":

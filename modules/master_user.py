@@ -267,35 +267,82 @@ def show():
                 type="password"
             )
 
-            st.text_input(
+            # =====================================
+            # ROLE
+            # =====================================
+
+            role_edit = st.selectbox(
                 "Role",
-                value=row["role"],
-                disabled=True
+                ROLE_LIST,
+                index=ROLE_LIST.index(row["role"])
             )
 
-            st.text_input(
+            # =====================================
+            # UPLINE
+            # =====================================
+
+            if role_edit == "ADMIN":
+
+                upline_list = ["-"]
+
+            elif role_edit == "HOS":
+
+                upline_list = ["-"]
+
+            elif role_edit == "BSM":
+
+                upline_list = sorted(
+                    df[df["role"] == "HOS"]["user"].unique().tolist()
+                )
+
+            elif role_edit in ["CSE", "RSE", "RGE", "GSE"]:
+
+                upline_list = sorted(
+                    df[df["role"] == "BSM"]["user"].unique().tolist()
+                )
+
+            elif role_edit in ["DSE", "FRONTLINER", "PROMOTOR", "AE"]:
+
+                upline_list = sorted(
+                    df[
+                        df["role"].isin(
+                            ["CSE", "RSE"]
+                        )
+                    ]["user"].unique().tolist()
+                )
+
+            else:
+
+                upline_list = ["-"]
+
+            if row["atasan"] not in upline_list:
+
+                upline_list.insert(
+                    0,
+                    row["atasan"]
+                )
+
+            upline_edit = st.selectbox(
                 "Upline",
-                value=row["atasan"],
-                disabled=True
+                upline_list,
+                index=upline_list.index(row["atasan"])
             )
 
             col1, col2 = st.columns(2)
 
             with col1:
+
                 if st.button(
                     "💾 Update",
                     use_container_width=True
                 ):
 
-                    st.write("DEBUG ROW")
-                    st.write(row.to_dict())
-
                     hasil = update_user(
                         row["user"],
                         user_edit,
                         password_edit,
-                        row["role"],
-                        row["atasan"]
+                        role_edit,
+                        upline_edit
                     )
 
                     if hasil:
@@ -313,6 +360,7 @@ def show():
                         st.error(
                             "❌ Data tidak berhasil diupdate."
                         )
+
             with col2:
 
                 if st.button(

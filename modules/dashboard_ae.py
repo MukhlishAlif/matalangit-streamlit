@@ -844,7 +844,7 @@ def show():
     col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
-        "👤 Total AE",
+        "👤 AE",
         total_promotor
     )
 
@@ -1011,10 +1011,6 @@ def show():
             rekap_hos.append({
 
                 "HOS": nama_hos,
-
-                "BSM": len(daftar_bsm),
-
-                "CSE/RSE": len(daftar_cse),
 
                 "AE": total_promotor,
 
@@ -1213,9 +1209,6 @@ def show():
 
                 "BSM":
                     nama_bsm,
-
-                "CSE/RSE":
-                    len(daftar_cse),
 
                 "AE":
                     total_promotor,
@@ -1444,9 +1437,6 @@ def show():
 
                 "CSE/RSE":
                     nama_cse,
-
-                "Branch":
-                    row["ATASAN"],
 
                 "AE":
                     total_promotor,

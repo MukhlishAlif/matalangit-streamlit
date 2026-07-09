@@ -832,32 +832,28 @@ def show():
     # UI KPI
     # =====================================================
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "👤 RGE Aktif",
-        user_aktif
+        "👤 RGE",
+        total_user
     )
 
     col2.metric(
+        "🔥 RGE Aktif",
+        user_aktif
+    )
+
+    col3.metric(
         "% RGE Aktif",
         f"{persen_user_aktif}%"
     )
 
-    col3.metric(
+    col4.metric(
         "📱 MSISDN",
         total_msisdn
     )
 
-    col4.metric(
-        "✅ Biometrik",
-        total_bio
-    )
-
-    col5.metric(
-        "% Biometrik",
-        f"{persen_bio}%"
-    )
 
     st.divider()
 
@@ -1472,10 +1468,10 @@ def show():
                 "HOS":
                     nama_hos,
 
-                "BSM":
-                    len(daftar_bsm),
-
                 "RGE":
+                    total_cse,
+
+                "RGE Aktif":
                     total_cse,
 
                 "% RGE Aktif":

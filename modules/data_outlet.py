@@ -759,53 +759,6 @@ def show():
         2
 
     ) if total_data > 0 else 0
-    # ===========================
-    # KPI UI
-    # ===========================
-
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-    with col1:
-
-        st.metric(
-            "🏪 Outlet",
-            total_outlet
-        )
-
-    with col4:
-
-        st.metric(
-            "📱 MSISDN",
-            total_msisdn
-        )
-
-    with col2:
-
-        st.metric(
-            "👤 User Aktif",
-            total_user
-        )
-
-    with col3:
-
-        st.metric(
-            "📊 % User Aktif",
-            f"{persen_user_aktif}%"
-        )
-
-    with col5:
-
-        st.metric(
-            "✅ Biometrik",
-            total_biometrik
-        )
-
-    with col6:
-
-        st.metric(
-            "📈 % Biometrik",
-            f"{persen_biometrik}%"
-        )
 
     st.divider()
 
