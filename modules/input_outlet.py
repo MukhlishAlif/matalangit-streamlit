@@ -125,7 +125,7 @@ def show():
     # KHUSUS AE & GSE
     # =====================
 
-    if role in ["AE", "GSE", "PROMOTOR"]:
+    if role in ["AE", "GSE", "PROMOTOR", "RGE", "FRONTLINER"]:
 
         nama_outlet = "-"
         id_outlet = "-"
@@ -199,7 +199,7 @@ def show():
         # VALIDASI OUTLET
         # =====================
 
-        if role not in ["AE", "GSE", "PROMOTOR"]:
+        if role not in ["AE", "GSE", "PROMOTOR", "RGE", "FRONTLINER"]:
 
             if nama_outlet == "":
                 st.error("Nama Outlet wajib diisi.")
@@ -286,7 +286,8 @@ def show():
 
                 "CSE",
                 "RSE",
-                "DSE"
+                "DSE",
+                "AE"
 
             ]:
 
@@ -335,7 +336,7 @@ Tanggal : **{item['created_at']}**
             for nomor in tidak_terdaftar:
 
                 st.error(
-                    f"MSISDN **{nomor}** tidak terdaftar pada database master."
+                    f"MSISDN **{nomor}** tidak terdaftar pada whitelist."
                 )
 
             st.stop()

@@ -395,6 +395,7 @@ def show():
                     "DSE",
                     "AE",
                     "GSE",
+                    "RGE",
                     "FRONTLINER",
                     "PROMOTOR"
 
@@ -448,6 +449,7 @@ def show():
                         "DSE",
                         "AE",
                         "GSE",
+                        "RGE",
                         "FRONTLINER",
                         "PROMOTOR"
 
@@ -523,6 +525,7 @@ def show():
                 "DSE",
                 "AE",
                 "GSE",
+                "RGE",
                 "FRONTLINER",
                 "PROMOTOR"
 
@@ -604,6 +607,7 @@ def show():
                 "DSE",
                 "AE",
                 "GSE",
+                "RGE",
                 "FRONTLINER",
                 "PROMOTOR"
 
@@ -669,6 +673,7 @@ def show():
                 "DSE",
                 "AE",
                 "GSE",
+                "RGE",
                 "FRONTLINER",
                 "PROMOTOR"
 
@@ -847,6 +852,10 @@ def show():
         "PROMOTOR": df[
             df["ROLE"] == "PROMOTOR"
         ],
+
+        "RGE": df[
+            df["ROLE"] == "RGE"
+        ]
 
 
     }

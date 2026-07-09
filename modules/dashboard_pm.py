@@ -1157,7 +1157,7 @@ def show():
                 "Promotor Aktif":
                     cse_aktif,
 
-                "% User Aktif":
+                "% Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1477,10 +1477,10 @@ def show():
                 "Promotor":
                     total_cse,
 
-                "CSE/RSE Aktif":
+                "Promotor Aktif":
                     total_aktif,
 
-                "% User Aktif":
+                "% Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1646,7 +1646,7 @@ def show():
                 "Promotor Aktif":
                     total_aktif,
 
-                "% User Aktif":
+                "% Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":

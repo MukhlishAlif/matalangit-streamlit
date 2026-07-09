@@ -1032,9 +1032,9 @@ def show():
 
                 "CSE/RSE": len(daftar_cse),
 
-                "Promotor": total_promotor,
+                "GSE": total_promotor,
 
-                "Promotor Aktif": promotor_aktif,
+                "GSE Aktif": promotor_aktif,
 
                 "% User Aktif": f"{persen_aktif}%",
 
