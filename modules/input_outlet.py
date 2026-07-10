@@ -279,7 +279,7 @@ def show():
 
             # =====================
             # CEK MASTER MSISDN
-            # KHUSUS CSE / RSE / DSE
+            # KHUSUS CSE / RSE / DSE / AE / GSE / RGE
             # =====================
 
             if role in [
@@ -287,7 +287,9 @@ def show():
                 "CSE",
                 "RSE",
                 "DSE",
-                "AE"
+                "AE",
+                "GSE",
+                "RGE"
 
             ]:
 
