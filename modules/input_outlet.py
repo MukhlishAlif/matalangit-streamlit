@@ -125,7 +125,7 @@ def show():
     # KHUSUS AE & GSE
     # =====================
 
-    if role in ["AE", "GSE", "PROMOTOR", "RGE", "FRONTLINER"]:
+    if role in ["AE", "GSE", "RGE", "FRONTLINER"]:
 
         nama_outlet = "-"
         id_outlet = "-"
@@ -199,7 +199,7 @@ def show():
         # VALIDASI OUTLET
         # =====================
 
-        if role not in ["AE", "GSE", "PROMOTOR", "RGE", "FRONTLINER"]:
+        if role not in ["AE", "GSE", "RGE", "FRONTLINER"]:
 
             if nama_outlet == "":
                 st.error("Nama Outlet wajib diisi.")

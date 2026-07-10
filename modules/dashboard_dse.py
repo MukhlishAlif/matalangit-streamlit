@@ -390,41 +390,52 @@ def show():
     df["MSISDN"] = (
 
         df["MSISDN"]
+
         .fillna("")
+
         .astype(str)
+
         .str.strip()
 
     )
 
-    df["Tanggal"] = pd.to_datetime(
+    biometrik["msisdn"] = (
 
-        df["Tanggal"],
+        biometrik["msisdn"]
 
-        errors="coerce"
+        .fillna("")
 
-    )
+        .astype(str)
 
-    biometrik["tanggal_biometrik"] = pd.to_datetime(
-
-        biometrik["tanggal_biometrik"],
-
-        errors="coerce"
+        .str.strip()
 
     )
 
-    df["Bulan"] = (
+    df["Tanggal"] = (
 
-        df["Tanggal"]
+        pd.to_datetime(
 
-        .dt.to_period("M")
+            df["Tanggal"],
+
+            errors="coerce"
+
+        )
+
+        .dt.date
 
     )
 
-    biometrik["Bulan"] = (
+    biometrik["tanggal_biometrik"] = (
 
-        biometrik["tanggal_biometrik"]
+        pd.to_datetime(
 
-        .dt.to_period("M")
+            biometrik["tanggal_biometrik"],
+
+            errors="coerce"
+
+        )
+
+        .dt.date
 
     )
 
@@ -433,8 +444,11 @@ def show():
         biometrik[
 
             [
+
                 "msisdn",
-                "Bulan"
+
+                "tanggal_biometrik"
+
             ]
 
         ].drop_duplicates(),
@@ -442,14 +456,16 @@ def show():
         left_on=[
 
             "MSISDN",
-            "Bulan"
+
+            "Tanggal"
 
         ],
 
         right_on=[
 
             "msisdn",
-            "Bulan"
+
+            "tanggal_biometrik"
 
         ],
 
@@ -470,13 +486,15 @@ def show():
         columns=[
 
             "msisdn",
-            "Bulan"
+
+            "tanggal_biometrik"
 
         ],
 
         inplace=True
 
     )
+
     # =====================================================
     # USER DF
     # =====================================================

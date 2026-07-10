@@ -512,17 +512,31 @@ def show():
     )
 
     df["Biometrik"] = (
+
         (
+
             df["Tanggal"]
-            .dt.to_period("M")
+
+            .dt.date
+
             ==
+
             pd.to_datetime(
+
                 df["tanggal_biometrik"],
+
                 errors="coerce"
-            ).dt.to_period("M")
+
+            )
+
+            .dt.date
+
         )
+
         .fillna(False)
+
         .astype(int)
+
     )
 
     # ======================================================

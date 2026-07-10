@@ -450,12 +450,11 @@ def show():
         how="left"
 
     )
-
     df["Biometrik"] = (
 
         df["Tanggal"]
 
-        .dt.to_period("M")
+        .dt.date
 
         ==
 
@@ -465,10 +464,11 @@ def show():
 
             errors="coerce"
 
-        ).dt.to_period("M")
+        )
+
+        .dt.date
 
     )
-
     df.drop(
 
         columns=[

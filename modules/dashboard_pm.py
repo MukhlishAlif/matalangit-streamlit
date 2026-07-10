@@ -513,20 +513,32 @@ def show():
     )
 
     df["Biometrik"] = (
-        (
-            df["Tanggal"]
-            .dt.to_period("M")
-            ==
-            pd.to_datetime(
-                df["tanggal_biometrik"],
-                errors="coerce"
-            )
-            .dt.to_period("M")
-        )
-        .fillna(False)
-        .astype(int)
-    )
 
+        (
+
+            df["Tanggal"]
+
+            .dt.date
+
+            ==
+
+            pd.to_datetime(
+
+                df["tanggal_biometrik"],
+
+                errors="coerce"
+
+            )
+
+            .dt.date
+
+        )
+
+        .fillna(False)
+
+        .astype(int)
+
+    )
 
     # ======================================================
     # SESSION
@@ -831,24 +843,29 @@ def show():
     # UI KPI
     # =====================================================
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
+        "🏪 Outlet",
+        total_outlet
+    )
+
+    col2.metric(
         "👤 Promotor",
         total_user
     )
 
-    col2.metric(
+    col3.metric(
         "🔥 Promotor Aktif",
         user_aktif
     )
 
-    col3.metric(
+    col4.metric(
         "% Promotor Aktif",
         f"{persen_user_aktif}%"
     )
 
-    col4.metric(
+    col5.metric(
         "📱 MSISDN",
         total_msisdn
     )
@@ -1155,6 +1172,12 @@ def show():
                 "% Promotor Aktif":
                     f"{persen_aktif}%",
 
+
+                "Outlet":
+                    temp["ID Outlet"]
+                    .nunique(),
+
+
                 "MSISDN":
                     total_msisdn,
 
@@ -1292,8 +1315,9 @@ def show():
                     "Promotor":
                         user_cse,
 
-                    "Branch":
-                        bsm,
+                    "Outlet":
+                        temp["ID Outlet"]
+                        .nunique(),
 
                     "MSISDN":
                         total_msisdn,
@@ -1475,6 +1499,10 @@ def show():
                 "% Promotor Aktif":
                     f"{persen_aktif}%",
 
+                "Outlet":
+                    temp["ID Outlet"]
+                    .nunique(),
+
                 "MSISDN":
                     total_msisdn,
 
@@ -1640,6 +1668,12 @@ def show():
 
                 "% Promotor Aktif":
                     f"{persen_aktif}%",
+
+
+                "Outlet":
+                    temp["ID Outlet"]
+                    .nunique(),
+
 
                 "MSISDN":
                     total_msisdn,
@@ -1837,6 +1871,10 @@ def show():
 
                 "Status":
                     status_user,
+
+                "Outlet":
+                    temp["ID Outlet"]
+                    .nunique(),
 
                 "MSISDN":
                     total_msisdn,
