@@ -183,13 +183,13 @@ def show():
 
         df["Tanggal"]
 
-        .dt.to_period("M")
+        .dt.date
 
         ==
 
         df["Tanggal Biometrik"]
 
-        .dt.to_period("M")
+        .dt.date
 
     ).map(
 

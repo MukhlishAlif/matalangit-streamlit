@@ -514,20 +514,32 @@ def show():
     )
 
     df["Biometrik"] = (
-        (
-            df["Tanggal"]
-            .dt.to_period("M")
-            ==
-            pd.to_datetime(
-                df["tanggal_biometrik"],
-                errors="coerce"
-            )
-            .dt.to_period("M")
-        )
-        .fillna(False)
-        .astype(int)
-    )
 
+        (
+
+            df["Tanggal"]
+
+            .dt.date
+
+            ==
+
+            pd.to_datetime(
+
+                df["tanggal_biometrik"],
+
+                errors="coerce"
+
+            )
+
+            .dt.date
+
+        )
+
+        .fillna(False)
+
+        .astype(int)
+
+    )
 
     # ======================================================
     # SESSION

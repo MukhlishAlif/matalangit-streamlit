@@ -66,7 +66,7 @@ def get_selected_value(
 
 def show_grid(
     df,
-    selectable=False,
+    selectable=True,
     key=None
 ):
 
@@ -146,6 +146,14 @@ def show_grid(
 
     )
 
+    if selectable:
+
+        gb.configure_selection(
+
+            selection_mode="single",
+            use_checkbox=False
+
+        )
     # =========================
     # GRID OPTIONS
     # =========================
@@ -429,7 +437,7 @@ def show():
 
         df["Tanggal"]
 
-        .dt.to_period("M")
+        .dt.date
 
         ==
 
@@ -441,10 +449,9 @@ def show():
 
         )
 
-        .dt.to_period("M")
+        .dt.date
 
     )
-
     df.drop(
 
         columns=[

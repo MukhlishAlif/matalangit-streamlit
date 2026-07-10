@@ -95,7 +95,13 @@ def show():
                 "role",
                 "atasan",
                 "status",
-                "created_at"
+                "created_at",
+                "brand",
+                "region",
+                "area",
+                "branch",
+                "micro_cluster",
+                "real_name"
             ]
         )
 
@@ -203,6 +209,11 @@ def show():
             key="atasan_tambah"
         )
 
+        nama_tambah = st.text_input(
+            "Nama",
+            key="nama_tambah"
+        )
+
         if st.button(
             "Tambah User",
             use_container_width=True
@@ -222,7 +233,8 @@ def show():
                         user_tambah,
                         password_tambah,
                         role_tambah,
-                        atasan_tambah
+                        atasan_tambah,
+                        nama_tambah
                     )
 
                     st.session_state["notif"] = (
@@ -326,6 +338,11 @@ def show():
                 "Upline",
                 upline_list,
                 index=upline_list.index(row["atasan"])
+            )
+
+            name_edit = st.text_input(
+                "Name",
+                value=row["real_name"],
             )
 
             col1, col2 = st.columns(2)

@@ -150,6 +150,110 @@ def load_master_msisdn():
         df["MSISDN"]
 
     )
+
+
+# =====================================
+# USER HIERARCHY
+# =====================================
+
+@st.cache_data(ttl=300)
+def load_user_hierarchy():
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        SELECT
+            id,
+            user,
+            password,
+            role,
+            atasan,
+            status,
+            created_at,
+            brand,
+            region,
+            area,
+            branch,
+            micro_cluster,
+            real_name
+
+        FROM users
+
+        ORDER BY role, user
+
+    """)
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    df = pd.DataFrame(
+
+        [dict(row) for row in rows]
+
+    )
+
+    df.columns = df.columns.str.upper()
+
+    df["ATASAN"] = df["ATASAN"].fillna("")
+    df["ROLE"] = df["ROLE"].fillna("")
+    df["STATUS"] = df["STATUS"].fillna("AKTIF")
+
+    # ===========================
+    # BRAND
+    # ===========================
+
+    df["BRAND"] = ""
+
+    df.loc[
+        df["ATASAN"].astype(str).str.lower().str.contains("_im3", na=False),
+        "BRAND"
+    ] = "IM3"
+
+    df.loc[
+        df["ATASAN"].astype(str).str.lower().str.contains("_3id", na=False),
+        "BRAND"
+    ] = "3ID"
+
+    # ===========================
+    # MAP
+    # ===========================
+
+    role_map = df.set_index("USER")["ROLE"].to_dict()
+
+    atasan_map = df.set_index("USER")["ATASAN"].to_dict()
+
+    brand_map = df.set_index("USER")["BRAND"].to_dict()
+
+    # ===========================
+    # CHILDREN
+    # ===========================
+
+    children_map = {}
+
+    for user, atasan in atasan_map.items():
+
+        if atasan:
+
+            children_map.setdefault(
+
+                atasan,
+
+                []
+
+            ).append(user)
+
+    return (
+
+        df,
+        role_map,
+        atasan_map,
+        brand_map,
+        children_map
+
+    )
 # =====================================
 # TABEL USER
 # =====================================
@@ -165,7 +269,13 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT,
     atasan TEXT,
     status TEXT DEFAULT 'AKTIF',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    brand TEXT,
+    region TEXT,
+    area TEXT,
+    branch TEXT,
+    micro_cluster TEXT,
+    real_name TEXT
 )
 """)
 
@@ -182,7 +292,6 @@ CREATE TABLE IF NOT EXISTS outlet (
 
 conn.commit()
 conn.close()
-
 # =====================================
 # USER
 # =====================================
@@ -315,7 +424,13 @@ def tampil_user_master():
             role,
             atasan,
             status,
-            created_at
+            created_at,
+            brand,
+            region,
+            area,
+            branch,
+            micro_cluster,
+            real_name
 
         FROM users
 

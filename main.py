@@ -13,6 +13,8 @@ from modules.dashboard_rge import show as dashboard_rge
 from modules.dashboard_pm import show as dashboard_pm
 from modules.dashboard_gse import show as dashboard_gse
 from modules.master_user import show as master_user
+from modules.main_dashboard import show as main_dashboard
+from modules.quickcount_dashboard import show as quickcount_dashboard
 
 from auth import login_page, sidebar
 
@@ -208,6 +210,8 @@ elif role == "ADMIN":
     menu = st.sidebar.radio(
         "Menu",
         [
+            "Leaderboard Biometrik",
+            "Leaderboard Quick Count",
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard AE",
@@ -233,6 +237,14 @@ else:
 if menu == "Dashboard DSE":
 
     dashboard_dse()
+
+elif menu == "Leaderboard Biometrik":
+
+    main_dashboard()
+
+elif menu == "Leaderboard Quick Count":
+
+    quickcount_dashboard()
 
 elif menu == "Dashboard Frontliner":
 
