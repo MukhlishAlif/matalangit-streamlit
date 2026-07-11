@@ -188,7 +188,7 @@ def show_grid(
                 "BSM",
                 "Branch",
                 "CSE/RSE",
-                "AE",
+                "PROMOTOR",
                 "Atasan"
 
             ]:
@@ -362,7 +362,7 @@ def to_excel(df):
 
 def show():
 
-    st.title("📊 Dashboard AE")
+    st.title("📊 Dashboard Promotor")
 
     # =====================================================
     # LOAD DATA
@@ -574,7 +574,7 @@ def show():
     # FILTER ROLE
     # =====================================================
 
-    if role == "AE":
+    if role == "PROMOTOR":
 
         df = df[
             df["Input By"] == user
@@ -593,7 +593,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "AE")
+            (df_user["ROLE"] == "PROMOTOR")
 
         ]["USER"].tolist()
 
@@ -615,7 +615,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "AE")
+            (df_user["ROLE"] == "PROMOTOR")
 
         ]["USER"].tolist()
 
@@ -642,7 +642,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "AE")
+            (df_user["ROLE"] == "PROMOTOR")
 
         ]["USER"].tolist()
 
@@ -679,7 +679,7 @@ def show():
     # KPI FILTER SESUAI ROLE
     # =====================================================
 
-    if role == "AE":
+    if role == "PROMOTOR":
 
         promotor_all = [user]
 
@@ -691,7 +691,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "AE")
+            (df_user["ROLE"] == "PROMOTOR")
 
         ]["USER"].tolist()
 
@@ -718,7 +718,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "AE")
+            (df_user["ROLE"] == "PROMOTOR")
 
         ]["USER"].tolist()
 
@@ -757,14 +757,14 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "AE")
+            (df_user["ROLE"] == "PROMOTOR")
 
         ]["USER"].tolist()
 
     else:
 
         promotor_all = df_user[
-            df_user["ROLE"] == "AE"
+            df_user["ROLE"] == "PROMOTOR"
         ]["USER"].tolist()
 
     # =====================================================
@@ -775,7 +775,7 @@ def show():
 
         promotor_all = df_user[
 
-            (df_user["ROLE"] == "AE")
+            (df_user["ROLE"] == "PROMOTOR")
 
             &
 
@@ -851,17 +851,17 @@ def show():
     col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
-        "👤 AE",
+        "👤 Promotor",
         total_promotor
     )
 
     col2.metric(
-        "🔥 AE Aktif",
+        "🔥 Promotor Aktif",
         promotor_aktif
     )
 
     col3.metric(
-        "% AE Aktif",
+        "% Promotor Aktif",
         f"{persen_aktif}%"
     )
 
@@ -914,7 +914,7 @@ def show():
 
         else:
 
-            st.subheader("📋 Rekap AE")
+            st.subheader("📋 Rekap Promotor")
 
     with col_reset:
 
@@ -973,7 +973,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "AE")
+                (df_user["ROLE"] == "PROMOTOR")
 
             ]["USER"].tolist()
 
@@ -1019,11 +1019,11 @@ def show():
 
                 "HOS": nama_hos,
 
-                "AE": total_promotor,
+                "Promotor": total_promotor,
 
-                "AE Aktif": promotor_aktif,
+                "Promotor Aktif": promotor_aktif,
 
-                "% AE Aktif": f"{persen_aktif}%",
+                "% Promotor Aktif": f"{persen_aktif}%",
 
                 "MSISDN": total_msisdn,
 
@@ -1170,7 +1170,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "AE")
+                (df_user["ROLE"] == "PROMOTOR")
 
             ]["USER"].tolist()
 
@@ -1217,13 +1217,13 @@ def show():
                 "BSM":
                     nama_bsm,
 
-                "AE":
+                "Promotor":
                     total_promotor,
 
-                "AE Aktif":
+                "Promotor Aktif":
                     promotor_aktif,
 
-                "% AE Aktif":
+                "% Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1398,7 +1398,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "AE")
+                (df_user["ROLE"] == "PROMOTOR")
 
             ]["USER"].tolist()
 
@@ -1445,13 +1445,13 @@ def show():
                 "CSE/RSE":
                     nama_cse,
 
-                "AE":
+                "Promotor":
                     total_promotor,
 
-                "AE Aktif":
+                "Promotor Aktif":
                     promotor_aktif,
 
-                "% AE Aktif":
+                "% Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1545,13 +1545,13 @@ def show():
 
     if role not in ["CSE", "RSE"]:
 
-        st.subheader("📋 Rekap AE")
+        st.subheader("📋 Rekap Promotor")
 
     rekap_promotor = []
 
     promotor_user = df_user[
 
-        df_user["ROLE"] == "AE"
+        df_user["ROLE"] == "PROMOTOR"
 
     ]
 
@@ -1746,7 +1746,7 @@ def show():
 
         rekap_promotor.append({
 
-            "AE":
+            "Promotor":
                 nama_promotor,
 
             "Upline":
@@ -1807,11 +1807,11 @@ def show():
 
         st.download_button(
 
-            label="⬇️ Download Rekap AE",
+            label="⬇️ Download Rekap Promotor",
 
             data=to_excel(summary_promotor),
 
-            file_name="rekap_AE.xlsx",
+            file_name="rekap_promotor.xlsx",
 
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
@@ -1825,6 +1825,6 @@ def show():
 
             selectable=False,
 
-            key="AE"
+            key="PROMOTOR"
 
         )

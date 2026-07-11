@@ -145,7 +145,7 @@ role = st.session_state.outlet_role
 # MENU
 # =====================================
 
-if role in ["DSE", "FRONTLINER", "AE", "GSE", "PROMOTOR", "RGE"]:
+if role in ["DSE", "FRONTLINER", "PROMOTOR", "GSE", "GEMINI", "RGE"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -163,7 +163,7 @@ elif role in ["CSE", "RSE"]:
         [
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard AE",
+            "Dashboard Promotor",
             "Dashboard GSE",
             "Input MSISDN",
             "Data MSISDN"
@@ -178,10 +178,10 @@ elif role == "BSM":
         [
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard AE",
+            "Dashboard Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
-            "Dashboard Promotor",
+            "Dashboard Gemini",
             "Dashboard CSE/RSE",
             "Data MSISDN"
         ],
@@ -195,10 +195,10 @@ elif role == "HOS":
         [
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard AE",
+            "Dashboard Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
-            "Dashboard Promotor",
+            "Dashboard Gemini",
             "Dashboard CSE/RSE",
             "Data MSISDN"
         ],
@@ -214,10 +214,10 @@ elif role == "ADMIN":
             "Leaderboard Quick Count",
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard AE",
+            "Dashboard Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
-            "Dashboard Promotor",
+            "Dashboard Gemini",
             "Dashboard CSE/RSE",
             "Data MSISDN",
             "Master User"
@@ -250,7 +250,7 @@ elif menu == "Dashboard Frontliner":
 
     dashboard_fl()
 
-elif menu == "Dashboard AE":
+elif menu == "Dashboard Promotor":
 
     dashboard_ae()
 
@@ -262,7 +262,7 @@ elif menu == "Dashboard CSE/RSE":
 
     dashboard_cse()
 
-elif menu == "Dashboard Promotor":
+elif menu == "Dashboard Gemini":
 
     dashboard_pm()
 

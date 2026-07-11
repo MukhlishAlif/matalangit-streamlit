@@ -17,7 +17,7 @@ from database import (
 # CONSTANTS
 # ==========================================================
 
-PERSONNEL_ROLES = ["DSE", "CSE", "RSE", "RGE", "AE", "GSE", "FRONTLINER", "PROMOTOR"]
+PERSONNEL_ROLES = ["DSE", "CSE", "RSE", "RGE", "PROMOTOR", "GSE", "FRONTLINER", "GEMINI"]
 
 TARGET_PER_DAY = 5
 
@@ -30,7 +30,7 @@ PERSONNEL_GROUPS = {
     "CSE/RSE": ["CSE", "RSE"],
     "RGE": ["RGE"],
     "DSE": ["DSE"],
-    "AE": ["AE"],
+    "PROMOTOR": ["PROMOTOR"],
     "GSE": ["GSE"],
 }
 
@@ -1594,7 +1594,7 @@ def show():
 
                 hos_scores,
 
-                key=lambda x: x[2],   # avg_submit
+                key=lambda x: x[3],   # avg_submit
 
                 reverse=True
 
@@ -1911,7 +1911,7 @@ def show():
     lb_defs = [
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
-        ("AE", PERSONNEL_GROUPS["AE"]),
+        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
         ("GSE", PERSONNEL_GROUPS["GSE"]),
     ]

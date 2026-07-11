@@ -393,11 +393,11 @@ def show():
                 users["ROLE"].isin([
 
                     "DSE",
-                    "AE",
+                    "PROMOTOR",
                     "GSE",
                     "RGE",
                     "FRONTLINER",
-                    "PROMOTOR"
+                    "GEMINI"
 
                 ])
 
@@ -447,11 +447,11 @@ def show():
                     users["ROLE"].isin([
 
                         "DSE",
-                        "AE",
+                        "PROMOTOR",
                         "GSE",
                         "RGE",
                         "FRONTLINER",
-                        "PROMOTOR"
+                        "GEMINI"
 
                     ])
 
@@ -523,11 +523,11 @@ def show():
             (users["ROLE"].isin([
 
                 "DSE",
-                "AE",
+                "PROMOTOR",
                 "GSE",
                 "RGE",
                 "FRONTLINER",
-                "PROMOTOR"
+                "GEMINI"
 
             ]))
 
@@ -605,11 +605,11 @@ def show():
             (users["ROLE"].isin([
 
                 "DSE",
-                "AE",
+                "PROMOTOR",
                 "GSE",
                 "RGE",
                 "FRONTLINER",
-                "PROMOTOR"
+                "GEMINI"
 
             ]))
 
@@ -671,11 +671,11 @@ def show():
             (users["ROLE"].isin([
 
                 "DSE",
-                "AE",
+                "PROMOTOR",
                 "GSE",
                 "RGE",
                 "FRONTLINER",
-                "PROMOTOR"
+                "GEMINI"
 
             ]))
 
@@ -794,16 +794,16 @@ def show():
             df["ROLE"] == "FRONTLINER"
         ],
 
-        "AE": df[
-            df["ROLE"] == "AE"
+        "PROMOTOR": df[
+            df["ROLE"] == "PROMOTOR"
         ],
 
         "GSE": df[
             df["ROLE"] == "GSE"
         ],
 
-        "PROMOTOR": df[
-            df["ROLE"] == "PROMOTOR"
+        "GEMINI": df[
+            df["ROLE"] == "GEMINI"
         ],
 
         "RGE": df[
