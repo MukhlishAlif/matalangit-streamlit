@@ -161,6 +161,8 @@ elif role in ["CSE", "RSE"]:
     menu = st.sidebar.radio(
         "Menu",
         [
+            "Leaderboard Biometrik",
+            "Leaderboard Quick Count",
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
@@ -176,6 +178,8 @@ elif role == "BSM":
     menu = st.sidebar.radio(
         "Menu",
         [
+            "Leaderboard Biometrik",
+            "Leaderboard Quick Count",
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
@@ -193,6 +197,8 @@ elif role == "HOS":
     menu = st.sidebar.radio(
         "Menu",
         [
+            "Leaderboard Biometrik",
+            "Leaderboard Quick Count",
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
