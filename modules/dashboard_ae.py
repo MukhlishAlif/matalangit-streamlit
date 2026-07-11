@@ -1379,14 +1379,42 @@ def show():
         for _, row in cse_list.iterrows():
 
             if (
+
                 st.session_state.selected_bsm_pm
+
             ):
 
                 if (
+
                     row["ATASAN"]
+
                     !=
+
                     st.session_state.selected_bsm_pm
+
                 ):
+
+                    continue
+
+            elif (
+
+                st.session_state.selected_hos_pm
+
+            ):
+
+                daftar_bsm_hos = df_user[
+
+                    (df_user["ATASAN"]
+
+                    == st.session_state.selected_hos_pm)
+
+                    &
+
+                    (df_user["ROLE"] == "BSM")
+
+                ]["USER"].tolist()
+
+                if row["ATASAN"] not in daftar_bsm_hos:
 
                     continue
 
