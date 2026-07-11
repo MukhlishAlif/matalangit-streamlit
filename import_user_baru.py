@@ -61,7 +61,7 @@ for c in existing:
 # IMPORT EXCEL
 # =====================================
 
-df = pd.read_excel("usergse2.xlsx")
+df = pd.read_excel("userbaru.xlsx")
 df.columns = df.columns.str.strip().str.upper()
 
 inserted = 0
