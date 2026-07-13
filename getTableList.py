@@ -52,7 +52,7 @@ for table_name in table_list:
         order_clause = "ORDER BY rowid DESC" 
         print("ℹ️ No explicit time column found. Falling back to rowid sequence sorting.")
 
-    preview_query = f"SELECT * FROM {table_name} {order_clause} LIMIT 2000;"
+    preview_query = f"SELECT * FROM {table_name} {order_clause} LIMIT 20;"
     
     try:
         cursor.execute(preview_query)

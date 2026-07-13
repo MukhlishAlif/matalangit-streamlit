@@ -395,7 +395,9 @@ def tampil_user():
 
             role,
 
-            atasan
+            atasan,
+
+            REAL_NAME
 
         FROM users
 
