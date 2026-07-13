@@ -5,6 +5,7 @@ __pycache__/
 
 # Excel / temp files
 *.xlsx
+*.csv
 ~$*
 
 # Environment (kalau ada nanti)
