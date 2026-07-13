@@ -54,12 +54,12 @@ def login_page():
     # LOGO
     # =====================================
 
-    _, logo_col, _ = st.columns([1, 1.35, 1])
+    _, logo_col, _ = st.columns([1, 0.8, 1])
 
     with logo_col:
 
         st.image(
-            "logo.png",
+            "icon.png",
             width=600
         )
 
@@ -68,7 +68,7 @@ def login_page():
         <style>
 
             div[data-testid="stImage"]{
-                margin-bottom:-130px;
+                margin-bottom:-20px;
             }
 
         </style>

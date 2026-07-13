@@ -160,12 +160,12 @@ def show_grid(
         "Upline": 180,
         "Status": 140,
 
-        "Gemini": 90,
-        "Gemini Aktif": 120,
+        "GEMPI": 90,
+        "GEMPI Aktif": 120,
         "Outlet": 100,
         "MSISDN": 110,
         "Biometrik": 110,
-        "% Gemini Aktif": 130,
+        "% GEMPI Aktif": 130,
         "% Biometrik": 120
 
     }
@@ -346,7 +346,7 @@ def to_excel(df):
 
 def show():
 
-    st.title("📊 Dashboard Gemini")
+    st.title("📊 Dashboard GEMPI")
 
     # =====================================================
     # LOAD DATA
@@ -489,11 +489,46 @@ def show():
 
             "USER",
             "ROLE",
-            "ATASAN"
+            "ATASAN",
+            "REAL_NAME"
 
         ]
 
     )
+
+    # ======================================================
+    # USER -> REAL NAME
+    # ======================================================
+
+    real_name_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["REAL_NAME"]
+        .to_dict()
+    )
+
+    def get_real_name(username):
+
+        key = str(username).strip().upper()
+
+        nama = real_name_map.get(key)
+
+        if (
+            pd.isna(nama)
+            or str(nama).strip() == ""
+            or str(nama).strip().lower() == "vacant"
+        ):
+
+            return username
+
+        return nama
+
 
     # =====================================================
     # USER BRAND
@@ -1018,17 +1053,17 @@ def show():
     )
 
     col2.metric(
-        "👤 Gemini",
+        "👤 GEMPI",
         total_dse
     )
 
     col3.metric(
-        "🔥 Gemini Aktif",
+        "🔥 GEMPI Aktif",
         dse_aktif
     )
 
     col4.metric(
-        "% Gemini Aktif",
+        "% GEMPI Aktif",
         f"{persen_dse_aktif}%"
     )
 
@@ -1253,11 +1288,15 @@ def show():
             rekap_hos.append({
                 "HOS":
                     nama_hos,
-                "Gemini":
+
+                "Nama":
+                    get_real_name(nama_hos),
+
+                "GEMPI":
                     total_dse,
-                "Gemini Aktif":
+                "GEMPI Aktif":
                     dse_aktif,
-                "% Gemini Aktif":
+                "% GEMPI Aktif":
                     f"{persen_aktif}%",
                 "Outlet":
                     temp["ID Outlet"]
@@ -1415,11 +1454,13 @@ def show():
             rekap_bsm.append({
                 "BSM":
                     nama_bsm,
-                "Gemini":
+                "Nama":
+                    get_real_name(nama_bsm),
+                "GEMPI":
                     total_dse,
-                "Gemini Aktif":
+                "GEMPI Aktif":
                     dse_aktif,
-                "% Gemini Aktif":
+                "% GEMPI Aktif":
                     f"{persen_aktif}%",
                 "Outlet":
                     temp["ID Outlet"].nunique(),
@@ -1636,13 +1677,16 @@ def show():
                 "CSE/RSE":
                     nama_cse,
 
-                "Gemini":
+                "Nama":
+                    get_real_name(nama_cse),
+
+                "GEMPI":
                     total_dse,
 
-                "Gemini Aktif":
+                "GEMPI Aktif":
                     dse_aktif,
 
-                "% Gemini Aktif":
+                "% GEMPI Aktif":
                     f"{persen_aktif}%",
 
                 "Outlet":
@@ -1743,7 +1787,7 @@ def show():
 
     ]:
 
-        st.subheader("📋 Rekap Gemini")
+        st.subheader("📋 Rekap GEMPI")
 
         rekap_dse = []
 
@@ -1997,8 +2041,11 @@ def show():
 
             rekap_dse.append({
 
-                "Nama":
+                "GEMPI":
                     nama_user,
+
+                "Nama":
+                    get_real_name(nama_user),
 
                 "Role":
                     row["ROLE"],

@@ -155,12 +155,12 @@ def show_grid(
         "CSE/RSE": 260,
         "Branch": 170,
         "Atasan": 170,
-        "Nama": 180,
+        "DSE": 180,
         "Role": 120,
         "Upline": 180,
         "Status": 140,
 
-        "DSE": 90,
+        "Nama": 230,
         "DSE Aktif": 120,
         "Outlet": 100,
         "MSISDN": 110,
@@ -507,11 +507,45 @@ def show():
 
             "USER",
             "ROLE",
-            "ATASAN"
+            "ATASAN",
+            "REAL_NAME"
 
         ]
 
     )
+
+    # ======================================================
+    # USER -> REAL NAME
+    # ======================================================
+
+    real_name_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["REAL_NAME"]
+        .to_dict()
+    )
+
+    def get_real_name(username):
+
+        key = str(username).strip().upper()
+
+        nama = real_name_map.get(key)
+
+        if (
+            pd.isna(nama)
+            or str(nama).strip() == ""
+            or str(nama).strip().lower() == "vacant"
+        ):
+
+            return username
+
+        return nama
 
     # =====================================================
     # USER BRAND
@@ -1307,6 +1341,9 @@ def show():
                 "HOS":
                     nama_hos,
 
+                "Nama":
+                    get_real_name(nama_hos), 
+
                 "DSE":
                     total_dse,
 
@@ -1516,6 +1553,9 @@ def show():
 
                 "BSM":
                     nama_bsm,
+
+                "Nama":
+                    get_real_name(nama_bsm),
 
                 "DSE":
                     total_dse,
@@ -1745,6 +1785,8 @@ def show():
 
                 "CSE/RSE":
                     nama_cse,
+                "Nama":
+                    get_real_name(nama_cse),
 
                 "DSE":
                     total_dse,
@@ -2107,11 +2149,11 @@ def show():
 
             rekap_dse.append({
 
-                "Nama":
+                "DSE":
                     nama_user,
 
-                "Role":
-                    row["ROLE"],
+                "Nama":
+                    get_real_name(nama_user),
 
                 "Upline":
                     row["ATASAN"],
