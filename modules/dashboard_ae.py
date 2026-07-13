@@ -67,13 +67,18 @@ def get_selected_value(
 def show_grid(
     df,
     selectable=True,
-    key=None
+    key=None,
+    col_align=None
 ):
 
     if df.empty:
 
         st.info("Tidak ada data.")
         return None
+
+    if col_align is None:
+
+        col_align = {}
 
     st.markdown(
         """
@@ -102,6 +107,22 @@ def show_grid(
     gb = GridOptionsBuilder.from_dataframe(df)
 
     # =========================
+    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
+    # =========================
+
+    def get_justify(align_value):
+
+        mapping = {
+
+            "left": "flex-start",
+            "center": "center",
+            "right": "flex-end"
+
+        }
+
+        return mapping.get(align_value, "center")
+
+    # =========================
     # DEFAULT COLUMN
     # =========================
 
@@ -117,7 +138,10 @@ def show_grid(
         minWidth=120,
 
         cellStyle={
-            "textAlign": "center"
+            "textAlign": "center",
+            "display": "flex",
+            "justifyContent": "center",
+            "alignItems": "center"
         }
 
     )
@@ -128,6 +152,8 @@ def show_grid(
 
     first_col = df.columns[0]
 
+    first_col_align = col_align.get(first_col, "left")
+
     gb.configure_column(
 
         first_col,
@@ -137,7 +163,11 @@ def show_grid(
         minWidth=270,
 
         cellStyle={
-            "textAlign": "left"
+            "textAlign": first_col_align,
+            "display": "flex",
+            "justifyContent": get_justify(first_col_align),
+            "alignItems": "center",
+            "paddingLeft": "12px" if first_col_align == "left" else "0px"
         },
 
         filter=False,
@@ -145,6 +175,40 @@ def show_grid(
         floatingFilter=False
 
     )
+
+    # =========================
+    # OVERRIDE ALIGNMENT KOLOM LAIN SESUAI col_align
+    # =========================
+
+    for field, align_value in col_align.items():
+
+        if field == first_col:
+
+            continue
+
+        padding_style = {}
+
+        if align_value == "left":
+
+            padding_style = {"paddingLeft": "12px"}
+
+        elif align_value == "right":
+
+            padding_style = {"paddingRight": "12px"}
+
+        gb.configure_column(
+
+            field,
+
+            cellStyle={
+                "textAlign": align_value,
+                "display": "flex",
+                "justifyContent": get_justify(align_value),
+                "alignItems": "center",
+                **padding_style
+            }
+
+        )
 
     if selectable:
 
@@ -289,31 +353,6 @@ def show_grid(
 
             },
 
-            # =========================================
-            # SEMUA CELL CENTER
-            # =========================================
-
-            ".ag-cell": {
-
-                "display": "flex",
-                "justify-content": "center",
-                "align-items": "center",
-                "text-align": "center"
-
-            },
-
-            # =========================================
-            # FIRST COLUMN LEFT
-            # =========================================
-
-            ".ag-pinned-left-cols-container .ag-cell": {
-
-                "justify-content": "flex-start !important",
-                "text-align": "left !important",
-                "padding-left": "12px"
-
-            },
-
             ".ag-row": {
 
                 "font-size": "14px"
@@ -334,7 +373,6 @@ def show_grid(
     )
 
     return grid_response
-
 # =========================================================
 # TO EXCEL
 # =========================================================
@@ -476,12 +514,44 @@ def show():
 
             "USER",
             "ROLE",
-            "ATASAN"
+            "ATASAN",
+            "REAL_NAME"
 
         ]
 
     )
+    # ======================================================
+    # USER -> REAL NAME
+    # ======================================================
 
+    real_name_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["REAL_NAME"]
+        .to_dict()
+    )
+
+    def get_real_name(username):
+
+        key = str(username).strip().upper()
+
+        nama = real_name_map.get(key)
+
+        if (
+            pd.isna(nama)
+            or str(nama).strip() == ""
+            or str(nama).strip().lower() == "vacant"
+        ):
+
+            return username
+
+        return nama
 
     # =====================================================
     # USER BRAND
@@ -1019,6 +1089,9 @@ def show():
 
                 "HOS": nama_hos,
 
+                "Nama":
+                    get_real_name(nama_hos),
+
                 "Promotor": total_promotor,
 
                 "Promotor Aktif": promotor_aktif,
@@ -1080,7 +1153,10 @@ def show():
 
             selectable=True,
 
-            key="hos"
+            key="hos",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 
@@ -1217,6 +1293,9 @@ def show():
                 "BSM":
                     nama_bsm,
 
+                "Nama":
+                    get_real_name(nama_bsm),
+
                 "Promotor":
                     total_promotor,
 
@@ -1284,7 +1363,10 @@ def show():
 
             selectable=True,
 
-            key="bsm"
+            key="bsm",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 
@@ -1379,14 +1461,42 @@ def show():
         for _, row in cse_list.iterrows():
 
             if (
+
                 st.session_state.selected_bsm_pm
+
             ):
 
                 if (
+
                     row["ATASAN"]
+
                     !=
+
                     st.session_state.selected_bsm_pm
+
                 ):
+
+                    continue
+
+            elif (
+
+                st.session_state.selected_hos_pm
+
+            ):
+
+                daftar_bsm_hos = df_user[
+
+                    (df_user["ATASAN"]
+
+                    == st.session_state.selected_hos_pm)
+
+                    &
+
+                    (df_user["ROLE"] == "BSM")
+
+                ]["USER"].tolist()
+
+                if row["ATASAN"] not in daftar_bsm_hos:
 
                     continue
 
@@ -1444,6 +1554,9 @@ def show():
 
                 "CSE/RSE":
                     nama_cse,
+
+                "Nama":
+                    get_real_name(nama_cse),
 
                 "Promotor":
                     total_promotor,
@@ -1512,7 +1625,10 @@ def show():
 
             selectable=True,
 
-            key="cse"
+            key="cse",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 
@@ -1749,6 +1865,9 @@ def show():
             "Promotor":
                 nama_promotor,
 
+             "Nama":
+                get_real_name(nama_promotor),
+
             "Upline":
                 row["ATASAN"],
 
@@ -1825,6 +1944,9 @@ def show():
 
             selectable=False,
 
-            key="PROMOTOR"
+            key="PROMOTOR",
+            col_align={
+                "Nama": "left"
+            }
 
         )

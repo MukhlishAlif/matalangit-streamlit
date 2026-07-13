@@ -211,7 +211,8 @@ def show():
         columns=[
             "USER",
             "ROLE",
-            "ATASAN"
+            "ATASAN",
+            "REAL_NAME"
         ]
     )
 
@@ -377,6 +378,7 @@ def show():
 
                 users["ROLE"].isin([
 
+                    "BSM", 
                     "CSE",
                     "RSE"
 
@@ -427,6 +429,7 @@ def show():
 
                     users["ROLE"].isin([
 
+                        "BSM",
                         "CSE",
                         "RSE"
 
@@ -583,6 +586,7 @@ def show():
 
             (users["ROLE"].isin([
 
+                "BSM",
                 "CSE",
                 "RSE"
 
@@ -784,6 +788,10 @@ def show():
             df["ROLE"].isin(
                 ["CSE", "RSE"]
             )
+        ],
+
+        "BSM": df[
+            df["ROLE"] == "BSM"
         ],
 
         "DSE": df[

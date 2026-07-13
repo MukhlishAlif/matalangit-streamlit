@@ -68,13 +68,18 @@ def show_grid(
     df,
     selectable=False,
     key=None,
-    total_outlet=None
+    total_outlet=None,
+    col_align=None
 ):
 
     if df.empty:
 
         st.info("Tidak ada data.")
         return None
+
+    if col_align is None:
+
+        col_align = {}
 
     st.markdown(
         """
@@ -193,7 +198,27 @@ def show_grid(
     grid_options = gb.build()
 
     # =====================================================
-    # FIX COLUMN WIDTH BERDASARKAN ISI
+    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
+    # =====================================================
+
+    def get_justify(align_value):
+
+        mapping = {
+
+            "left": "flex-start",
+            "center": "center",
+            "right": "flex-end"
+
+        }
+
+        return mapping.get(align_value, "center")
+
+    def get_text_align(align_value):
+
+        return align_value if align_value in ["left", "center", "right"] else "center"
+
+    # =====================================================
+    # FIX COLUMN WIDTH BERDASARKAN ISI + ALIGNMENT
     # =====================================================
 
     first_col = df.columns[0]
@@ -224,6 +249,35 @@ def show_grid(
         col["minWidth"] = int(width)
         col["maxWidth"] = int(width)
 
+        # =================================================
+        # TENTUKAN ALIGNMENT KOLOM INI
+        # =================================================
+
+        if field in col_align:
+
+            align_value = col_align[field]
+
+        elif field == first_col:
+
+            align_value = "left"
+
+        else:
+
+            align_value = "center"
+
+        justify_value = get_justify(align_value)
+        text_align_value = get_text_align(align_value)
+
+        padding_style = {}
+
+        if align_value == "left":
+
+            padding_style = {"paddingLeft": "12px"}
+
+        elif align_value == "right":
+
+            padding_style = {"paddingRight": "12px"}
+
         if field == first_col:
 
             col["width"] = 260
@@ -238,12 +292,24 @@ def show_grid(
 
             col["cellStyle"] = {
 
-                "textAlign": "left",
+                "textAlign": text_align_value,
                 "display": "flex",
-                "justifyContent": "flex-start",
+                "justifyContent": justify_value,
                 "alignItems": "center",
-                "paddingLeft": "12px",
-                "fontWeight": "600"
+                "fontWeight": "600",
+                **padding_style
+
+            }
+
+        else:
+
+            col["cellStyle"] = {
+
+                "textAlign": text_align_value,
+                "display": "flex",
+                "justifyContent": justify_value,
+                "alignItems": "center",
+                **padding_style
 
             }
 
@@ -333,16 +399,6 @@ def show_grid(
 
             },
 
-            # Isi semua kolom center
-            ".ag-cell": {
-
-                "display": "flex",
-                "justify-content": "center",
-                "align-items": "center",
-                "text-align": "center"
-
-            },
-
             # Khusus kolom pertama rata kiri
             ".ag-cell:first-child": {
 
@@ -379,7 +435,6 @@ def show_grid(
 
     )
     return grid_response
-
 # =========================================================
 # DASHBOARD
 # =========================================================
@@ -494,11 +549,46 @@ def show():
 
             "USER",
             "ROLE",
-            "ATASAN"
+            "ATASAN",
+            "REAL_NAME"
 
         ]
 
     )
+
+    # ======================================================
+    # USER -> REAL NAME
+    # ======================================================
+
+    real_name_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["REAL_NAME"]
+        .to_dict()
+    )
+
+    def get_real_name(username):
+
+        key = str(username).strip().upper()
+
+        nama = real_name_map.get(key)
+
+        if (
+            pd.isna(nama)
+            or str(nama).strip() == ""
+            or str(nama).strip().lower() == "vacant"
+        ):
+
+            return username
+
+        return nama
+
 
     # =====================================================
     # USER BRAND
@@ -866,6 +956,10 @@ def show():
                 "HOS":
                     nama_hos,
 
+                "Nama":
+                    get_real_name(nama_hos), 
+
+
                 "Frontliner":
                     total_fl,
 
@@ -919,6 +1013,9 @@ def show():
             selectable=True,
 
             key=f"hos_{tanggal}_{role}_{user}",
+            col_align={
+                "Nama": "left"
+            },
 
             total_outlet=(
 
@@ -1080,6 +1177,9 @@ def show():
                 "BSM":
                     nama_bsm,
 
+                "Nama":
+                    get_real_name(nama_bsm), 
+
                 "Frontliner":
                     total_fl,
 
@@ -1128,6 +1228,9 @@ def show():
             selectable=True,
 
             key=f"bsm_{tanggal}_{role}_{user}",
+            col_align={
+                "Nama": "left"
+            },
 
             total_outlet=(
 
@@ -1311,6 +1414,9 @@ def show():
                 "CSE/RSE":
                     nama_cse,
 
+                "Nama":
+                    get_real_name(nama_cse), 
+
                 "Frontliner":
                     total_fl,
 
@@ -1359,6 +1465,9 @@ def show():
             selectable=True,
 
             key=f"cse_{tanggal}_{role}_{user}",
+            col_align={
+                "Nama": "left"
+            },
 
             total_outlet=(
 
@@ -1566,6 +1675,10 @@ def show():
             "Frontliner":
                 nama_fl,
 
+            "Nama":
+                get_real_name(nama_fl), 
+
+
             "Upline":
                 row["ATASAN"],
 
@@ -1623,6 +1736,9 @@ def show():
         selectable=False,
 
         key="frontliner",
+        col_align={
+            "Nama": "left"
+        },
 
         total_outlet=(
 

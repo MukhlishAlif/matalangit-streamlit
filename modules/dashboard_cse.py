@@ -32,13 +32,18 @@ from st_aggrid import (
 def show_grid(
     df,
     selectable=False,
-    key=None
+    key=None,
+    col_align=None
 ):
 
     if df.empty:
 
         st.info("Tidak ada data.")
         return None
+
+    if col_align is None:
+
+        col_align = {}
 
     st.markdown(
         """
@@ -142,7 +147,27 @@ def show_grid(
     grid_options = gb.build()
 
     # =====================================================
-    # FIX WIDTH + FREEZE FIRST COLUMN
+    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
+    # =====================================================
+
+    def get_justify(align_value):
+
+        mapping = {
+
+            "left": "flex-start",
+            "center": "center",
+            "right": "flex-end"
+
+        }
+
+        return mapping.get(align_value, "center")
+
+    def get_text_align(align_value):
+
+        return align_value if align_value in ["left", "center", "right"] else "center"
+
+    # =====================================================
+    # FIX WIDTH + FREEZE FIRST COLUMN + ALIGNMENT
     # =====================================================
 
     first_col = df.columns[0]
@@ -164,6 +189,35 @@ def show_grid(
         col["minWidth"] = int(width)
         col["maxWidth"] = int(width)
 
+        # =================================================
+        # TENTUKAN ALIGNMENT KOLOM INI
+        # =================================================
+
+        if field in col_align:
+
+            align_value = col_align[field]
+
+        elif field == first_col:
+
+            align_value = "left"
+
+        else:
+
+            align_value = "center"
+
+        justify_value = get_justify(align_value)
+        text_align_value = get_text_align(align_value)
+
+        padding_style = {}
+
+        if align_value == "left":
+
+            padding_style = {"paddingLeft": "12px"}
+
+        elif align_value == "right":
+
+            padding_style = {"paddingRight": "12px"}
+
         # Freeze kolom pertama
         if field == first_col:
 
@@ -178,12 +232,12 @@ def show_grid(
 
             col["cellStyle"] = {
 
-                "textAlign": "left",
+                "textAlign": text_align_value,
                 "display": "flex",
-                "justifyContent": "flex-start",
+                "justifyContent": justify_value,
                 "alignItems": "center",
-                "paddingLeft": "12px",
-                "fontWeight": "600"
+                "fontWeight": "600",
+                **padding_style
 
             }
 
@@ -191,10 +245,11 @@ def show_grid(
 
             col["cellStyle"] = {
 
-                "textAlign": "center",
+                "textAlign": text_align_value,
                 "display": "flex",
-                "justifyContent": "center",
-                "alignItems": "center"
+                "justifyContent": justify_value,
+                "alignItems": "center",
+                **padding_style
 
             }
     # =====================================================
@@ -279,16 +334,6 @@ def show_grid(
                 "justify-content": "center",
                 "align-items": "center",
                 "width": "100%",
-                "text-align": "center"
-
-            },
-
-            # Isi semua kolom center
-            ".ag-cell": {
-
-                "display": "flex",
-                "justify-content": "center",
-                "align-items": "center",
                 "text-align": "center"
 
             },
@@ -433,6 +478,40 @@ def show():
     df_user.columns = (
         df_user.columns.str.upper()
     )
+
+
+    # ======================================================
+    # USER -> REAL NAME
+    # ======================================================
+
+    real_name_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["REAL_NAME"]
+        .to_dict()
+    )
+
+    def get_real_name(username):
+
+        key = str(username).strip().upper()
+
+        nama = real_name_map.get(key)
+
+        if (
+            pd.isna(nama)
+            or str(nama).strip() == ""
+            or str(nama).strip().lower() == "vacant"
+        ):
+
+            return username
+
+        return nama
 
     # =====================================================
     # USER BRAND
@@ -925,6 +1004,8 @@ def show():
 
         show_grid(detail_df)
 
+
+
     # ======================================================
     # BSM
     # ======================================================
@@ -998,6 +1079,10 @@ def show():
 
                 "CSE/RSE":
                     nama_cse,
+
+                "Nama":
+                    get_real_name(nama_cse),
+
 
                 "Status":
 
@@ -1083,7 +1168,10 @@ def show():
 
             selectable=False,
 
-            key="cse_bsm"
+            key="cse_bsm",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 
@@ -1094,6 +1182,8 @@ def show():
     elif role == "HOS":
 
         selected_bsm = None
+
+
 
         # ==================================================
         # REKAP BSM
@@ -1184,6 +1274,9 @@ def show():
                 "BSM":
                     bsm,
 
+                "Nama":
+                    get_real_name(bsm),
+
                 "CSE/RSE":
                     total_cse,
 
@@ -1266,7 +1359,10 @@ def show():
 
             selectable=True,
 
-            key="hos_bsm"
+            key="hos_bsm",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 
@@ -1334,6 +1430,8 @@ def show():
 
                     "CSE/RSE":
                         user_cse,
+                     "Nama":
+                        get_real_name(user_cse),
 
                     "Outlet":
                         temp["ID Outlet"]
@@ -1442,7 +1540,6 @@ def show():
                 st.session_state.selected_cse = None
 
                 st.rerun()
-
         rekap_hos = []
 
         hos_list = df_user[
@@ -1458,19 +1555,13 @@ def show():
             ]["USER"].tolist()
 
             daftar_cse = df_user[
-
                 (df_user["ATASAN"]
                 .isin(daftar_bsm))
-
                 &
-
                 (df_user["ROLE"].isin([
-
                     "CSE",
                     "RSE"
-
                 ]))
-
             ]["USER"].tolist()
 
             temp = df[
@@ -1479,37 +1570,32 @@ def show():
             ]
 
             total_cse = len(daftar_cse)
-
             total_aktif = temp["Input By"].nunique()
-
             total_msisdn = len(temp)
-
             total_bio = temp["Biometrik"].sum()
 
             persen_aktif = round(
-
                 (
                     total_aktif / total_cse
                 ) * 100,
-
                 2
-
             ) if total_cse > 0 else 0
 
             persen_bio = round(
-
                 (
                     total_bio / total_msisdn
                 ) * 100,
-
                 2
-
             ) if total_msisdn > 0 else 0
 
             rekap_hos.append({
 
+
                 "HOS":
                     nama_hos,
+
+                "Nama":
+                    get_real_name(nama_hos),
 
                 "CSE/RSE":
                     total_cse,
@@ -1593,7 +1679,10 @@ def show():
 
             selectable=True,
 
-            key="hos"
+            key="hos",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 
@@ -1682,6 +1771,10 @@ def show():
                 "BSM":
                     nama_bsm,
 
+                "Nama":
+                    get_real_name(nama_bsm),
+
+
                 "CSE/RSE":
                     total_cse,
 
@@ -1763,7 +1856,10 @@ def show():
 
             selectable=True,
 
-            key="bsm"
+            key="bsm",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 
@@ -1887,6 +1983,9 @@ def show():
                 "CSE/RSE":
                     nama_cse,
 
+                "Nama":
+                    get_real_name(nama_cse),
+
                 "Status":
                     status_user,
 
@@ -1917,7 +2016,7 @@ def show():
 
             summary_cse = summary_cse[
 
-                summary_cse["Branch"]
+                summary_cse["CSE/RSE"]
                 .astype(str)
                 .str.contains(
                     brand,
@@ -1963,7 +2062,10 @@ def show():
 
             selectable=True,
 
-            key="cse_admin"
+            key="cse_admin",
+            col_align={
+                "Nama": "left"
+            }
 
         )
 

@@ -4,6 +4,7 @@
 
 import streamlit as st
 import pandas as pd
+import re
 from io import BytesIO
 from datetime import date, timedelta
 
@@ -822,46 +823,168 @@ def lb_row(rank, name, branch, value):
 # ==========================================================
 # MAIN
 # ==========================================================
+import base64
+
+@st.cache_data
+def get_base64_image(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+im3_icon = get_base64_image("im3.png")
+tid_icon = get_base64_image("3id.png")
+
+def get_base64_image(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 def show():
-
     inject_css()
-
     df, df_user, role_map, atasan_map, brand_map, children_map = load_all_data()
 
     # ------------------------------------------------
     # HEADER
     # ------------------------------------------------
+    current_user = st.session_state.get("outlet_user", "-")
+    current_role = role_map.get(current_user, "-")
 
-    h1, h2 = st.columns([3, 1])
+    real_name_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(USER=lambda x: x["USER"].astype(str).str.strip().str.upper())
+        .set_index("USER")["REAL_NAME"]
+        .to_dict()
+    )
+    display_name = real_name_map.get(
+        str(current_user).strip().upper(),
+        current_user
+    )
 
-    with h1:
+    initials = "".join(
+        [w[0].upper() for w in str(display_name).split()[:2]]
+    ) or "-"
 
-        st.markdown(
-            "<div class='mld-title'>📊 LEADERBOARD QUICK COUNT</div>",
-            unsafe_allow_html=True
-        )
+    # Load logo jadi base64
+    logo_b64 = get_base64_image("icon.png")  # sesuaikan path kalau perlu, mis. "assets/icon.png"
 
-        st.markdown(
-            "<div class='mld-sub'>Leaderboard berdasarkan jumlah submit MSISDN (tidak menghitung status biometrik)</div>",
-            unsafe_allow_html=True
-        )
+    st.markdown(
+        f"""
+        <style>
+        .mld-header {{
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }}
+        .mld-header-inner {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }}
+        .mld-title-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .mld-logo-img {{
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+        }}
+        .mld-title-row span.mld-title-text {{
+            font-size: 28px;
+            font-weight: 600;
+            color: #fff;
+        }}
+        .mld-sub {{
+            font-size: 14px;
+            color: rgba(255,255,255,0.88);
+            margin-top: 4px;
+        }}
+        .mld-pill {{
+            background: rgba(255,255,255,0.18);
+            color: #fff;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+        }}
+        .mld-pill-row {{
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }}
+        .mld-user-card {{
+            background: rgba(255,255,255,0.16);
+            border-radius: 12px;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .mld-avatar {{
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            color: #993556;
+            flex-shrink: 0;
+        }}
+        .mld-user-name {{
+            font-weight: 600;
+            font-size: 15px;
+            color: #fff;
+        }}
+        .mld-role-pill {{
+            background: rgba(255,255,255,0.25);
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 2px;
+            display: inline-block;
+        }}
+        </style>
 
-    with h2:
-
-        current_user = st.session_state.get("outlet_user", "-")
-        current_role = role_map.get(current_user, "-")
-
-        st.markdown(
-            f"""
-            <div style='text-align:right; padding-top:6px;'>
-                <b>{current_user}</b><br>
-                <span class='muted-pill'>{current_role}</span>
+        <div class="mld-header">
+            <div class="mld-header-inner">
+                <div>
+                    <div class="mld-title-row">
+                        <img src="data:image/jpg;base64,{logo_b64}" class="mld-logo-img" />
+                        <span class="mld-title-text">Leaderboard Quick Count</span>
+                    </div>
+                    <div class="mld-sub">
+                        Leaderboard berdasarkan jumlah submit MSISDN
+                    </div>
+                </div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        </div>
 
+        <script>
+        function mldTick() {{
+            var d = new Date();
+            var h = String(d.getHours()).padStart(2, '0');
+            var m = String(d.getMinutes()).padStart(2, '0');
+            var s = String(d.getSeconds()).padStart(2, '0');
+            var el = document.getElementById('mld-clock');
+            if (el) {{ el.textContent = h + ':' + m + ':' + s + ' WIB'; }}
+        }}
+        mldTick();
+        setInterval(mldTick, 1000);
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
     # ------------------------------------------------
     # FILTER BAR
     # ------------------------------------------------
@@ -1165,15 +1288,14 @@ def show():
         ),
 
         (
-            "📱",
+            f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
             "Submit IM3",
             fmt(submit_im3),
             f"Avg {avg_im3:.1f} Submit/Person",
             "#F59E0B"
         ),
-
         (
-            "📈",
+            f'<img src="data:image/png;base64,{tid_icon}" style="width:28px;height:28px;object-fit:contain;vertical-align:-4px;" />',
             "Submit 3ID",
             fmt(submit_3id),
             f"Avg {avg_3id:.1f} Submit/Person",
@@ -1207,10 +1329,10 @@ def show():
 
     role_icons = {
 
-        "CSE": "🛠️",
-        "DSE": "📊",
-        "GSE": "🌍",
-        "RGE": "⚙️"
+        "CSE": "👤",
+        "DSE": "👤",
+        "GSE": "👤",
+        "RGE": "👤"
 
     }
 
@@ -1512,8 +1634,8 @@ def show():
     color:white;
     opacity:.95;
 ">
-
-📮 Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
+📮{row['Submit']} Submit <br>
+Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
 </div>
 </div>
@@ -1906,8 +2028,16 @@ def show():
     # (Total Submit, bukan Total Biometrik)
     # ------------------------------------------------
 
-    lb_cols = st.columns(5)
+    # Map username -> nama asli (strip + upper biar aman dari mismatch)
+    real_name_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(USER=lambda x: x["USER"].astype(str).str.strip().str.upper())
+        .set_index("USER")["REAL_NAME"]
+        .to_dict()
+    )
 
+    lb_cols = st.columns(5)
     lb_defs = [
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
@@ -1915,18 +2045,13 @@ def show():
         ("RGE", PERSONNEL_GROUPS["RGE"]),
         ("GSE", PERSONNEL_GROUPS["GSE"]),
     ]
-
     for col, (title, roles) in zip(lb_cols, lb_defs):
-
         with col:
-
             with st.container(border=True):
-
                 st.markdown(
                     f"<div class='lb-title'>{title} <span class='muted-pill'>(Total Submit)</span></div>",
                     unsafe_allow_html=True,
                 )
-
                 grp = (
                     dff[dff["Role"].isin(roles)]
                     .groupby(["Input By", "Branch"])
@@ -1935,6 +2060,32 @@ def show():
                     .sort_values("Submit", ascending=False)
                 )
 
+                # Tambahkan kolom Real Name (fallback ke username kalau kosong/tidak ada)
+
+                real_name_raw = (
+                    grp["Input By"]
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                    .map(real_name_map)
+                )
+
+                real_name_str = (
+                    real_name_raw
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                )
+
+                is_invalid = (
+                    real_name_raw.isna()
+                    | real_name_str.isin(["", "VACANT", "NAN", "NONE", "NAT"])
+                )
+
+                grp["Real Name"] = real_name_raw.where(
+                    ~is_invalid,
+                    grp["Input By"]
+                )
                 top3 = grp.head(3)
                 bottom3 = grp.tail(3).sort_values("Submit")
 
@@ -1942,34 +2093,22 @@ def show():
                     "<div class='lb-sub'>Top 3</div>",
                     unsafe_allow_html=True,
                 )
-
                 if top3.empty:
-
                     st.caption("-")
-
                 else:
-
                     for i, row in enumerate(top3.itertuples(), start=1):
-
-                        lb_row(i, row._1, row.Branch, row.Submit)
+                        lb_row(i, row._4, row.Branch, row.Submit)
 
                 st.markdown(
                     "<div class='lb-sub' style='margin-top:8px;'>Bottom 3</div>",
                     unsafe_allow_html=True,
                 )
-
                 if bottom3.empty:
-
                     st.caption("-")
-
                 else:
-
                     for i, row in enumerate(bottom3.itertuples(), start=1):
-
-                        lb_row(i, row._1, row.Branch, row.Submit)
-
+                        lb_row(i, row._4, row.Branch, row.Submit)
     st.markdown("<br>", unsafe_allow_html=True)
-
     # ------------------------------------------------
     # BRANCH PERFORMANCE TABLE
     # (metrik utama = jumlah submit MSISDN)
