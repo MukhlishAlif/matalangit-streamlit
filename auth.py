@@ -128,6 +128,7 @@ def login_page():
                 st.session_state.outlet_user = hasil["user"]
                 st.session_state.outlet_role = hasil["role"]
                 st.session_state.outlet_atasan = hasil["atasan"]
+                st.session_state.outlet_token = hasil["token"] 
 
                 st.rerun()
 

@@ -209,12 +209,17 @@ def show():
     users = pd.DataFrame(
         users,
         columns=[
-            "USER",
-            "ROLE",
-            "ATASAN",
-            "REAL_NAME"
+            "user",
+            "role",
+            "atasan",
+            "real_name"
         ]
     )
+
+    users.columns = (
+        users.columns.str.upper()
+    )
+
 
     # ===========================
     # SESSION
@@ -770,9 +775,12 @@ def show():
     # ROLE MAP
     # ===========================
 
-    role_map = users.set_index(
-        "USER"
-    )["ROLE"].to_dict()
+    role_map = (
+        users
+        .drop_duplicates(subset="USER")
+        .set_index("USER")["ROLE"]
+        .to_dict()
+    )
 
     df["ROLE"] = df["Input By"].map(
         role_map

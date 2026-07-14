@@ -248,13 +248,12 @@ if role in ["DSE", "FRONTLINER", "PROMOTOR", "GSE", "GEMINI", "RGE"]:
     menu = st.sidebar.radio(
         "Menu",
         [
-            "Input MSISDN",
             "Data MSISDN"
         ],
         key="outlet_menu"
     )
 
-elif role in ["CSE", "RSE"]:
+elif role in ["CLUSTERS"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -265,18 +264,16 @@ elif role in ["CSE", "RSE"]:
             "Dashboard Frontliner",
             "Dashboard Promotor",
             "Dashboard GSE",
-            "Input MSISDN",
             "Data MSISDN"
         ],
         key="outlet_menu"
     )
 
-elif role == "BSM":
+elif role == "BRANCH":
 
     menu = st.sidebar.radio(
         "Menu",
         [
-            "Input MSISDN",
             "Leaderboard Biometrik",
             "Leaderboard Quick Count",
             "Dashboard DSE",
@@ -291,7 +288,7 @@ elif role == "BSM":
         key="outlet_menu"
     )
 
-elif role == "HOS":
+elif role == "AREAS":
 
     menu = st.sidebar.radio(
         "Menu",
@@ -326,8 +323,7 @@ elif role == "ADMIN":
             "Dashboard RGE",
             "Dashboard GEMPI",
             "Dashboard CSE/RSE",
-            "Data MSISDN",
-            "Master User"
+            "Data MSISDN"
         ],
         key="outlet_menu"
     )
@@ -381,14 +377,6 @@ elif menu == "Dashboard RGE":
 
     dashboard_rge()
 
-elif menu == "Input MSISDN":
-
-    input_outlet()
-
 elif menu == "Data MSISDN":
 
     data_outlet()
-
-elif menu == "Master User":
-
-    master_user()

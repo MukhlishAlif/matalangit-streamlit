@@ -470,9 +470,8 @@ def show():
     users = tampil_user()
 
     df_user = pd.DataFrame(
-
-        [dict(row) for row in users]
-
+        [dict(row) for row in users],
+        columns=["user", "role", "atasan", "real_name"]   # <-- tambahkan ini
     )
 
     df_user.columns = (
