@@ -3,7 +3,6 @@
 # =====================================
 
 import streamlit as st
-from modules.input_outlet import show as input_outlet
 from modules.data_outlet import show as data_outlet
 from modules.dashboard_cse import show as dashboard_cse
 from modules.dashboard_dse import show as dashboard_dse
@@ -12,7 +11,6 @@ from modules.dashboard_ae import show as dashboard_ae
 from modules.dashboard_rge import show as dashboard_rge
 from modules.dashboard_pm import show as dashboard_pm
 from modules.dashboard_gse import show as dashboard_gse
-from modules.master_user import show as master_user
 from modules.main_dashboard import show as main_dashboard
 from modules.quickcount_dashboard import show as quickcount_dashboard
 from modules.dashboard_bsm import show as dashboard_bsm
@@ -248,7 +246,6 @@ if role in ["DSE", "FRONTLINER", "PROMOTOR", "GSE", "GEMINI", "RGE"]:
     menu = st.sidebar.radio(
         "Menu",
         [
-            "Input MSISDN",
             "Data MSISDN"
         ],
         key="outlet_menu"
@@ -265,7 +262,6 @@ elif role in ["CSE", "RSE"]:
             "Dashboard Frontliner",
             "Dashboard Promotor",
             "Dashboard GSE",
-            "Input MSISDN",
             "Data MSISDN"
         ],
         key="outlet_menu"
@@ -276,7 +272,6 @@ elif role == "BSM":
     menu = st.sidebar.radio(
         "Menu",
         [
-            "Input MSISDN",
             "Leaderboard Biometrik",
             "Leaderboard Quick Count",
             "Dashboard DSE",
@@ -326,8 +321,7 @@ elif role == "ADMIN":
             "Dashboard RGE",
             "Dashboard GEMPI",
             "Dashboard CSE/RSE",
-            "Data MSISDN",
-            "Master User"
+            "Data MSISDN"
         ],
         key="outlet_menu"
     )
@@ -381,14 +375,6 @@ elif menu == "Dashboard RGE":
 
     dashboard_rge()
 
-elif menu == "Input MSISDN":
-
-    input_outlet()
-
 elif menu == "Data MSISDN":
 
     data_outlet()
-
-elif menu == "Master User":
-
-    master_user()
