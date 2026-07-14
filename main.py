@@ -321,7 +321,8 @@ elif role == "ADMIN":
             "Dashboard RGE",
             "Dashboard GEMPI",
             "Dashboard CSE/RSE",
-            "Data MSISDN"
+            "Data MSISDN",
+            "Master User"
         ],
         key="outlet_menu"
     )
