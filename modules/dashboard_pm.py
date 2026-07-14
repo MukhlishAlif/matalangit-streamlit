@@ -353,37 +353,86 @@ def show():
     # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
     # =====================================================
 
+    latest_date = get_latest_data_date()
+
     col_tgl, col_brand = st.columns(2)
 
     with col_tgl:
 
         tanggal = st.date_input(
+
             "📅 Filter Tanggal",
-            value=None,
-            key="fl_tanggal"
+
+            value=(
+
+                latest_date,
+
+                latest_date
+
+            ),
+
+            key="pm_tanggal"
+
         )
 
-    if tanggal is None:
-        tanggal = get_latest_data_date()
+    if isinstance(tanggal, tuple):
+
+        if len(tanggal) == 2:
+
+            start_date, end_date = tanggal
+
+        elif len(tanggal) == 1:
+
+            start_date = end_date = tanggal[0]
+
+        else:
+
+            start_date = end_date = latest_date
+
+    else:
+
+        start_date = end_date = tanggal
 
     with col_brand:
 
         brand = st.selectbox(
+
             "📶 Filter Brand",
-            options=["Semua", "IM3", "3ID"],
+
+            options=[
+
+                "Semua",
+                "IM3",
+                "3ID"
+
+            ],
+
             index=0
+
         )
 
     # =====================================================
-    # LOAD DATA HANYA UNTUK TANGGAL TERPILIH
+    # LOAD DATA SESUAI RENTANG TANGGAL
     # =====================================================
 
-    data = tampil_data_by_date(tanggal, tanggal)
+    data = tampil_data_by_date(
+
+        start_date,
+
+        end_date
+
+    )
+
     users = tampil_user()
 
     if len(data) == 0:
 
-        st.info("Belum ada data.")
+        st.info(
+
+            "Belum ada data."
+
+        )
+
         return
 
     # =====================================================
