@@ -240,7 +240,7 @@ def _normalize_flag_bio(value):
 
 def _outlet_row_tuple(r):
     """Ubah 1 dict outlet dari API jadi tuple urutan tetap
-    (id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio),
+    (id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio, ga_dt),
     supaya kompatibel dengan kode lain yang mengakses berdasarkan posisi
     (mis. pd.DataFrame(rows, columns=[...]))."""
     return (
@@ -251,6 +251,7 @@ def _outlet_row_tuple(r):
         r.get("input_by"),
         r.get("created_at"),
         _normalize_flag_bio(r.get("flag_bio")),
+        r.get("ga_dt"),
     )
 
 def _user_row_dict(r):
@@ -389,7 +390,8 @@ CREATE TABLE IF NOT EXISTS outlet (
     msisdn TEXT,
     input_by TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    flag_bio INTEGER DEFAULT 0
+    flag_bio INTEGER DEFAULT 0,
+    ga_dt TEXT
 )
 """)
 
@@ -398,6 +400,9 @@ existing_cols = [row[1] for row in cursor.fetchall()]
 
 if "flag_bio" not in existing_cols:
     cursor.execute("ALTER TABLE outlet ADD COLUMN flag_bio INTEGER DEFAULT 0")
+
+if "ga_dt" not in existing_cols:
+    cursor.execute("ALTER TABLE outlet ADD COLUMN ga_dt TEXT")
 
 cursor.execute("CREATE INDEX IF NOT EXISTS idx_outlet_created_at ON outlet(created_at)")
 cursor.execute("CREATE INDEX IF NOT EXISTS idx_outlet_msisdn ON outlet(msisdn)")
@@ -742,15 +747,16 @@ def sync_outlet_to_sqlite():
     cursor = conn.cursor()
 
     cursor.executemany("""
-        INSERT INTO outlet (id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO outlet (id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio, ga_dt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             nama_outlet = excluded.nama_outlet,
             id_outlet   = excluded.id_outlet,
             msisdn      = excluded.msisdn,
             input_by    = excluded.input_by,
             created_at  = excluded.created_at,
-            flag_bio    = excluded.flag_bio
+            flag_bio    = excluded.flag_bio,
+            ga_dt       = excluded.ga_dt
     """, rows)
 
     conn.commit()
@@ -797,7 +803,7 @@ def tampil_data():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio
+        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio, ga_dt
         FROM outlet
         ORDER BY created_at DESC
     """)
@@ -819,7 +825,7 @@ def tampil_data_by_date(start_date, end_date):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio
+        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio, ga_dt
         FROM outlet
         WHERE created_at >= ? AND created_at <= ?
         ORDER BY created_at DESC
@@ -829,7 +835,6 @@ def tampil_data_by_date(start_date, end_date):
     conn.close()
 
     return rows
-
 
 def last_input(limit=10):
     return tampil_data()[:limit]

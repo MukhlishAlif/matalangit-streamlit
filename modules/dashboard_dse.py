@@ -448,7 +448,8 @@ def show():
             "MSISDN",
             "Input By",
             "Tanggal",
-            "flag_bio"
+            "flag_bio",
+            "ga_dt"
         ]
     )
 

@@ -170,31 +170,36 @@ def show():
             "MSISDN",
             "Input By",
             "Tanggal",
-            "flag_bio"
+            "flag_bio",
+            "ga_dt"
         ]
     )
 
+    # ===========================
+    # TANGGAL INPUT -- buang jam/menit/detik, tanggal saja
+    # ===========================
+
+    df["Tanggal"] = pd.to_datetime(
+        df["Tanggal"],
+        errors="coerce"
+    ).dt.date
 
     df["Biometrik H-1"] = (
-
         df["flag_bio"]
-
         .fillna(False)
         .astype(bool)
-
-        .map(
-
-            {
-
-                True: "Valid",
-
-                False: "Unvalid"
-
-            }
-
-        )
-
+        .map({True: "Valid", False: "Unvalid"})
     )
+
+    # ===========================
+    # TANGGAL BIOMETRIK -- buang jam/menit/detik, tanggal saja
+    # ===========================
+
+    df["Tanggal Biometrik"] = pd.to_datetime(
+        df["ga_dt"],
+        dayfirst=True,
+        errors="coerce"
+    ).dt.date
 
 
     users = tampil_user()
@@ -845,6 +850,7 @@ def show():
                 "MSISDN",
                 "Input By",
                 "Tanggal",
+                "Tanggal Biometrik",
                 "ROLE",
                 "Biometrik H-1"
             ],
