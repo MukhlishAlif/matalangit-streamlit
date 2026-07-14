@@ -620,11 +620,11 @@ def load_all_data(start_date, end_date):
     # ------------------------------------------------
     # OUTLET
     # ------------------------------------------------
-    # Catatan: khusus Quick Count, kita TIDAK peduli status biometrik.
-    # Yang dihitung sebagai leaderboard Quick Count = jumlah baris submit.
-    # Karena itu load_biometrik() & merge-nya SENGAJA tidak dilakukan di
-    # sini lagi (sebelumnya di-load & di-merge padahal tidak pernah dipakai
-    # -> kerja sia-sia yang bikin loading lebih berat).
+    # Catatan: khusus Quick Count, "Biometrik" di sini dipakai untuk
+    # info tambahan saja -- metrik utama Quick Count tetap JUMLAH BARIS
+    # SUBMIT (bukan biometrik). Kolom Biometrik diambil LANGSUNG dari
+    # flag_bio yang dikirim API per baris outlet (lewat SELECT di
+    # tampil_data_by_date), tidak perlu load_biometrik()/merge manual lagi.
     # ------------------------------------------------
 
     df = pd.DataFrame(
@@ -637,7 +637,8 @@ def load_all_data(start_date, end_date):
             "ID Outlet",
             "MSISDN",
             "Input By",
-            "Tanggal"
+            "Tanggal",
+            "Biometrik"
         ]
 
     )
@@ -645,6 +646,8 @@ def load_all_data(start_date, end_date):
     df["MSISDN"] = df["MSISDN"].fillna("").astype(str).str.strip()
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
+
+    df["Biometrik"] = df["Biometrik"].fillna(0).astype(int)
 
     # ------------------------------------------------
     # BUANG BARIS DI LUAR RENTANG TANGGAL SEDINI MUNGKIN,
@@ -677,13 +680,6 @@ def load_all_data(start_date, end_date):
 
     df["Role"] = df["Input By"].map(role_map).fillna("")
 
-    # ------------------------------------------------
-    # Cari MC/Branch/HOS sekali per USER UNIK, bukan per baris.
-    # Banyak baris punya "Input By" yang sama (1 personel submit
-    # berkali-kali), jadi susur-hierarki per baris itu kerja
-    # berulang yang sia-sia dan bikin lemot kalau datanya besar.
-    # ------------------------------------------------
-
     unique_users = df["Input By"].dropna().unique()
 
     mc_lookup = {u: (ancestor_by_role(u, {"CSE", "RSE"}) or "-") for u in unique_users}
@@ -696,7 +692,6 @@ def load_all_data(start_date, end_date):
 
     df["Brand"] = df["Input By"].map(brand_map).fillna("")
 
-    # hanya baris personil yang brand-nya terdeteksi
     df = df[df["Role"].isin(PERSONNEL_ROLES)]
     df = df[df["Brand"] != ""]
 
@@ -1015,9 +1010,13 @@ def show():
     with f1:
 
         periode = st.date_input(
+
             "📅 Tanggal",
-            value=date.today(),
-            key="qc_periode"   # key unik, beda dari yang di dashboard.py biar gak bentrok kalau sepanel
+
+            value=(date.today(), date.today()),   # <-- tuple = aktifkan mode rentang, default cuma hari ini
+
+            key="mld_periode"
+
         )
 
         if isinstance(periode, tuple):

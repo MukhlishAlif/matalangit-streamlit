@@ -583,67 +583,21 @@ def show():
             "ID Outlet",
             "MSISDN",
             "Input By",
-            "Tanggal"
+            "Tanggal",
+            "flag_bio"
 
         ]
 
     )
-    # ======================================================
-    #     # ======================================================
+    # =====================================================
     # BIOMETRIK
-    # ======================================================
-
-    biometrik = load_biometrik()
-
-    df["MSISDN"] = (
-        df["MSISDN"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-    )
-
-    df["Tanggal"] = pd.to_datetime(
-        df["Tanggal"],
-        errors="coerce"
-    )
-
-    df = df.merge(
-        biometrik,
-        left_on="MSISDN",
-        right_on="msisdn",
-        how="left"
-    )
-
-    df.drop(
-        columns=["msisdn"],
-        inplace=True
-    )
+    # =====================================================
 
     df["Biometrik"] = (
 
-        (
-
-            df["Tanggal"]
-
-            .dt.date
-
-            ==
-
-            pd.to_datetime(
-
-                df["tanggal_biometrik"],
-
-                errors="coerce"
-
-            )
-
-            .dt.date
-
-        )
-
+        df["flag_bio"]
         .fillna(False)
-
-        .astype(int)
+        .astype(bool)
 
     )
 

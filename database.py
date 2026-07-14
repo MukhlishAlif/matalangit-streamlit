@@ -218,10 +218,29 @@ def _fetch_users_raw():
     rows = result.get("data", []) if isinstance(result, dict) else (result or [])
     return rows
 
+def _normalize_flag_bio(value):
+    """
+    API bisa mengirim flag_bio dalam berbagai bentuk (bool, int, string
+    "true"/"false"/"1"/"0"). Normalisasi jadi 0/1 supaya konsisten
+    disimpan di SQLite dan gampang dipakai sebagai angka di pandas.
+    """
+
+    if value is None:
+        return 0
+
+    if isinstance(value, bool):
+        return int(value)
+
+    if isinstance(value, (int, float)):
+        return int(bool(value))
+
+    text = str(value).strip().lower()
+
+    return 1 if text in ("1", "true", "ya", "yes") else 0
 
 def _outlet_row_tuple(r):
     """Ubah 1 dict outlet dari API jadi tuple urutan tetap
-    (id, nama_outlet, id_outlet, msisdn, input_by, created_at),
+    (id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio),
     supaya kompatibel dengan kode lain yang mengakses berdasarkan posisi
     (mis. pd.DataFrame(rows, columns=[...]))."""
     return (
@@ -231,8 +250,8 @@ def _outlet_row_tuple(r):
         r.get("msisdn"),
         r.get("input_by"),
         r.get("created_at"),
+        _normalize_flag_bio(r.get("flag_bio")),
     )
-
 
 def _user_row_dict(r):
 
@@ -369,9 +388,16 @@ CREATE TABLE IF NOT EXISTS outlet (
     id_outlet TEXT,
     msisdn TEXT,
     input_by TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    flag_bio INTEGER DEFAULT 0
 )
 """)
+
+cursor.execute("PRAGMA table_info(outlet)")
+existing_cols = [row[1] for row in cursor.fetchall()]
+
+if "flag_bio" not in existing_cols:
+    cursor.execute("ALTER TABLE outlet ADD COLUMN flag_bio INTEGER DEFAULT 0")
 
 cursor.execute("CREATE INDEX IF NOT EXISTS idx_outlet_created_at ON outlet(created_at)")
 cursor.execute("CREATE INDEX IF NOT EXISTS idx_outlet_msisdn ON outlet(msisdn)")
@@ -704,15 +730,6 @@ def hapus_data(
 # =====================================
 
 def sync_outlet_to_sqlite():
-    """
-    Tarik data terbaru dari API (raw fetch ini sendiri sudah di-cache
-    ttl=120 oleh @st.cache_data, jadi network call ke API tetap hanya
-    terjadi maksimal tiap 2 menit -- fungsi ini AMAN dipanggil sesering
-    apapun dari sisi UI).
-
-    Upsert ke tabel outlet lokal pakai id dari API sebagai primary key,
-    supaya baris yang sudah ada di-update, baris baru ditambah.
-    """
 
     raw_rows = _fetch_outlet_raw()
 
@@ -725,14 +742,15 @@ def sync_outlet_to_sqlite():
     cursor = conn.cursor()
 
     cursor.executemany("""
-        INSERT INTO outlet (id, nama_outlet, id_outlet, msisdn, input_by, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO outlet (id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             nama_outlet = excluded.nama_outlet,
             id_outlet   = excluded.id_outlet,
             msisdn      = excluded.msisdn,
             input_by    = excluded.input_by,
-            created_at  = excluded.created_at
+            created_at  = excluded.created_at,
+            flag_bio    = excluded.flag_bio
     """, rows)
 
     conn.commit()
@@ -772,17 +790,6 @@ def get_latest_data_date():
 # =====================================
 
 def tampil_data():
-    """
-    Ambil SEMUA data outlet (tanpa filter tanggal), lewat mirror SQLite
-    supaya konsisten dengan tampil_data_by_date() -- sekali sync, query
-    dari SQLite lokal (bukan sort manual di Python atas seluruh raw API
-    seperti versi paling awal dulu).
-
-    Dipakai untuk:
-    - dashboard_data_msisdn.py saat toggle "Semua" ON
-    - fungsi-fungsi lain di bawah (last_input, data_by_user, dst.)
-      yang memang butuh histori penuh.
-    """
 
     sync_outlet_to_sqlite()
 
@@ -790,7 +797,7 @@ def tampil_data():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at
+        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio
         FROM outlet
         ORDER BY created_at DESC
     """)
@@ -800,12 +807,8 @@ def tampil_data():
 
     return rows
 
+
 def tampil_data_by_date(start_date, end_date):
-    """
-    Versi tampil_data() yang FILTER TANGGAL DI SQL, bukan di Python.
-    Kena index idx_outlet_created_at -- jadi walau histori jutaan baris,
-    yang kebaca cuma rentang tanggal yang diminta.
-    """
 
     sync_outlet_to_sqlite()
 
@@ -816,7 +819,7 @@ def tampil_data_by_date(start_date, end_date):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at
+        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at, flag_bio
         FROM outlet
         WHERE created_at >= ? AND created_at <= ?
         ORDER BY created_at DESC
