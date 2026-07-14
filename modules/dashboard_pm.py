@@ -487,13 +487,17 @@ def show():
 
         columns=[
 
-            "USER",
-            "ROLE",
-            "ATASAN",
-            "REAL_NAME"
+            "user",
+            "role",
+            "atasan",
+            "real_name"
 
         ]
 
+    )
+
+    df_user.columns = (
+        df_user.columns.str.upper()
     )
 
     # ======================================================

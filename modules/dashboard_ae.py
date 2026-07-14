@@ -512,13 +512,17 @@ def show():
 
         columns=[
 
-            "USER",
-            "ROLE",
-            "ATASAN",
-            "REAL_NAME"
+            "user",
+            "role",
+            "atasan",
+            "real_name"
 
         ]
 
+    )
+
+    df_user.columns = (
+        df_user.columns.str.upper()
     )
     # ======================================================
     # USER -> REAL NAME
@@ -725,9 +729,12 @@ def show():
     # BRAND MAP
     # =====================================================
 
-    brand_map = df_user.set_index(
-        "USER"
-    )["BRAND"].to_dict()
+    brand_map = (
+         df_user
+         .drop_duplicates(subset="USER")
+         .set_index("USER")["BRAND"]
+         .to_dict()
+    )
 
     df["BRAND"] = df["Input By"].map(
         brand_map

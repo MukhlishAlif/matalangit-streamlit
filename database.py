@@ -1,8 +1,11 @@
 import os
 import sqlite3
-import psycopg2
+import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+import pandas as pd
+import streamlit as st
 
 # =====================================
 # PATH DATABASE
@@ -14,7 +17,69 @@ DB_PATH = os.path.join(BASE_DIR, "outlet.db")
 print("DATABASE:", DB_PATH)
 
 # =====================================
-# DATABASE CONNECTION
+# API CLIENT (generik)
+# =====================================
+
+API_BASE_URL = "https://api.matalangit.cloud"
+
+ENDPOINTS = {
+    "login": "/auth/login",
+    "logout": "/auth/logout",
+    "outlet": "/sales-tap/legacy-report",
+    "users": "/admin/users/legacy-report",
+}
+
+
+class ApiError(Exception):
+    """Dilempar kalau request ke API gagal (status bukan 2xx, atau connect error)."""
+    def __init__(self, status, message, data=None):
+        self.status = status
+        self.message = message
+        self.data = data
+        super().__init__(message)
+
+
+def api_fetch(endpoint, method="GET", payload=None, token=None, timeout=30):
+    """
+    Client generik untuk semua panggilan ke API_BASE_URL.
+    Lihat penjelasan lengkap di versi sebelumnya -- tidak berubah.
+    """
+
+    auth_token = token or st.session_state.get("outlet_token")
+
+    headers = {"Content-Type": "application/json"}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
+
+    url = f"{API_BASE_URL}{endpoint}"
+
+    try:
+        response = requests.request(
+            method=method,
+            url=url,
+            headers=headers,
+            json=payload if payload is not None else None,
+            timeout=timeout,
+        )
+    except requests.RequestException as e:
+        raise ApiError(status=0, message=f"Gagal connect ke API: {e}")
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = response.text
+
+    if not response.ok:
+        message = "API request failed"
+        if isinstance(data, dict) and data.get("message"):
+            message = data["message"]
+        raise ApiError(response.status_code, message, data)
+
+    return data
+
+
+# =====================================
+# DATABASE CONNECTION (SQLite, dipakai fungsi TULIS: tambah/update/hapus)
 # =====================================
 
 def get_connection():
@@ -32,13 +97,10 @@ def get_connection():
 
     return conn
 
-# =====================================
-# POSTGRE
-# =====================================
-import requests
-import pandas as pd
-import streamlit as st
 
+# =====================================
+# BIOMETRIK (API, sudah ada sebelumnya)
+# =====================================
 
 @st.cache_data(ttl=300)
 def load_biometrik():
@@ -77,20 +139,11 @@ def load_biometrik():
 
 
 # =====================================
-# MASTER MSISDN
+# MASTER MSISDN (API, sudah ada sebelumnya)
 # =====================================
-
-import requests
-import pandas as pd
-import streamlit as st
-
 
 @st.cache_data(ttl=300)
 def load_master_msisdn():
-
-    # =====================
-    # API
-    # =====================
 
     url = "https://api.matalangit.cloud/bio/fetch-derfrtgty2"
 
@@ -103,99 +156,127 @@ def load_master_msisdn():
 
     data = response.json()
 
-    # =====================
-    # DATAFRAME
-    # =====================
-
     df = pd.json_normalize(
         data["data"]
     )
 
-    # =====================
-    # CLEAN COLUMN
-    # =====================
-
     df.columns = (
-
         df.columns
-
         .str.strip()
-
         .str.upper()
-
     )
-
-    # =====================
-    # CLEAN MSISDN
-    # =====================
 
     df["MSISDN"] = (
-
         df["MSISDN"]
-
         .fillna("")
-
         .astype(str)
-
         .str.strip()
-
     )
-
-    # =====================
-    # RETURN
-    # =====================
 
     return set(
-
         df["MSISDN"]
-
     )
+
+
+# =====================================================================================
+# RAW FETCH DARI API (dipakai semua fungsi baca outlet/users di bawah)
+# =====================================================================================
+#
+# ASUMSI bentuk response (BELUM DIKONFIRMASI dari server -- kalau field
+# aslinya beda nama, tinggal sesuaikan .get("nama_field_asli") di bagian
+# _fetch_outlet_raw() / _fetch_users_raw() di bawah, tidak perlu ubah
+# fungsi lain):
+#
+#   GET /sales-tap/legacy-report -> { "data": [ {id, nama_outlet, id_outlet,
+#       msisdn, input_by, created_at}, ... ] }
+#
+#   GET /admin/users/legacy-report -> { "data": [ {id, user, password, role,
+#       atasan, status, created_at, brand, region, area, branch,
+#       micro_cluster, real_name}, ... ] }
+# =====================================================================================
+
+@st.cache_data(ttl=120)
+def _fetch_outlet_raw():
+    try:
+        result = api_fetch(ENDPOINTS["outlet"], method="POST")
+    except ApiError as e:
+        print("[OUTLET] gagal ambil dari API:", e.status, e.message)
+        return []
+
+    rows = result.get("data", []) if isinstance(result, dict) else (result or [])
+    return rows
+
+
+@st.cache_data(ttl=300)
+def _fetch_users_raw():
+    try:
+        result = api_fetch(ENDPOINTS["users"], method="POST")
+    except ApiError as e:
+        print("[USERS] gagal ambil dari API:", e.status, e.message)
+        return []
+
+    rows = result.get("data", []) if isinstance(result, dict) else (result or [])
+    return rows
+
+
+def _outlet_row_tuple(r):
+    """Ubah 1 dict outlet dari API jadi tuple urutan tetap
+    (id, nama_outlet, id_outlet, msisdn, input_by, created_at),
+    supaya kompatibel dengan kode lain yang mengakses berdasarkan posisi
+    (mis. pd.DataFrame(rows, columns=[...]))."""
+    return (
+        r.get("id"),
+        r.get("nama_outlet"),
+        r.get("id_outlet"),
+        r.get("msisdn"),
+        r.get("input_by"),
+        r.get("created_at"),
+    )
+
+
+def _user_row_dict(r):
+
+    role_raw = r.get("role") or ""         # <-- tambahkan baris ini
+
+    return {
+        "id": r.get("id"),
+        "user": r.get("user") or r.get("username"),
+        "role": role_raw.upper(),
+        "atasan": r.get("atasan"),
+        "status": r.get("status") or "AKTIF",
+        "created_at": r.get("created_at"),
+        "brand": r.get("brand"),
+        "region": r.get("region"),
+        "area": r.get("area"),
+        "branch": r.get("branch"),
+        "micro_cluster": r.get("micro_cluster"),
+        "real_name": r.get("real_name") or r.get("full_name"),
+    }
 
 
 # =====================================
-# USER HIERARCHY
+# USER HIERARCHY (API)
 # =====================================
 
 @st.cache_data(ttl=300)
 def load_user_hierarchy():
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    raw_rows = _fetch_users_raw()
 
-    cursor.execute("""
+    records = [_user_row_dict(r) for r in raw_rows]
 
-        SELECT
-            id,
-            user,
-            password,
-            role,
-            atasan,
-            status,
-            created_at,
-            brand,
-            region,
-            area,
-            branch,
-            micro_cluster,
-            real_name
+    default_cols = [
+        "id", "user", "role", "atasan", "status", "created_at",
+        "brand", "region", "area", "branch", "micro_cluster", "real_name"
+    ]
 
-        FROM users
-
-        ORDER BY role, user
-
-    """)
-
-    rows = cursor.fetchall()
-
-    conn.close()
-
-    df = pd.DataFrame(
-
-        [dict(row) for row in rows]
-
-    )
+    df = pd.DataFrame(records, columns=default_cols)   # <-- kolom dipaksa ada meski data kosong
 
     df.columns = df.columns.str.upper()
+
+    for col in ["ATASAN", "ROLE", "STATUS"]:
+        if col not in df.columns:
+            df[col] = ""
 
     df["ATASAN"] = df["ATASAN"].fillna("")
     df["ROLE"] = df["ROLE"].fillna("")
@@ -254,8 +335,10 @@ def load_user_hierarchy():
         children_map
 
     )
+
+
 # =====================================
-# TABEL USER
+# TABEL USER & OUTLET (SQLite -- tetap ada, dipakai fungsi TULIS di bawah)
 # =====================================
 
 conn = get_connection()
@@ -290,49 +373,113 @@ CREATE TABLE IF NOT EXISTS outlet (
 )
 """)
 
+cursor.execute("CREATE INDEX IF NOT EXISTS idx_outlet_created_at ON outlet(created_at)")
+cursor.execute("CREATE INDEX IF NOT EXISTS idx_outlet_msisdn ON outlet(msisdn)")
+cursor.execute("CREATE INDEX IF NOT EXISTS idx_outlet_input_by ON outlet(input_by)")
+cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_atasan ON users(atasan)")
+cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)")
+
 conn.commit()
 conn.close()
+
+
 # =====================================
-# USER
+# LOGIN (API)
 # =====================================
 
-def login(
+def login(username, password):
+    """
+    POST https://api.matalangit.cloud/auth/login   { username, password }
+    (tidak berubah dari versi sebelumnya)
+    """
 
-    user,
-    password
+    try:
+        result = api_fetch(
+            ENDPOINTS["login"],
+            method="POST",
+            payload={"username": username, "password": password},
+        )
+    except ApiError as e:
+        print("[LOGIN] gagal:", e.status, e.message)
+        return None
 
-):
+    if not result.get("success"):
+        print("[LOGIN] gagal:", result.get("message", "unknown error"))
+        return None
 
-    conn = get_connection()
+    data = result.get("data") or {}
+    token = data.get("token") or result.get("token")
 
-    cursor = conn.cursor()
+    if not token:
+        print("[LOGIN] WARNING: token tidak ditemukan di response")
+        return None
 
-    cursor.execute("""
+    role_raw = data.get("role") or ""
 
-        SELECT *
-
-        FROM users
-
-        WHERE user = ?
-
-        AND password = ?
-
-        AND status='AKTIF'
-
-    """, (
-
-        user,
-
-        password
-
-    ))
-
-    hasil = cursor.fetchone()
-
-    conn.close()
+    hasil = {
+        "token": token,
+        "id": data.get("id"),
+        "user": data.get("username"),
+        "real_name": data.get("full_name"),
+        "role": role_raw.upper(),
+        "atasan": data.get("atasan", ""),
+        "brand": data.get("brand", ""),
+        "region": data.get("region", ""),
+        "area": data.get("area", ""),
+        "branch": data.get("branch", ""),
+        "micro_cluster": data.get("micro_cluster", ""),
+        "status": data.get("status", "AKTIF"),
+    }
 
     return hasil
 
+
+def logout():
+    try:
+        api_fetch(ENDPOINTS["logout"], method="POST")
+    except ApiError as e:
+        print("[LOGOUT] gagal panggil API (diabaikan):", e.status, e.message)
+
+
+# =====================================
+# USER -- BACA (API)
+# =====================================
+
+def tampil_user():
+    """Dulu: SELECT user, role, atasan, real_name FROM users.
+    Sekarang: dari API, dikembalikan sebagai list of dict supaya
+    kompatibel dengan pola `dict(row)` yang dipakai di semua
+    dashboard (dashboard_cse.py, dashboard_bsm.py, main_dashboard.py, dst)."""
+
+    raw_rows = _fetch_users_raw()
+
+    return [
+        {
+            "user": d["user"],
+            "role": d["role"],
+            "atasan": d["atasan"],
+            "real_name": d["real_name"],
+        }
+        for d in (_user_row_dict(r) for r in raw_rows)
+    ]
+
+
+def tampil_user_master():
+    """Dulu: SELECT semua kolom users ORDER BY role, user.
+    Sekarang: dari API, dikembalikan sebagai list of dict."""
+
+    raw_rows = _fetch_users_raw()
+
+    data = [_user_row_dict(r) for r in raw_rows]
+
+    data.sort(key=lambda d: (str(d["role"] or ""), str(d["user"] or "")))
+
+    return data
+
+
+# =====================================
+# USER -- TULIS (tetap SQLite, MENUNGGU konfirmasi endpoint create/update/delete)
+# =====================================
 
 def tambah_user(
 
@@ -380,77 +527,6 @@ def tambah_user(
 
     conn.close()
 
-
-def tampil_user():
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            user,
-
-            role,
-
-            atasan,
-
-            REAL_NAME
-
-        FROM users
-
-        ORDER BY user
-
-    """)
-
-    data = cursor.fetchall()
-
-    conn.close()
-
-    return data
-
-def tampil_user_master():
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-            id,
-            user,
-            password,
-            role,
-            atasan,
-            status,
-            created_at,
-            brand,
-            region,
-            area,
-            branch,
-            micro_cluster,
-            real_name
-
-        FROM users
-
-        ORDER BY role, user
-
-    """)
-
-    data = cursor.fetchall()
-
-    conn.close()
-
-    return data
-
-
-
-# =====================================
-# UPDATE USER
-# =====================================
 
 def update_user(
 
@@ -504,9 +580,6 @@ def update_user(
 
     return berhasil
 
-# =====================================
-# HAPUS USER
-# =====================================
 
 def hapus_user(
 
@@ -538,7 +611,7 @@ def hapus_user(
 
 
 # =====================================
-# OUTLET
+# OUTLET -- TULIS (tetap SQLite, MENUNGGU konfirmasi endpoint create/update/delete)
 # =====================================
 
 def simpan_data(
@@ -593,36 +666,6 @@ def simpan_data(
     conn.close()
 
 
-def tampil_data():
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            id,
-            nama_outlet,
-            id_outlet,
-            msisdn,
-            input_by,
-            created_at
-
-        FROM outlet
-
-        ORDER BY created_at DESC
-
-    """)
-
-    data = cursor.fetchall()
-
-    conn.close()
-
-    return data
-
-
 def hapus_data(
 
     id_data
@@ -654,502 +697,130 @@ def hapus_data(
     conn.close()
 
     return hasil
+
+
 # =====================================
-# DASHBOARD
+# OUTLET -- BACA (API)
+# =====================================
+
+def tampil_data():
+    """Dulu: SELECT ... FROM outlet ORDER BY created_at DESC.
+    Sekarang: dari API, diurutkan ulang di Python (urutan dari API
+    tidak dijamin sama)."""
+
+    raw_rows = _fetch_outlet_raw()
+
+    data = [_outlet_row_tuple(r) for r in raw_rows]
+
+    data.sort(key=lambda row: str(row[5] or ""), reverse=True)
+
+    return data
+
+
+def last_input(limit=10):
+    return tampil_data()[:limit]
+
+
+def data_by_user(user):
+    return [row for row in tampil_data() if row[4] == user]
+
+
+def data_by_users(user_list):
+    if not user_list:
+        return []
+    user_set = set(user_list)
+    return [row for row in tampil_data() if row[4] in user_set]
+
+
+def cek_msisdn(msisdn):
+    for row in tampil_data():
+        if row[3] == msisdn:
+            # (input_by, created_at) -- sama seperti bentuk hasil SQLite lama
+            return {"input_by": row[4], "created_at": row[5]}
+    return None
+
+
+# =====================================
+# DASHBOARD (API, dihitung di Python)
 # =====================================
 
 def total_outlet():
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            COUNT(DISTINCT id_outlet)
-
-        FROM outlet
-
-    """)
-
-    hasil = cursor.fetchone()[0]
-
-    conn.close()
-
-    return hasil
+    rows = tampil_data()
+    return len({row[2] for row in rows if row[2]})  # id_outlet unik
 
 
 def total_msisdn():
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            COUNT(*)
-
-        FROM outlet
-
-    """)
-
-    hasil = cursor.fetchone()[0]
-
-    conn.close()
-
-    return hasil
+    return len(tampil_data())
 
 
 def total_cse():
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            COUNT(*)
-
-        FROM users
-
-        WHERE role IN (
-
-            'CSE',
-            'RSE'
-
-        )
-
-    """)
-
-    hasil = cursor.fetchone()[0]
-
-    conn.close()
-
-    return hasil
+    raw_rows = _fetch_users_raw()
+    return sum(1 for r in raw_rows if r.get("role") in ("CSE", "RSE"))
 
 
 def total_bsm():
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            COUNT(*)
-
-        FROM users
-
-        WHERE role='BSM'
-
-    """)
-
-    hasil = cursor.fetchone()[0]
-
-    conn.close()
-
-    return hasil
+    raw_rows = _fetch_users_raw()
+    return sum(1 for r in raw_rows if r.get("role") == "BSM")
 
 
-def last_input(
-
-    limit=10
-
-):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            nama_outlet,
-            id_outlet,
-            msisdn,
-            input_by,
-            created_at
-
-        FROM outlet
-
-        ORDER BY created_at DESC
-
-        LIMIT ?
-
-    """, (
-
-        limit,
-
-    ))
-
-    data = cursor.fetchall()
-
-    conn.close()
-
-    return data
 # =====================================
-# HIRARKI USER
+# HIRARKI USER (API, dihitung di Python)
 # =====================================
 
-def bawahan(
-
-    atasan
-
-):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            user
-
-        FROM users
-
-        WHERE atasan=?
-
-    """, (
-
-        atasan,
-
-    ))
-
-    hasil = [
-
-        x["user"]
-
-        for x in cursor.fetchall()
-
+def bawahan(atasan):
+    raw_rows = _fetch_users_raw()
+    return [
+        (r.get("user") or r.get("username"))
+        for r in raw_rows
+        if r.get("atasan") == atasan
     ]
 
-    conn.close()
 
-    return hasil
+def get_downline(user):
+    raw_rows = _fetch_users_raw()
 
-
-def get_downline(
-
-    user
-
-):
+    atasan_children = {}
+    for r in raw_rows:
+        nama = r.get("user") or r.get("username")
+        atasan_children.setdefault(r.get("atasan"), []).append(nama)
 
     hasil = []
 
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    def cari(
-
-        atasan
-
-    ):
-
-        cursor.execute("""
-
-            SELECT
-
-                user
-
-            FROM users
-
-            WHERE atasan=?
-
-        """, (
-
-            atasan,
-
-        ))
-
-        rows = cursor.fetchall()
-
-        for row in rows:
-
-            nama = row["user"]
-
+    def cari(atasan):
+        for nama in atasan_children.get(atasan, []):
             if nama not in hasil:
+                hasil.append(nama)
+                cari(nama)
 
-                hasil.append(
-
-                    nama
-
-                )
-
-                cari(
-
-                    nama
-
-                )
-
-    cari(
-
-        user
-
-    )
-
-    conn.close()
-
+    cari(user)
     return hasil
 
 
 # =====================================
-# HELPER USER
+# HELPER USER (API)
 # =====================================
 
-def get_user_role(
-
-    role
-
-):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            user
-
-        FROM users
-
-        WHERE role=?
-
-        ORDER BY user
-
-    """, (
-
-        role,
-
-    ))
-
+def get_user_role(role):
+    raw_rows = _fetch_users_raw()
     hasil = [
-
-        x["user"]
-
-        for x in cursor.fetchall()
-
+        (r.get("user") or r.get("username"))
+        for r in raw_rows
+        if r.get("role") == role
     ]
-
-    conn.close()
-
-    return hasil
+    return sorted(hasil)
 
 
-def get_role(
-
-    user
-
-):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            role
-
-        FROM users
-
-        WHERE user=?
-
-    """, (
-
-        user,
-
-    ))
-
-    row = cursor.fetchone()
-
-    conn.close()
-
-    if row:
-
-        return row["role"]
-
+def get_role(user):
+    raw_rows = _fetch_users_raw()
+    for r in raw_rows:
+        if (r.get("user") or r.get("username")) == user:
+            return r.get("role") or ""
     return ""
 
 
-def get_atasan(
-
-    user
-
-):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            atasan
-
-        FROM users
-
-        WHERE user=?
-
-    """, (
-
-        user,
-
-    ))
-
-    row = cursor.fetchone()
-
-    conn.close()
-
-    if row:
-
-        return row["atasan"]
-
+def get_atasan(user):
+    raw_rows = _fetch_users_raw()
+    for r in raw_rows:
+        if (r.get("user") or r.get("username")) == user:
+            return r.get("atasan") or ""
     return ""
-
-
-# =====================================
-# FILTER DATA OUTLET
-# =====================================
-
-def data_by_user(
-
-    user
-
-):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            id,
-            nama_outlet,
-            id_outlet,
-            msisdn,
-            input_by,
-            created_at
-
-        FROM outlet
-
-        WHERE input_by=?
-
-        ORDER BY created_at DESC
-
-    """, (
-
-        user,
-
-    ))
-
-    data = cursor.fetchall()
-
-    conn.close()
-
-    return data
-
-
-def data_by_users(
-
-    user_list
-
-):
-
-    if not user_list:
-
-        return []
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    placeholder = ",".join(
-
-        ["?"] * len(user_list)
-
-    )
-
-    cursor.execute(f"""
-
-        SELECT
-
-            id,
-            nama_outlet,
-            id_outlet,
-            msisdn,
-            input_by,
-            created_at
-
-        FROM outlet
-
-        WHERE input_by IN ({placeholder})
-
-        ORDER BY created_at DESC
-
-    """, user_list)
-
-    data = cursor.fetchall()
-
-    conn.close()
-
-    return data
-
-
-# =====================================
-# VALIDASI
-# =====================================
-
-def cek_msisdn(
-
-    msisdn
-
-):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-
-            input_by,
-            created_at
-
-        FROM outlet
-
-        WHERE msisdn=?
-
-        LIMIT 1
-
-    """, (
-
-        msisdn,
-
-    ))
-
-    hasil = cursor.fetchone()
-
-    conn.close()
-
-    return hasil    
-
-

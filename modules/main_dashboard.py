@@ -814,15 +814,14 @@ def load_all_data():
     df.drop(columns=["msisdn"], inplace=True)
 
     df["Biometrik"] = (
-        (
-            df["Tanggal"].dt.to_period("M")
-            ==
-            pd.to_datetime(df["tanggal_biometrik"], errors="coerce").dt.to_period("M")
-        )
-        .fillna(False)
-        .astype(int)
+    (
+        df["Tanggal"].dt.date
+        ==
+        pd.to_datetime(df["tanggal_biometrik"], errors="coerce").dt.date
     )
-
+    .fillna(False)
+    .astype(int)
+    )
     def ancestor_by_role(start_user, target_roles, max_depth=15):
 
         current = start_user
@@ -842,17 +841,15 @@ def load_all_data():
 
     df["Role"] = df["Input By"].map(role_map).fillna("")
 
-    df["MC"] = df["Input By"].apply(
-        lambda u: ancestor_by_role(u, {"CSE", "RSE"}) or "-"
-    )
+    unique_users = df["Input By"].dropna().unique()
 
-    df["Branch"] = df["Input By"].apply(
-        lambda u: ancestor_by_role(u, {"BSM"}) or "-"
-    )
+    mc_lookup = {u: (ancestor_by_role(u, {"CSE", "RSE"}) or "-") for u in unique_users}
+    branch_lookup = {u: (ancestor_by_role(u, {"BSM"}) or "-") for u in unique_users}
+    hos_lookup = {u: (ancestor_by_role(u, {"HOS"}) or "-") for u in unique_users}
 
-    df["HOS"] = df["Input By"].apply(
-        lambda u: ancestor_by_role(u, {"HOS"}) or "-"
-    )
+    df["MC"] = df["Input By"].map(mc_lookup).fillna("-")
+    df["Branch"] = df["Input By"].map(branch_lookup).fillna("-")
+    df["HOS"] = df["Input By"].map(hos_lookup).fillna("-")
 
     df["Brand"] = df["Input By"].map(brand_map).fillna("")
 
