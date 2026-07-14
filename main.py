@@ -251,7 +251,7 @@ if role in ["DSE", "FRONTLINER", "PROMOTOR", "GSE", "GEMINI", "RGE"]:
         key="outlet_menu"
     )
 
-elif role in ["CLUSTERS"]:
+elif role in ["CSE", "RSE"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -267,7 +267,7 @@ elif role in ["CLUSTERS"]:
         key="outlet_menu"
     )
 
-elif role == "BRANCH":
+elif role == "BSM":
 
     menu = st.sidebar.radio(
         "Menu",
@@ -286,7 +286,7 @@ elif role == "BRANCH":
         key="outlet_menu"
     )
 
-elif role == "AREAS":
+elif role == "HOS":
 
     menu = st.sidebar.radio(
         "Menu",
