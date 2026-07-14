@@ -98,48 +98,67 @@ def show():
     st.title("📋 Data MSISDN")
 
     # ===========================
-    # TENTUKAN TANGGAL DULU, SEBELUM LOAD DATA
+    # FILTER TANGGAL
     # ===========================
 
-    col_tgl1, col_tgl2 = st.columns([4, 1])
+    tanggal = st.date_input(
 
-    with col_tgl1:
+        "📅 Filter Tanggal",
 
-        tanggal = st.date_input(
-            "📅 Filter Tanggal",
-            value=None,
-            key="msisdn_tanggal"
-        )
+        value=(),
 
-    with col_tgl2:
+        key="msisdn_tanggal"
 
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        semua_tanggal = st.toggle(
-            "Semua",
-            value=True,           # <-- default ON, karena ini master data
-            key="msisdn_semua_tanggal"
-        )
+    )
 
     # ===========================
     # LOAD DATA
     # ===========================
-    # Default: SEMUA tanggal (ini halaman master MSISDN untuk
-    # kelola/hapus data, jadi wajar defaultnya lihat semua histori).
-    # Kalau user matikan toggle "Semua" dan pilih tanggal tertentu,
-    # baru difilter ke tanggal itu saja.
-    # ===========================
 
-    if semua_tanggal or tanggal is None:
+    if isinstance(tanggal, tuple):
 
-        data = tampil_data()
+        if len(tanggal) == 0:
+
+            data = tampil_data()
+
+        elif len(tanggal) == 1:
+
+            data = tampil_data_by_date(
+
+                tanggal[0],
+
+                tanggal[0]
+
+            )
+
+        else:
+
+            data = tampil_data_by_date(
+
+                tanggal[0],
+
+                tanggal[1]
+
+            )
 
     else:
 
-        data = tampil_data_by_date(tanggal, tanggal)
+        data = tampil_data_by_date(
+
+            tanggal,
+
+            tanggal
+
+        )
 
     if len(data) == 0:
-        st.info("Belum ada data.")
+
+        st.info(
+
+            "Belum ada data."
+
+        )
+
         return
 
     df = pd.DataFrame(
