@@ -13,7 +13,8 @@ from st_aggrid import (
 from io import BytesIO
 
 from database import (
-    tampil_data,
+    tampil_data_by_date,
+    get_latest_data_date,
     tampil_user,
     load_biometrik
 )
@@ -456,18 +457,46 @@ def show():
 
     st.title("📊 Dashboard GSE")
 
-    # ======================================================
-    # LOAD DATA
-    # ======================================================
+    # =====================================================
+    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
+    # =====================================================
 
-    data = tampil_data()
+    col_tgl, col_brand = st.columns(2)
+
+    with col_tgl:
+
+        tanggal = st.date_input(
+            "📅 Filter Tanggal",
+            value=None,
+            key="fl_tanggal"
+        )
+
+    if tanggal is None:
+        tanggal = get_latest_data_date()
+
+    with col_brand:
+
+        brand = st.selectbox(
+            "📶 Filter Brand",
+            options=["Semua", "IM3", "3ID"],
+            index=0
+        )
+
+    # =====================================================
+    # LOAD DATA HANYA UNTUK TANGGAL TERPILIH
+    # =====================================================
+
+    data = tampil_data_by_date(tanggal, tanggal)
     users = tampil_user()
+
+    if len(data) == 0:
+
+        st.info("Belum ada data.")
+        return
 
     # ======================================================
     # USER DATAFRAME
     # ======================================================
-
-    users = tampil_user()
 
     df_user = pd.DataFrame(
 
@@ -637,46 +666,6 @@ def show():
         errors="coerce"
 
     ).dt.date
-
-    col_tgl, col_brand = st.columns(2)
-
-    with col_tgl:
-
-        tanggal = st.date_input(
-
-            "📅 Filter Tanggal",
-
-            value=None,
-
-            key="pm_tanggal"
-
-        )
-
-    with col_brand:
-
-        brand = st.selectbox(
-
-            "📶 Filter Brand",
-
-            options=[
-                "Semua",
-                "IM3",
-                "3ID"
-            ],
-
-            index=0
-
-        )
-
-    # =====================================================
-    # FILTER TANGGAL
-    # =====================================================
-
-    if tanggal:
-
-        df = df[
-            df["Tanggal"] == tanggal
-        ]
     st.divider()
 
     # ======================================================

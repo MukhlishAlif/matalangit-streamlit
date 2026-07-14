@@ -8,7 +8,7 @@ from io import BytesIO
 from datetime import date, timedelta
 
 from database import (
-    tampil_data,
+    tampil_data_by_date,   # <-- ganti dari tampil_data
     load_biometrik,
     load_user_hierarchy
 )
@@ -766,9 +766,35 @@ def inject_css():
 # ==========================================================
 
 @st.cache_data(ttl=120)
-def load_all_data():
+def load_all_data(start_date, end_date):
+    """
+    CATATAN PENTING soal "load sesuai tanggal filter":
 
-    outlet_rows = tampil_data()
+    Endpoint API outlet (`tampil_data()` -> /sales-tap/legacy-report) TIDAK
+    punya parameter tanggal -- dia selalu balikin SEMUA baris dari server.
+    Jadi dari sisi jaringan/API kita belum bisa minta "cuma hari ini" ke
+    server (butuh perubahan di backend/API kalau mau itu).
+
+    Yang BISA kita lakukan di sisi aplikasi: begitu data mentah itu sampai,
+    langsung BUANG baris di luar rentang tanggal yang dipilih SEBELUM
+    melakukan proses berat (merge biometrik, susur hierarki MC/Branch/HOS,
+    dsb). Jadi walau network fetch tetap ambil semua, seluruh pemrosesan
+    setelahnya cuma jalan untuk baris yang relevan -- jauh lebih ringan
+    kalau histori datanya besar.
+
+    Buffer 3 hari ke belakang dari start_date sengaja ditambahkan supaya
+    kolom D-1/D-2/D-3 di tabel Branch Performance tetap ada datanya,
+    walau user cuma pilih 1 hari.
+
+    Karena start_date & end_date jadi bagian dari argumen fungsi ini,
+    Streamlit otomatis nyimpen cache terpisah per tanggal yang dipilih --
+    ganti tanggal = query/olah baru, balik ke tanggal yang sama = ambil
+    dari cache (tidak proses ulang).
+    """
+
+    buffer_start = start_date - timedelta(days=3)
+
+    outlet_rows = tampil_data_by_date(buffer_start, end_date)
 
     biometrik = load_biometrik()
 
@@ -803,6 +829,22 @@ def load_all_data():
     df["MSISDN"] = df["MSISDN"].fillna("").astype(str).str.strip()
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
+
+    # ------------------------------------------------
+    # BUANG BARIS DI LUAR RENTANG TANGGAL SEDINI MUNGKIN,
+    # sebelum merge biometrik & susur hierarki (baris yang tersisa
+    # jadi jauh lebih sedikit kalau histori data-nya besar).
+    # ------------------------------------------------
+
+    df = df[
+
+        (df["Tanggal"].dt.date >= buffer_start)
+
+        &
+
+        (df["Tanggal"].dt.date <= end_date)
+
+    ].copy()
 
     df = df.merge(
         biometrik,
@@ -1002,7 +1044,18 @@ def get_base64_image(path):
 
 def show():
     inject_css()
-    df, df_user, role_map, atasan_map, brand_map, children_map = load_all_data()
+
+    # Hierarki user (df_user, role_map, dst) dipisah dari data outlet:
+    # ini di-cache sendiri (ttl=300) dan tidak tergantung tanggal filter,
+    # jadi bisa dipakai duluan untuk header & dropdown HoS sebelum kita
+    # tahu tanggal apa yang dipilih user.
+    (
+        df_user,
+        role_map,
+        atasan_map,
+        brand_map,
+        children_map
+    ) = load_user_hierarchy()
 
     # ------------------------------------------------
     # HEADER
@@ -1157,23 +1210,47 @@ def show():
 
     with f1:
 
-        default_range = (
-
-            date.today() - timedelta(days=6),
-
-            date.today()
-
-        )
+        # Default: HARI INI SAJA (single date), bukan range 7 hari.
+        # Supaya saat pertama kali dibuka nggak langsung menghitung
+        # data seminggu penuh (berat). User tetap bebas ganti ke
+        # range tanggal lain lewat widget ini kalau perlu.
 
         periode = st.date_input(
 
-            "📅 Periode",
+            "📅 Tanggal",
 
-            value=default_range,
+            value=date.today(),
 
             key="mld_periode"
 
         )
+
+    # ==========================================
+    # TENTUKAN start_date/end_date DULU, sebelum load data.
+    # ==========================================
+
+    if isinstance(periode, tuple):
+
+        if len(periode) == 2:
+
+            start_date, end_date = periode
+
+        else:
+
+            start_date = end_date = periode[0]
+
+    else:
+
+        start_date = end_date = periode
+
+    # ==========================================
+    # LOAD DATA OUTLET SESUAI TANGGAL YANG DIPILIH
+    # (bukan seluruh histori -- lihat catatan di load_all_data()).
+    # Karena start_date/end_date jadi argumen, Streamlit cache
+    # otomatis kepisah per tanggal yang dipilih.
+    # ==========================================
+
+    df, _, _, _, _, _ = load_all_data(start_date, end_date)
 
     with f2:
 
@@ -1207,6 +1284,12 @@ def show():
 
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
 
+        # Catatan: export ini sekarang berisi data sesuai rentang yang
+        # ter-load (tanggal terpilih + buffer 3 hari), bukan seluruh
+        # histori seperti sebelumnya -- konsekuensi dari "load sesuai
+        # tanggal filter". Kalau butuh export SELURUH histori, bilang
+        # saja, itu perlu jalur terpisah dari load_all_data ini.
+
         st.download_button(
             "⬇ Export",
             data=to_excel(df),
@@ -1217,34 +1300,15 @@ def show():
     # ------------------------------------------------
     # APPLY FILTER
     # ------------------------------------------------
+    # Tanggal SUDAH difilter sejak load_all_data(); di sini tinggal
+    # terapkan filter Brand/HoS/Personnel di atas subset yang sudah kecil.
+    # ------------------------------------------------
 
     dff = df.copy()
-
-    # ==========================================
-    # PASTIKAN KOLOM TANGGAL BERTIPE DATETIME
-    # ==========================================
 
     dff["Tanggal"] = pd.to_datetime(
         dff["Tanggal"]
     )
-
-    # ==========================================
-    # FILTER PERIODE
-    # ==========================================
-
-    if isinstance(periode, tuple):
-
-        if len(periode) == 2:
-
-            start_date, end_date = periode
-
-        else:
-
-            start_date = end_date = periode[0]
-
-    else:
-
-        start_date = end_date = periode
 
     dff = dff[
 
@@ -1307,35 +1371,6 @@ def show():
         1
 
     )
-
-    # ==========================================
-    # PERIODE SEBELUMNYA (untuk "vs Last Week")
-    # ==========================================
-    period_len = (end_date - start_date).days + 1
-    prev_end_date = start_date - pd.Timedelta(days=1)
-    prev_start_date = prev_end_date - pd.Timedelta(days=period_len - 1)
-
-    dff_prev = df.copy()
-    dff_prev["Tanggal"] = pd.to_datetime(dff_prev["Tanggal"])
-
-    dff_prev = dff_prev[
-        (dff_prev["Tanggal"].dt.date >= prev_start_date)
-        &
-        (dff_prev["Tanggal"].dt.date <= prev_end_date)
-    ]
-
-    if selected_brand != "Semua Brand":
-        dff_prev = dff_prev[dff_prev["Brand"] == selected_brand]
-
-    if selected_hos != "Semua HoS":
-        dff_prev = dff_prev[dff_prev["HOS"] == selected_hos]
-
-    if selected_group != "Semua Personnel":
-        dff_prev = dff_prev[
-            dff_prev["Role"].isin(PERSONNEL_GROUPS[selected_group])
-        ]
-
-    n_days_prev = max(dff_prev["Tanggal"].dt.date.nunique(), 1)
 
     st.divider()
     # =====================================================
@@ -2351,7 +2386,6 @@ Avg Biometrik :
         roles_for_table = PERSONNEL_GROUPS[table_group]
 
         table_df = dff[dff["Role"].isin(roles_for_table)]
-        table_df_prev = dff_prev[dff_prev["Role"].isin(roles_for_table)]   # ⬅️ baru
 
         # roster lengkap (termasuk yg belum submit apa pun) utk hitung # of Personnel
         roster = df_user[
@@ -2450,7 +2484,6 @@ Avg Biometrik :
 
             branch_roster = roster[roster["Branch"] == branch_name]
             branch_data = table_df[table_df["Branch"] == branch_name]
-            branch_data_prev = table_df_prev[table_df_prev["Branch"] == branch_name]  
 
             n_personnel = branch_roster["USER"].nunique()
             n_active = branch_data["Input By"].nunique()
@@ -2497,7 +2530,6 @@ Avg Biometrik :
 
                     mc_roster = branch_roster[branch_roster["MC"] == mc_name]
                     mc_data = branch_data[branch_data["MC"] == mc_name]
-                    mc_data_prev = branch_data_prev[branch_data_prev["MC"] == mc_name]   # ⬅️ baru
 
                     mc_personnel = mc_roster["USER"].nunique()
                     mc_active = mc_data["Input By"].nunique()

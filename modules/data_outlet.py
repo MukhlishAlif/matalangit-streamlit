@@ -3,8 +3,10 @@ import streamlit as st
 import pandas as pd
 
 from database import (
+    tampil_data_by_date,
     tampil_data,
     tampil_user,
+    get_latest_data_date,
     hapus_data,
     get_downline
 )
@@ -96,10 +98,45 @@ def show():
     st.title("📋 Data MSISDN")
 
     # ===========================
-    # LOAD DATA
+    # TENTUKAN TANGGAL DULU, SEBELUM LOAD DATA
     # ===========================
 
-    data = tampil_data()
+    col_tgl1, col_tgl2 = st.columns([4, 1])
+
+    with col_tgl1:
+
+        tanggal = st.date_input(
+            "📅 Filter Tanggal",
+            value=None,
+            key="msisdn_tanggal"
+        )
+
+    with col_tgl2:
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        semua_tanggal = st.toggle(
+            "Semua",
+            value=True,           # <-- default ON, karena ini master data
+            key="msisdn_semua_tanggal"
+        )
+
+    # ===========================
+    # LOAD DATA
+    # ===========================
+    # Default: SEMUA tanggal (ini halaman master MSISDN untuk
+    # kelola/hapus data, jadi wajar defaultnya lihat semua histori).
+    # Kalau user matikan toggle "Semua" dan pilih tanggal tertentu,
+    # baru difilter ke tanggal itu saja.
+    # ===========================
+
+    if semua_tanggal or tanggal is None:
+
+        data = tampil_data()
+
+    else:
+
+        data = tampil_data_by_date(tanggal, tanggal)
 
     if len(data) == 0:
         st.info("Belum ada data.")
@@ -303,60 +340,6 @@ def show():
 
         df = df[
             df["Input By"] == pilih_user
-        ]
-
-    # ===========================
-    # FILTER TANGGAL
-    # ===========================
-
-    df["Tanggal"] = pd.to_datetime(
-
-        df["Tanggal"],
-
-        errors="coerce"
-
-    )
-
-    col_tgl1, col_tgl2 = st.columns(
-
-        [4, 1]
-
-    )
-
-    with col_tgl1:
-
-        tanggal = st.date_input(
-
-            "📅 Filter Tanggal",
-
-            value=None
-
-        )
-
-    with col_tgl2:
-
-        st.markdown(
-
-            "<br>",
-
-            unsafe_allow_html=True
-
-        )
-
-        semua_tanggal = st.toggle(
-
-            "Semua",
-
-            value=False
-
-        )
-
-    if not semua_tanggal and tanggal:
-
-        df = df[
-
-            df["Tanggal"].dt.date == tanggal
-
         ]
      # ===========================
     # SUMMARY KPI (ROLE AWARE)

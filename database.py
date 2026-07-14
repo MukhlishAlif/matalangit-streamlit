@@ -700,21 +700,132 @@ def hapus_data(
 
 
 # =====================================
-# OUTLET -- BACA (API)
+# OUTLET -- SYNC KE SQLITE LOKAL (mirror dari API)
 # =====================================
 
-def tampil_data():
-    """Dulu: SELECT ... FROM outlet ORDER BY created_at DESC.
-    Sekarang: dari API, diurutkan ulang di Python (urutan dari API
-    tidak dijamin sama)."""
+def sync_outlet_to_sqlite():
+    """
+    Tarik data terbaru dari API (raw fetch ini sendiri sudah di-cache
+    ttl=120 oleh @st.cache_data, jadi network call ke API tetap hanya
+    terjadi maksimal tiap 2 menit -- fungsi ini AMAN dipanggil sesering
+    apapun dari sisi UI).
+
+    Upsert ke tabel outlet lokal pakai id dari API sebagai primary key,
+    supaya baris yang sudah ada di-update, baris baru ditambah.
+    """
 
     raw_rows = _fetch_outlet_raw()
 
-    data = [_outlet_row_tuple(r) for r in raw_rows]
+    if not raw_rows:
+        return
 
-    data.sort(key=lambda row: str(row[5] or ""), reverse=True)
+    rows = [_outlet_row_tuple(r) for r in raw_rows]
 
-    return data
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.executemany("""
+        INSERT INTO outlet (id, nama_outlet, id_outlet, msisdn, input_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            nama_outlet = excluded.nama_outlet,
+            id_outlet   = excluded.id_outlet,
+            msisdn      = excluded.msisdn,
+            input_by    = excluded.input_by,
+            created_at  = excluded.created_at
+    """, rows)
+
+    conn.commit()
+    conn.close()
+
+# =====================================
+# TANGGAL TERBARU YANG ADA DATANYA
+# =====================================
+
+def get_latest_data_date():
+    """
+    Tanggal terbaru yang ada baris datanya di outlet (setelah sync
+    dari API). Dipakai sebagai default kalau user belum pilih tanggal
+    di date_input (value=None) -- supaya yang tampil otomatis data
+    hari terakhir yang ada submit-nya, bukan kosong/error.
+    """
+
+    sync_outlet_to_sqlite()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT MAX(created_at) FROM outlet")
+    row = cursor.fetchone()
+
+    conn.close()
+
+    max_created = row[0] if row else None
+
+    if not max_created:
+        return date.today()
+
+    # created_at formatnya "YYYY-MM-DD HH:MM:SS", ambil bagian tanggalnya saja
+    return datetime.strptime(max_created[:10], "%Y-%m-%d").date()
+# =====================================
+# OUTLET -- BACA SEMUA DATA (API, via mirror SQLite)
+# =====================================
+
+def tampil_data():
+    """
+    Ambil SEMUA data outlet (tanpa filter tanggal), lewat mirror SQLite
+    supaya konsisten dengan tampil_data_by_date() -- sekali sync, query
+    dari SQLite lokal (bukan sort manual di Python atas seluruh raw API
+    seperti versi paling awal dulu).
+
+    Dipakai untuk:
+    - dashboard_data_msisdn.py saat toggle "Semua" ON
+    - fungsi-fungsi lain di bawah (last_input, data_by_user, dst.)
+      yang memang butuh histori penuh.
+    """
+
+    sync_outlet_to_sqlite()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at
+        FROM outlet
+        ORDER BY created_at DESC
+    """)
+
+    rows = [tuple(r) for r in cursor.fetchall()]
+    conn.close()
+
+    return rows
+
+def tampil_data_by_date(start_date, end_date):
+    """
+    Versi tampil_data() yang FILTER TANGGAL DI SQL, bukan di Python.
+    Kena index idx_outlet_created_at -- jadi walau histori jutaan baris,
+    yang kebaca cuma rentang tanggal yang diminta.
+    """
+
+    sync_outlet_to_sqlite()
+
+    start_str = f"{start_date.isoformat()} 00:00:00"
+    end_str = f"{end_date.isoformat()} 23:59:59"
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, nama_outlet, id_outlet, msisdn, input_by, created_at
+        FROM outlet
+        WHERE created_at >= ? AND created_at <= ?
+        ORDER BY created_at DESC
+    """, (start_str, end_str))
+
+    rows = [tuple(r) for r in cursor.fetchall()]
+    conn.close()
+
+    return rows
 
 
 def last_input(limit=10):
