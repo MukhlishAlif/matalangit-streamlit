@@ -133,7 +133,7 @@ def inject_css():
 
         gap:15px;
 
-        padding-top:20px;
+        padding-top:15px;
 
     }
 
@@ -194,7 +194,7 @@ def inject_css():
 
         order:2;
 
-        height:397px;
+        height:335px;
 
         background:linear-gradient(160deg,#A78BFA,#7C3AED);
         color:#FFFFFF;
@@ -207,7 +207,7 @@ def inject_css():
 
         order:1;
 
-        height:355px;
+        height:300px;
 
         background:linear-gradient(160deg,#FF6B95,#EC1C4C);
 
@@ -219,7 +219,7 @@ def inject_css():
 
         order:3;
 
-        height:320px;
+        height:270px;
 
         background:linear-gradient(160deg,#FFE066,#F5B400);
 
@@ -231,7 +231,7 @@ def inject_css():
 
         order:4;
 
-        height:275px;
+        height:235px;
 
         background:linear-gradient(160deg,#CBD5E1,#94A3B8);
 
@@ -243,7 +243,7 @@ def inject_css():
 
         font-size:45px;
 
-        margin-bottom:10px;
+        margin-bottom:30px;
 
     }
 
@@ -265,7 +265,7 @@ def inject_css():
 
         font-size:20px;
 
-        margin:0 auto 6px auto;
+        margin:0 auto 17px auto;
 
     }
 
@@ -273,7 +273,7 @@ def inject_css():
 
         font-weight:700;
 
-        font-size:12.5px;
+        font-size:13.5px;
 
         white-space:nowrap;
 
@@ -318,20 +318,6 @@ def inject_css():
         font-size:10.5px;
 
         font-weight:700;
-
-    }
-
-    .podium-stand{
-
-        font-size:34px;
-
-        font-weight:900;
-
-        color:rgba(255,255,255,.25);
-
-        line-height:1;
-
-        margin-top:10px;
 
     }
 
@@ -800,7 +786,8 @@ def load_all_data(start_date, end_date):
             "MSISDN",
             "Input By",
             "Tanggal",
-            "Biometrik"
+            "Biometrik",
+            "ga_dt"
         ]
 
     )
@@ -1204,6 +1191,27 @@ def show():
     else:
 
         start_date = end_date = periode
+
+    # ==========================================
+    # BATASI MAKSIMAL RENTANG 31 HARI
+    # Kalau user pilih rentang lebih dari 31 hari, start_date
+    # otomatis dipotong (bukan error) supaya data yang di-load
+    # tidak kebesaran. end_date tetap seperti pilihan user.
+    # ==========================================
+
+    MAX_RANGE_DAYS = 31
+
+    selected_range_days = (end_date - start_date).days + 1
+
+    if selected_range_days > MAX_RANGE_DAYS:
+
+        start_date = end_date - timedelta(days=MAX_RANGE_DAYS - 1)
+
+        st.warning(
+            f"⚠️ Rentang tanggal maksimal {MAX_RANGE_DAYS} hari. "
+            f"Otomatis disesuaikan jadi {start_date.strftime('%d/%m/%Y')} "
+            f"– {end_date.strftime('%d/%m/%Y')}."
+        )
 
     # ==========================================
     # LOAD DATA OUTLET SESUAI TANGGAL YANG DIPILIH
@@ -1818,7 +1826,101 @@ Avg Biometrik :
     # ACHIEVEMENT HOS + TOP 3 BRANCH
     # ------------------------------------------------
 
-    col_hos, col_top3 = st.columns([1.6, 1])
+# ------------------------------------------------
+    # Helper kompak: 1 baris ranking branch (avg + total),
+    # ukurannya disamakan dengan card leaderboard (lb-row),
+    # bukan pakai badge bundar besar seperti sebelumnya.
+    # ------------------------------------------------
+
+    def lb_branch_row(rank_label, branch_name, bsm_name, avg_val, total_val):
+
+        st.markdown(
+            f"""
+            <div class="lb-row">
+                <div class="lb-left">
+                    <span class="lb-num">{rank_label}</span>
+                    <div>
+                        <div class="lb-name">{branch_name}</div>
+                        <div class="lb-branch"><b>{bsm_name}</b></div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="lb-val">{avg_val:.1f}</div>
+                    <div style="font-size:9px;color:#9CA3AF;">🔐 {fmt(total_val)} · Avg/Person</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # ------------------------------------------------
+    # Helper: render 1 card branch (Top3 + Bottom3) untuk 1 brand.
+    # Logic IM3 & 3ID identik, jadi cukup ditulis sekali di sini
+    # lalu dipanggil 2x (hindari copy-paste besar).
+    # ------------------------------------------------
+
+    def render_brand_branch_card(brand, brand_label):
+
+        st.markdown(
+            f"<div class='mld-card-title'>🏆 {brand_label} Branch (by Avg Biometrik / Person)</div>",
+            unsafe_allow_html=True
+        )
+
+        bsm_name_map = (
+            df_user[
+                df_user["ROLE"].astype(str).str.upper() == "BSM"
+            ]
+            .drop_duplicates(subset="USER")
+            .assign(
+                USER=lambda x: x["USER"].astype(str).str.strip().str.upper()
+            )
+            .set_index("USER")["REAL_NAME"]
+            .to_dict()
+        )
+
+        branch_scores = []
+
+        for branch_name, branch_df in dff[dff["Brand"] == brand].groupby("Branch"):
+
+            total_biom = branch_df["Biometrik"].sum()
+
+            total_person = branch_df.loc[
+                branch_df["Biometrik"] == 1,
+                "Input By"
+            ].nunique()
+
+            avg_biom = (total_biom / total_person) if total_person > 0 else 0
+
+            bsm_name = bsm_name_map.get(str(branch_name).strip().upper(), "-")
+
+            branch_scores.append((branch_name, bsm_name, total_biom, avg_biom))
+
+        top3 = sorted(branch_scores, key=lambda x: x[3], reverse=True)[:3]
+        bottom3 = sorted(branch_scores, key=lambda x: x[3])[:3][::-1]
+
+        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+
+        st.markdown("<div class='lb-sub'>Top 3</div>", unsafe_allow_html=True)
+
+        if not top3:
+            st.caption("Belum ada data.")
+        else:
+            for i, (branch_name, bsm_name, total_biom, avg_biom) in enumerate(top3, start=1):
+                lb_branch_row(medals.get(i, str(i)), branch_name, bsm_name, avg_biom, total_biom)
+
+        st.markdown("<div class='lb-sub' style='margin-top:8px;'>Bottom 3</div>", unsafe_allow_html=True)
+
+        if not bottom3:
+            st.caption("Belum ada data.")
+        else:
+            for i, (branch_name, bsm_name, total_biom, avg_biom) in enumerate(bottom3, start=1):
+                lb_branch_row("📉", branch_name, bsm_name, avg_biom, total_biom)
+
+    # ------------------------------------------------
+    # ACHIEVEMENT HOS + IM3 + 3ID BRANCH
+    # ------------------------------------------------
+
+    col_hos, col_im3, col_3id = st.columns([1.6, 0.8, 0.8])
 
     with col_hos:
 
@@ -1830,416 +1932,85 @@ Avg Biometrik :
             )
 
             real_name_map = (
-
                 df_user
                 .drop_duplicates(subset="USER")
                 .set_index("USER")["REAL_NAME"]
                 .to_dict()
-
             )
 
             hos_scores = []
 
             for hos_user in hos_list:
 
-                downline = get_descendants(
-
-                    hos_user,
-                    children_map
-
-                )
+                downline = get_descendants(hos_user, children_map)
 
                 hos_df = dff[
-
                     (dff["Input By"].isin(downline))
                     &
                     (dff["Biometrik"] == 1)
-
                 ]
 
                 if hos_df.empty:
-
                     continue
 
                 total_biom = len(hos_df)
-
                 total_person = hos_df["Input By"].nunique()
+                avg_biom = (total_biom / total_person) if total_person > 0 else 0
 
-                avg_biom = (
+                hos_scores.append((
+                    hos_user,
+                    real_name_map.get(hos_user, "-"),
+                    total_biom,
+                    avg_biom,
+                    atasan_map.get(hos_user, "-")
+                ))
 
-                    total_biom / total_person
-
-                ) if total_person > 0 else 0
-
-                hos_scores.append(
-
-                    (
-
-                        hos_user,
-
-                        real_name_map.get(
-
-                            hos_user,
-
-                            "-"
-
-                        ),
-
-                        total_biom,
-
-                        avg_biom,
-
-                        atasan_map.get(
-
-                            hos_user,
-
-                            "-"
-
-                        )
-
-                    )
-
-                )
-
-            hos_scores = sorted(
-
-                hos_scores,
-
-                key=lambda x: x[3],
-
-                reverse=True
-
-            )[:4]
+            hos_scores = sorted(hos_scores, key=lambda x: x[3], reverse=True)[:4]
 
             if hos_scores:
 
-                medal_icon = {
-
-                    1: "🥇",
-                    2: "🥈",
-                    3: "🥉",
-                    4: "🎖️"
-
-                }
-
-                crown = {
-
-                    1: "👑"
-
-                }
+                medal_icon = {1: "🥇", 2: "🥈", 3: "🥉", 4: "🎖️"}
+                crown = {1: "👑"}
 
                 podium_cards = []
 
-                for i, (
-
-                    username,
-                    real_name,
-                    total_biom,
-                    avg_biom,
-                    atasan
-
-                ) in enumerate(
-
-                    hos_scores,
-
-                    start=1
-
-                ):
+                for i, (username, real_name, total_biom, avg_biom, atasan) in enumerate(hos_scores, start=1):
 
                     card_html = (
-
                         f'<div class="podium-card place-{i}">'
-
                         f'<div class="podium-crown">{crown.get(i, "")}</div>'
-
                         f'<div class="podium-medal">{medal_icon.get(i, i)}</div>'
-
                         f'<div class="podium-name">{username}</div>'
-
-                        f'<div style="font-size:11px;opacity:.82;margin-top:-2px;margin-bottom:6px;">'
-                        f'{real_name}'
-                        f'</div>'
-
+                        f'<div style="font-size:10px;opacity:.82;margin-top:-2px;margin-bottom:6px;">{real_name}</div>'
                         f'<div class="podium-val">{avg_biom:.1f}</div>'
-
                         f'<div class="podium-caption">Avg Biometrik / Person</div>'
-
                         f'<div class="podium-submit-pill">🔐 {fmt(total_biom)} Biometrik</div>'
-
-                        f'<div class="podium-stand">{i}</div>'
-
                         f'</div>'
-
                     )
 
                     podium_cards.append(card_html)
 
-                podium_html = (
-
-                    '<div class="podium-wrap">'
-
-                    + "".join(podium_cards)
-
-                    + "</div>"
-
-                )
-
                 st.markdown(
-
-                    podium_html,
-
+                    '<div class="podium-wrap">' + "".join(podium_cards) + "</div>",
                     unsafe_allow_html=True
-
                 )
 
             else:
 
-                st.info(
+                st.info("Belum ada data HoS untuk periode/filter ini.")
 
-                    "Belum ada data HoS untuk periode/filter ini."
-
-                )                
-    with col_top3:
+    with col_im3:
 
         with st.container(border=True):
 
-            st.markdown(
-                "<div class='mld-card-title'>🏆 Top 3 Branch (by Avg Biometrik / Person)</div>",
-                unsafe_allow_html=True
-            )
+            render_brand_branch_card("IM3", "IM3")
 
-            for b in ["IM3", "3ID"]:
+    with col_3id:
 
-                if selected_brand != "Semua Brand" and selected_brand != b:
+        with st.container(border=True):
 
-                    continue
-
-                st.markdown(
-                    f"<div class='brand-pill' style='background:{BRAND_COLOR[b]};'>{b}</div>",
-                    unsafe_allow_html=True
-                )
-
-                bsm_name_map = (
-
-                    df_user[
-                        df_user["ROLE"].astype(str).str.upper() == "BSM"
-                    ]
-                    .drop_duplicates(subset="USER")
-                    .assign(
-
-                        USER=lambda x: x["USER"].astype(str).str.strip().str.upper()
-
-                    )
-                    .set_index("USER")["REAL_NAME"]
-                    .to_dict()
-
-                )
-
-                branch_scores = []
-
-                for branch_name, branch_df in dff[
-                    dff["Brand"] == b
-                ].groupby("Branch"):
-
-                    total_biom = branch_df["Biometrik"].sum()
-
-                    total_person = branch_df.loc[
-                        branch_df["Biometrik"] == 1,
-                        "Input By"
-                    ].nunique()
-
-                    avg_biom = (
-
-                        total_biom / total_person
-
-                    ) if total_person > 0 else 0
-
-                    bsm_name = bsm_name_map.get(
-
-                        str(branch_name).strip().upper(),
-
-                        "-"
-
-                    )
-
-                    branch_scores.append(
-
-                        (
-
-                            branch_name,
-                            bsm_name,
-                            total_biom,
-                            avg_biom
-
-                        )
-
-                    )
-
-                branch_scores = sorted(
-
-                    branch_scores,
-
-                    key=lambda x: x[3],
-
-                    reverse=True
-
-                )[:3]
-
-                if not branch_scores:
-
-                    st.caption("Belum ada data.")
-
-                else:
-
-                    max_avg = max(
-
-                        [row[3] for row in branch_scores],
-
-                        default=1
-
-                    )
-
-                    def rank_badge_class(r):
-
-                        if r == 1:
-
-                            return "rank-1"
-
-                        elif r == 2:
-
-                            return "rank-2"
-
-                        elif r == 3:
-
-                            return "rank-3"
-
-                        return "rank-other"
-
-                    def rank_bar_color(r):
-
-                        if r == 1:
-
-                            return "#F5B400"
-
-                        elif r == 2:
-
-                            return "#9AA3B1"
-
-                        elif r == 3:
-
-                            return "#C17A3D"
-
-                        return "#94A3B8"
-
-                    for rank, (
-
-                        branch_name,
-                        bsm_name,
-                        total_biom,
-                        avg_biom
-
-                    ) in enumerate(
-
-                        branch_scores,
-
-                        start=1
-
-                    ):
-
-                        bar_pct = (
-
-                            avg_biom / max_avg * 100
-
-                        ) if max_avg > 0 else 0
-
-                        badge_cls = rank_badge_class(rank)
-
-                        bar_color = rank_bar_color(rank)
-
-                        medal = {
-
-                            1: "🥇",
-                            2: "🥈",
-                            3: "🥉"
-
-                        }.get(rank, str(rank))
-
-                        st.markdown(
-
-                            f"""
-                            <div class="rank-row">
-
-                            <div class="rank-badge {badge_cls}">
-                                {medal}
-                            </div>
-
-                            <div class="rank-body">
-
-                            <div
-                                style="
-                                display:flex;
-                                align-items:center;
-                                justify-content:space-between;
-                                gap:12px;
-                                "
-                            >
-
-                            <div
-                                style="
-                                flex:1;
-                                min-width:0;
-                                "
-                            >
-
-                            <div class="rank-branch-name">
-                                {branch_name}
-                            </div>
-
-                            <div
-                                style="
-                                font-size:15px;
-                                font-weight:700;
-                                color:#6B7280;
-                                margin-top:2px;
-                                "
-                            >
-                                <b>{bsm_name}</b>
-                            </div>
-
-                            </div>
-
-                            <div class="rank-submit-pill">
-                                🔐 {fmt(total_biom)} Biometrik
-                            </div>
-
-                            <div
-                                style="
-                                text-align:right;
-                                min-width:60px;
-                                "
-                            >
-
-                            <div class="rank-avg-val">
-                                {avg_biom:.1f}
-                            </div>
-
-                            <div class="rank-avg-label">
-                                Avg/Person
-                            </div>
-
-                            </div>
-
-                            </div>
-
-                            </div>
-
-                            </div>
-                            """,
-
-                            unsafe_allow_html=True
-
-                        )
-# ------------------------------------------------
+            render_brand_branch_card("3ID", "3ID")
+    # ------------------------------------------------
     # 5 LEADERBOARD: CSE/RSE, RGE, DSE, AE, GSE
     # ------------------------------------------------
 
@@ -2301,7 +2072,11 @@ Avg Biometrik :
                     grp["Input By"]
                 )
                 top3 = grp.head(3)
-                bottom3 = grp.tail(3).sort_values("Biometrik")
+                bottom3 = (
+                    grp
+                    .nsmallest(3, "Biometrik")
+                    .sort_values("Biometrik", ascending=False)
+                )
 
                 st.markdown(
                     "<div class='lb-sub'>Top 3</div>",

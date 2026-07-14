@@ -156,12 +156,12 @@ def show_grid(
         "CSE/RSE": 260,
         "Branch": 170,
         "Atasan": 170,
-        "Nama": 180,
+        "Nama": 200,
         "Role": 120,
         "Upline": 180,
         "Status": 140,
 
-        "GEMPI": 90,
+        "GEMPI": 200,
         "GEMPI Aktif": 120,
         "Outlet": 100,
         "MSISDN": 110,
@@ -193,6 +193,19 @@ def show_grid(
                 "alignItems": "center",
                 "paddingLeft": "12px",
                 "fontWeight": "600"
+
+            }
+
+        elif field == "Nama":
+
+            # Paksa rata tengah, override cellStyle apapun yang mungkin
+            # sudah di-set sebelumnya di gb.configure_column().
+            col["cellStyle"] = {
+
+                "textAlign": "Left",
+                "display": "flex",
+                "justifyContent": "Left",
+                "alignItems": "Left"
 
             }
     # =====================================================
@@ -451,7 +464,8 @@ def show():
             "MSISDN",
             "Input By",
             "Tanggal",
-            "flag_bio"
+            "flag_bio",
+            "ga_dt"
 
         ]
 
