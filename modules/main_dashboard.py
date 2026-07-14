@@ -9,7 +9,6 @@ from datetime import date, timedelta
 
 from database import (
     tampil_data_by_date,   # <-- ganti dari tampil_data
-    load_biometrik,
     load_user_hierarchy
 )
 
@@ -767,36 +766,10 @@ def inject_css():
 
 @st.cache_data(ttl=120)
 def load_all_data(start_date, end_date):
-    """
-    CATATAN PENTING soal "load sesuai tanggal filter":
-
-    Endpoint API outlet (`tampil_data()` -> /sales-tap/legacy-report) TIDAK
-    punya parameter tanggal -- dia selalu balikin SEMUA baris dari server.
-    Jadi dari sisi jaringan/API kita belum bisa minta "cuma hari ini" ke
-    server (butuh perubahan di backend/API kalau mau itu).
-
-    Yang BISA kita lakukan di sisi aplikasi: begitu data mentah itu sampai,
-    langsung BUANG baris di luar rentang tanggal yang dipilih SEBELUM
-    melakukan proses berat (merge biometrik, susur hierarki MC/Branch/HOS,
-    dsb). Jadi walau network fetch tetap ambil semua, seluruh pemrosesan
-    setelahnya cuma jalan untuk baris yang relevan -- jauh lebih ringan
-    kalau histori datanya besar.
-
-    Buffer 3 hari ke belakang dari start_date sengaja ditambahkan supaya
-    kolom D-1/D-2/D-3 di tabel Branch Performance tetap ada datanya,
-    walau user cuma pilih 1 hari.
-
-    Karena start_date & end_date jadi bagian dari argumen fungsi ini,
-    Streamlit otomatis nyimpen cache terpisah per tanggal yang dipilih --
-    ganti tanggal = query/olah baru, balik ke tanggal yang sama = ambil
-    dari cache (tidak proses ulang).
-    """
 
     buffer_start = start_date - timedelta(days=3)
 
     outlet_rows = tampil_data_by_date(buffer_start, end_date)
-
-    biometrik = load_biometrik()
 
     (
         df_user,
@@ -806,9 +779,14 @@ def load_all_data(start_date, end_date):
         children_map
     ) = load_user_hierarchy()
 
-
     # ------------------------------------------------
     # OUTLET
+    # ------------------------------------------------
+    # Kolom "Biometrik" sekarang diambil LANGSUNG dari flag_bio
+    # yang dikirim API per baris outlet -- tidak perlu lagi
+    # merge terpisah dengan load_biometrik() & cocokkan tanggal
+    # manual. Lebih akurat (ikut definisi biometrik dari sumber
+    # data itu sendiri) dan lebih ringan (tidak ada merge/lookup).
     # ------------------------------------------------
 
     df = pd.DataFrame(
@@ -821,7 +799,8 @@ def load_all_data(start_date, end_date):
             "ID Outlet",
             "MSISDN",
             "Input By",
-            "Tanggal"
+            "Tanggal",
+            "Biometrik"
         ]
 
     )
@@ -830,10 +809,12 @@ def load_all_data(start_date, end_date):
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
 
+    df["Biometrik"] = df["Biometrik"].fillna(0).astype(int)
+
     # ------------------------------------------------
     # BUANG BARIS DI LUAR RENTANG TANGGAL SEDINI MUNGKIN,
-    # sebelum merge biometrik & susur hierarki (baris yang tersisa
-    # jadi jauh lebih sedikit kalau histori data-nya besar).
+    # sebelum susur hierarki (baris yang tersisa jadi lebih sedikit
+    # kalau histori data-nya besar).
     # ------------------------------------------------
 
     df = df[
@@ -846,24 +827,6 @@ def load_all_data(start_date, end_date):
 
     ].copy()
 
-    df = df.merge(
-        biometrik,
-        left_on="MSISDN",
-        right_on="msisdn",
-        how="left"
-    )
-
-    df.drop(columns=["msisdn"], inplace=True)
-
-    df["Biometrik"] = (
-    (
-        df["Tanggal"].dt.date
-        ==
-        pd.to_datetime(df["tanggal_biometrik"], errors="coerce").dt.date
-    )
-    .fillna(False)
-    .astype(int)
-    )
     def ancestor_by_role(start_user, target_roles, max_depth=15):
 
         current = start_user
@@ -895,7 +858,6 @@ def load_all_data(start_date, end_date):
 
     df["Brand"] = df["Input By"].map(brand_map).fillna("")
 
-    # hanya baris personil yang brand-nya terdeteksi
     df = df[df["Role"].isin(PERSONNEL_ROLES)]
     df = df[df["Brand"] != ""]
 
@@ -1219,7 +1181,7 @@ def show():
 
             "📅 Tanggal",
 
-            value=date.today(),
+            value=(date.today(), date.today()),   # <-- tuple = aktifkan mode rentang, default cuma hari ini
 
             key="mld_periode"
 
