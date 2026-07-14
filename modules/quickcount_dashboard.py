@@ -4,13 +4,11 @@
 
 import streamlit as st
 import pandas as pd
-import re
 from io import BytesIO
 from datetime import date, timedelta
 
 from database import (
-    tampil_data,
-    load_biometrik,
+    tampil_data_by_date,
     load_user_hierarchy
 )
 
@@ -606,11 +604,10 @@ def inject_css():
 # ==========================================================
 
 @st.cache_data(ttl=120)
-def load_all_data():
+def load_all_data(start_date, end_date):
+    buffer_start = start_date - timedelta(days=3)
 
-    outlet_rows = tampil_data()
-
-    biometrik = load_biometrik()
+    outlet_rows = tampil_data_by_date(buffer_start, end_date)
 
     (
         df_user,
@@ -624,9 +621,10 @@ def load_all_data():
     # OUTLET
     # ------------------------------------------------
     # Catatan: khusus Quick Count, kita TIDAK peduli status biometrik.
-    # Merge biometrik tetap dilakukan (jaga-jaga dipakai modul lain / masa
-    # depan) tapi kolom "Biometrik" ini SENGAJA tidak dipakai di show().
     # Yang dihitung sebagai leaderboard Quick Count = jumlah baris submit.
+    # Karena itu load_biometrik() & merge-nya SENGAJA tidak dilakukan di
+    # sini lagi (sebelumnya di-load & di-merge padahal tidak pernah dipakai
+    # -> kerja sia-sia yang bikin loading lebih berat).
     # ------------------------------------------------
 
     df = pd.DataFrame(
@@ -648,14 +646,17 @@ def load_all_data():
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
 
-    df = df.merge(
-        biometrik,
-        left_on="MSISDN",
-        right_on="msisdn",
-        how="left"
-    )
+    # ------------------------------------------------
+    # BUANG BARIS DI LUAR RENTANG TANGGAL SEDINI MUNGKIN,
+    # sebelum susur hierarki (baris yang tersisa jadi lebih sedikit
+    # kalau histori data-nya besar).
+    # ------------------------------------------------
 
-    df.drop(columns=["msisdn"], inplace=True)
+    df = df[
+        (df["Tanggal"].dt.date >= buffer_start)
+        &
+        (df["Tanggal"].dt.date <= end_date)
+    ].copy()
 
     def ancestor_by_role(start_user, target_roles, max_depth=15):
 
@@ -676,17 +677,22 @@ def load_all_data():
 
     df["Role"] = df["Input By"].map(role_map).fillna("")
 
-    df["MC"] = df["Input By"].apply(
-        lambda u: ancestor_by_role(u, {"CSE", "RSE"}) or "-"
-    )
+    # ------------------------------------------------
+    # Cari MC/Branch/HOS sekali per USER UNIK, bukan per baris.
+    # Banyak baris punya "Input By" yang sama (1 personel submit
+    # berkali-kali), jadi susur-hierarki per baris itu kerja
+    # berulang yang sia-sia dan bikin lemot kalau datanya besar.
+    # ------------------------------------------------
 
-    df["Branch"] = df["Input By"].apply(
-        lambda u: ancestor_by_role(u, {"BSM"}) or "-"
-    )
+    unique_users = df["Input By"].dropna().unique()
 
-    df["HOS"] = df["Input By"].apply(
-        lambda u: ancestor_by_role(u, {"HOS"}) or "-"
-    )
+    mc_lookup = {u: (ancestor_by_role(u, {"CSE", "RSE"}) or "-") for u in unique_users}
+    branch_lookup = {u: (ancestor_by_role(u, {"BSM"}) or "-") for u in unique_users}
+    hos_lookup = {u: (ancestor_by_role(u, {"HOS"}) or "-") for u in unique_users}
+
+    df["MC"] = df["Input By"].map(mc_lookup).fillna("-")
+    df["Branch"] = df["Input By"].map(branch_lookup).fillna("-")
+    df["HOS"] = df["Input By"].map(hos_lookup).fillna("-")
 
     df["Brand"] = df["Input By"].map(brand_map).fillna("")
 
@@ -837,9 +843,23 @@ def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
+
 def show():
     inject_css()
-    df, df_user, role_map, atasan_map, brand_map, children_map = load_all_data()
+
+    # ------------------------------------------------
+    # Hierarki user (df_user, role_map, dst) TIDAK tergantung
+    # tanggal filter, jadi diambil duluan di sini (cache ttl=300)
+    # supaya bisa dipakai untuk header & dropdown HoS sebelum
+    # tahu tanggal apa yang dipilih user.
+    # ------------------------------------------------
+    (
+        df_user,
+        role_map,
+        atasan_map,
+        brand_map,
+        children_map
+    ) = load_user_hierarchy()
 
     # ------------------------------------------------
     # HEADER
@@ -985,6 +1005,7 @@ def show():
         """,
         unsafe_allow_html=True
     )
+
     # ------------------------------------------------
     # FILTER BAR
     # ------------------------------------------------
@@ -993,23 +1014,28 @@ def show():
 
     with f1:
 
-        default_range = (
-
-            date.today() - timedelta(days=6),
-
-            date.today()
-
-        )
-
         periode = st.date_input(
-
-            "📅 Periode",
-
-            value=default_range,
-
-            key="qc_periode"
-
+            "📅 Tanggal",
+            value=date.today(),
+            key="qc_periode"   # key unik, beda dari yang di dashboard.py biar gak bentrok kalau sepanel
         )
+
+        if isinstance(periode, tuple):
+            if len(periode) == 2:
+                start_date, end_date = periode
+            else:
+                start_date = end_date = periode[0]
+        else:
+            start_date = end_date = periode
+
+    # ==========================================
+    # LOAD DATA OUTLET SESUAI TANGGAL YANG DIPILIH.
+    # df_user/role_map/atasan_map/brand_map/children_map SUDAH
+    # diambil di atas (tidak tergantung tanggal), jadi di sini
+    # cukup ambil df-nya saja -- tidak menimpa variabel di atas.
+    # ==========================================
+
+    df, _, _, _, _, _ = load_all_data(start_date, end_date)
 
     with f2:
 
@@ -1132,44 +1158,6 @@ def show():
 
             )
 
-        ]
-
-    n_days = max(
-
-        dff["Tanggal"]
-        .dt.date
-        .nunique(),
-
-        1
-
-    )
-
-    # ==========================================
-    # PERIODE SEBELUMNYA (untuk "vs Last Week")
-    # ==========================================
-
-    period_len = (end_date - start_date).days + 1
-    prev_end_date = start_date - pd.Timedelta(days=1)
-    prev_start_date = prev_end_date - pd.Timedelta(days=period_len - 1)
-
-    dff_prev = df.copy()
-    dff_prev["Tanggal"] = pd.to_datetime(dff_prev["Tanggal"])
-
-    dff_prev = dff_prev[
-        (dff_prev["Tanggal"].dt.date >= prev_start_date)
-        &
-        (dff_prev["Tanggal"].dt.date <= prev_end_date)
-    ]
-
-    if selected_brand != "Semua Brand":
-        dff_prev = dff_prev[dff_prev["Brand"] == selected_brand]
-
-    if selected_hos != "Semua HoS":
-        dff_prev = dff_prev[dff_prev["HOS"] == selected_hos]
-
-    if selected_group != "Semua Personnel":
-        dff_prev = dff_prev[
-            dff_prev["Role"].isin(PERSONNEL_GROUPS[selected_group])
         ]
 
     st.divider()
@@ -1634,7 +1622,7 @@ def show():
     color:white;
     opacity:.95;
 ">
-📮{row['Submit']} Submit <br>
+📮 {row['Submit']} Submit <br>
 Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
 </div>
@@ -1658,7 +1646,7 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
         with st.container(border=True):
 
             st.markdown(
-                "<div class='mld-card-title'>🏅 Achievement HOS (by Avg Submit / Day)</div>",
+                "<div class='mld-card-title'>🏅 Achievement HOS (by Avg Submit / Person)</div>",
                 unsafe_allow_html=True
             )
             real_name_map = (
@@ -1760,7 +1748,7 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
                         f'<div class="podium-val">{avg_submit:.1f}</div>'
 
-                        f'<div class="podium-caption">Avg Personnel / Day</div>'
+                        f'<div class="podium-caption">Avg Submit / Person</div>'
 
                         f'<div class="podium-submit-pill">📮 {fmt(total_submit)} Submit</div>'
 
@@ -1791,6 +1779,22 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
                 "<div class='mld-card-title'>🏆 Top 3 Branch (by Avg Submit / Person)</div>",
                 unsafe_allow_html=True
             )
+
+            def rank_badge_class(r):
+
+                if r == 1:
+
+                    return "rank-1"
+
+                elif r == 2:
+
+                    return "rank-2"
+
+                elif r == 3:
+
+                    return "rank-3"
+
+                return "rank-other"
 
             for b in ["IM3", "3ID"]:
 
@@ -1873,47 +1877,6 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
                 else:
 
-                    max_avg = max(
-
-                        [row[3] for row in branch_scores],
-
-                        default=1
-
-                    )
-
-
-                    def rank_badge_class(r):
-
-                        if r == 1:
-
-                            return "rank-1"
-
-                        elif r == 2:
-
-                            return "rank-2"
-
-                        elif r == 3:
-
-                            return "rank-3"
-
-                        return "rank-other"
-
-                    def rank_bar_color(r):
-
-                        if r == 1:
-
-                            return "#F5B400"
-
-                        elif r == 2:
-
-                            return "#9AA3B1"
-
-                        elif r == 3:
-
-                            return "#C17A3D"
-
-                        return "#94A3B8"
-
                     for rank, (
 
                         branch_name,
@@ -1929,15 +1892,7 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
                     ):
 
-                        bar_pct = (
-
-                            avg_submit / max_avg * 100
-
-                        ) if max_avg > 0 else 0
-
                         badge_cls = rank_badge_class(rank)
-
-                        bar_color = rank_bar_color(rank)
 
                         medal = {
 
@@ -2138,10 +2093,6 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
             dff["Role"].isin(roles_for_table)
         ].copy()
 
-        table_df_prev = dff_prev[
-            dff_prev["Role"].isin(roles_for_table)
-        ].copy()
-
         # User yang submit pada periode terpilih
         submitted_users = (
             table_df["Input By"]
@@ -2221,7 +2172,6 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
             branch_roster = roster[roster["Branch"] == branch_name]
             branch_data = table_df[table_df["Branch"] == branch_name]
-            branch_data_prev = table_df_prev[table_df_prev["Branch"] == branch_name]
 
             n_personnel = branch_roster["USER"].nunique()
             n_active = branch_data["Input By"].nunique()
