@@ -1,7 +1,23 @@
 
 import streamlit as st
 from database import login
+from html import escape
 
+def mat_icon(name, size=20, valign=-2):
+    return f"""
+    <span class="material-icons"
+          style="
+              font-size:{size}px;
+              vertical-align:{valign}px;
+              line-height:1;
+          ">
+        {escape(name)}
+    </span>
+    """
+
+st.markdown("""
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+""", unsafe_allow_html=True)
 
 
 # =====================================
@@ -81,18 +97,15 @@ def login_page():
     # =====================================
 
     st.markdown(
-        """
+        f"""
         <h2 style="
             text-align:center;
-            margin-top:0px;
-            margin-bottom:2px;
         ">
-            🔐 Login
+         Login
         </h2>
         """,
         unsafe_allow_html=True
     )
-
     # =====================================
     # FORM LOGIN
     # =====================================
@@ -149,21 +162,21 @@ def sidebar():
     with st.sidebar:
 
         st.success(
-            f"👤 {st.session_state.outlet_user}"
+            f":material/account_circle: **{st.session_state.outlet_user}**"
         )
 
         st.caption(
-            f"Role : {st.session_state.outlet_role}"
+            f":material/badge: {st.session_state.outlet_role}"
         )
 
         st.divider()
-
         # =====================================
         # LOGOUT
         # =====================================
 
         if st.button(
-            "🚪 Logout",
+            "Logout",
+            icon=":material/logout:",
             use_container_width=True
         ):
 

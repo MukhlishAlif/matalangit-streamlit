@@ -4,6 +4,7 @@
 
 import streamlit as st
 import pandas as pd
+import base64
 
 from st_aggrid import (
     AgGrid,
@@ -16,9 +17,25 @@ from io import BytesIO
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user,
-    load_biometrik
+    tampil_user
 )
+
+
+# ==========================================================
+# BASE64 IMAGE HELPER (untuk logo header)
+# ==========================================================
+
+def get_base64_image(path):
+
+    try:
+
+        with open(path, "rb") as f:
+
+            return base64.b64encode(f.read()).decode()
+
+    except Exception:
+
+        return ""
 
 
 # ==========================================================
@@ -53,6 +70,13 @@ def show_grid(
 
         }
 
+        /* HEADER CENTER */
+        .header-center .ag-header-cell-label {
+
+            justify-content: center !important;
+
+        }
+
         </style>
         """,
         unsafe_allow_html=True
@@ -60,9 +84,25 @@ def show_grid(
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # =====================================================
+    # =========================
+    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
+    # =========================
+
+    def get_justify(align_value):
+
+        mapping = {
+
+            "left": "flex-start",
+            "center": "center",
+            "right": "flex-end"
+
+        }
+
+        return mapping.get(align_value, "center")
+
+    # =========================
     # DEFAULT COLUMN
-    # =====================================================
+    # =========================
 
     gb.configure_default_column(
 
@@ -70,13 +110,83 @@ def show_grid(
         sortable=True,
         filter=False,
         suppressMenu=True,
+        floatingFilter=False,
+
+        flex=1,
+        minWidth=180,
+
+        cellStyle={
+            "textAlign": "center",
+            "display": "flex",
+            "justifyContent": "center",
+            "alignItems": "center"
+        }
+
+    )
+
+    # =========================
+    # FIRST COLUMN
+    # =========================
+
+    first_col = df.columns[0]
+
+    first_col_align = col_align.get(first_col, "left")
+
+    gb.configure_column(
+
+        first_col,
+        pinned="left",
+
+        flex=2,
+        minWidth=270,
+
+        cellStyle={
+            "textAlign": first_col_align,
+            "display": "flex",
+            "justifyContent": get_justify(first_col_align),
+            "alignItems": "center",
+            "paddingLeft": "12px" if first_col_align == "left" else "0px"
+        },
+
+        filter=False,
+        suppressMenu=True,
         floatingFilter=False
 
     )
 
-    # =====================================================
-    # SELECTABLE
-    # =====================================================
+    # =========================
+    # OVERRIDE ALIGNMENT KOLOM LAIN SESUAI col_align
+    # =========================
+
+    for field, align_value in col_align.items():
+
+        if field == first_col:
+
+            continue
+
+        padding_style = {}
+
+        if align_value == "left":
+
+            padding_style = {"paddingLeft": "12px"}
+
+        elif align_value == "right":
+
+            padding_style = {"paddingRight": "12px"}
+
+        gb.configure_column(
+
+            field,
+
+            cellStyle={
+                "textAlign": align_value,
+                "display": "flex",
+                "justifyContent": get_justify(align_value),
+                "alignItems": "center",
+                **padding_style
+            }
+
+        )
 
     if selectable:
 
@@ -87,17 +197,15 @@ def show_grid(
 
         )
 
-    # =====================================================
+    # =========================
     # GRID OPTIONS
-    # =====================================================
+    # =========================
 
     gb.configure_grid_options(
 
         headerHeight=45,
         rowHeight=42,
-        domLayout="normal",
-
-        suppressMovableColumns=True
+        domLayout="normal"
 
     )
 
@@ -124,7 +232,8 @@ def show_grid(
                 "Branch",
                 "CSE/RSE",
                 "AE",
-                "Atasan"
+                "Atasan",
+                "Nama"
 
             ]:
 
@@ -143,112 +252,7 @@ def show_grid(
     grid_options = gb.build()
 
     # =====================================================
-    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
-    # =====================================================
-
-    def get_justify(align_value):
-
-        mapping = {
-
-            "left": "flex-start",
-            "center": "center",
-            "right": "flex-end"
-
-        }
-
-        return mapping.get(align_value, "center")
-
-    def get_text_align(align_value):
-
-        return align_value if align_value in ["left", "center", "right"] else "center"
-
-    # =====================================================
-    # FIX WIDTH + FREEZE FIRST COLUMN + ALIGNMENT
-    # =====================================================
-
-    first_col = df.columns[0]
-
-    for col in grid_options["columnDefs"]:
-
-        field = col["field"]
-
-        max_len = max(
-            len(str(field)),
-            df[field].fillna("").astype(str).str.len().max()
-        )
-
-        width = max(140, min(max_len * 12 + 50, 500))
-
-        col["width"] = int(width)
-        col["minWidth"] = int(width)
-        col["maxWidth"] = int(width)
-
-        # =================================================
-        # TENTUKAN ALIGNMENT KOLOM INI
-        # =================================================
-
-        if field in col_align:
-
-            align_value = col_align[field]
-
-        elif field == first_col:
-
-            align_value = "left"
-
-        else:
-
-            align_value = "center"
-
-        justify_value = get_justify(align_value)
-        text_align_value = get_text_align(align_value)
-
-        padding_style = {}
-
-        if align_value == "left":
-
-            padding_style = {"paddingLeft": "12px"}
-
-        elif align_value == "right":
-
-            padding_style = {"paddingRight": "12px"}
-
-        # Freeze kolom pertama (tetap seperti semula)
-        if field == first_col:
-
-            col["pinned"] = "left"
-            col["lockPinned"] = True
-            col["lockPosition"] = True
-            col["suppressMovable"] = True
-
-            col["width"] = max(260, int(width))
-            col["minWidth"] = max(260, int(width))
-            col["maxWidth"] = max(260, int(width))
-
-            col["cellStyle"] = {
-
-                "textAlign": text_align_value,
-                "display": "flex",
-                "justifyContent": justify_value,
-                "alignItems": "center",
-                "fontWeight": "600",
-                **padding_style
-
-            }
-
-        else:
-
-            col["cellStyle"] = {
-
-                "textAlign": text_align_value,
-                "display": "flex",
-                "justifyContent": justify_value,
-                "alignItems": "center",
-                **padding_style
-
-            }
-
-    # =====================================================
-    # HILANGKAN CORONG SEMUA KOLOM
+    # HILANGKAN CORONG
     # =====================================================
 
     for col in grid_options["columnDefs"]:
@@ -258,16 +262,12 @@ def show_grid(
         col["suppressMenu"] = True
 
     # =====================================================
-    # FOOTER
+    # PINNED BOTTOM
     # =====================================================
 
     grid_options["pinnedBottomRowData"] = [
         total_row
     ]
-
-    # ======================================================
-    # HEIGHT
-    # ======================================================
 
     header_height = 45
     row_height = 42
@@ -284,10 +284,6 @@ def show_grid(
 
     )
 
-    # ======================================================
-    # GRID
-    # ======================================================
-
     grid_response = AgGrid(
 
         df,
@@ -298,11 +294,11 @@ def show_grid(
 
         fit_columns_on_grid_load=False,
 
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+
         height=table_height,
 
         theme="balham",
-
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
 
         allow_unsafe_jscode=True,
 
@@ -310,44 +306,32 @@ def show_grid(
 
             ".ag-root-wrapper": {
 
-                "border": "1px solid #e5e7eb",
+                "border": "1px solid #f0dce2",
                 "border-radius": "14px"
 
             },
 
+            # =========================================
+            # HEADER DEFAULT CENTER
+            # =========================================
+
             ".ag-header": {
 
-                "background-color": "#f8fafc",
-                "font-weight": "700"
+                "background": "linear-gradient(120deg, #FCEFE1 0%, #FBE3E0 60%, #F8DDE6 100%)"
 
             },
 
             ".ag-header-cell-label": {
 
-                "display": "flex",
                 "justify-content": "center",
-                "align-items": "center",
-                "width": "100%",
-                "text-align": "center"
+                "font-weight": "700",
+                "color": "#7A2C46"
 
             },
 
-            ".ag-cell": {
-
-                "display": "flex",
-                "justify-content": "center",
-                "align-items": "center",
-                "text-align": "center"
-
-            },
-
-            ".ag-pinned-left-cols-container .ag-cell": {
-
-                "justify-content": "flex-start !important",
-                "text-align": "left !important",
-                "padding-left": "12px"
-
-            },
+            # =========================================
+            # HEADER FIRST COLUMN LEFT
+            # =========================================
 
             ".ag-pinned-left-header .ag-header-cell-label": {
 
@@ -362,11 +346,17 @@ def show_grid(
 
             },
 
+            ".ag-row-hover": {
+
+                "background-color": "#FFF5F7 !important"
+
+            },
+
             ".ag-pinned-bottom": {
 
-                "background-color": "#eef2ff",
+                "background-color": "#FDF1F5",
                 "font-weight": "700",
-                "border-top": "2px solid #6366f1",
+                "border-top": "2px solid #D4537E",
                 "min-height": "42px"
 
             }
@@ -374,7 +364,10 @@ def show_grid(
         }
 
     )
+
     return grid_response
+
+
 # ==========================================================
 # SAFE SELECT
 # ==========================================================
@@ -415,9 +408,9 @@ def get_selected_value(
     return None
 
 
-# =========================================================
+# ==========================================================
 # EXPORT EXCEL
-# =========================================================
+# ==========================================================
 
 def to_excel(df):
 
@@ -444,105 +437,73 @@ def to_excel(df):
 
 
 # ==========================================================
+# KPI CARD
+# ==========================================================
+
+def kpi_card(icon, label, value, color):
+
+    st.markdown(
+
+        f"""
+        <div class="bsm-kpi-card" style="border-top:4px solid {color};">
+            <div class="bsm-kpi-icon">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
+            <div class="bsm-kpi-value">{value}</div>
+            <div class="bsm-kpi-label">{label}</div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+
+# ==========================================================
+# SECTION TITLE
+# ==========================================================
+
+def section_title(text, icon=None):
+
+    icon_html = (
+
+        f'<span class="material-symbols-outlined" style="vertical-align:-6px;margin-right:6px;">{icon}</span>'
+
+        if icon else ""
+
+    )
+
+    st.markdown(
+
+        f"<div class='bsm-card-title'>{icon_html}{text}</div>",
+
+        unsafe_allow_html=True
+
+    )
+
+# ==========================================================
 # DASHBOARD
 # ==========================================================
 
 def show():
-
-    st.title("📊 Dashboard BSM")
-
-    # =====================================================
-    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
-    # =====================================================
-
-    latest_date = get_latest_data_date()
-
-    col_tgl, col_brand = st.columns(2)
-
-    with col_tgl:
-
-        tanggal = st.date_input(
-
-            "📅 Filter Tanggal",
-
-            value=(
-
-                latest_date,
-
-                latest_date
-
-            ),
-
-            key="pm_tanggal"
-
-        )
-
-    if isinstance(tanggal, tuple):
-
-        if len(tanggal) == 2:
-
-            start_date, end_date = tanggal
-
-        elif len(tanggal) == 1:
-
-            start_date = end_date = tanggal[0]
-
-        else:
-
-            start_date = end_date = latest_date
-
-    else:
-
-        start_date = end_date = tanggal
-
-    with col_brand:
-
-        brand = st.selectbox(
-
-            "📶 Filter Brand",
-
-            options=[
-
-                "Semua",
-                "IM3",
-                "3ID"
-
-            ],
-
-            index=0
-
-        )
-
-    # =====================================================
-    # LOAD DATA SESUAI RENTANG TANGGAL
-    # =====================================================
-
-    data = tampil_data_by_date(
-
-        start_date,
-
-        end_date
-
+    st.markdown(
+        """
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
     )
+
+    # =====================================================
+    # LOAD USER LEBIH AWAL
+    # =====================================================
 
     users = tampil_user()
 
-    if len(data) == 0:
-
-        st.info(
-
-            "Belum ada data."
-
-        )
-
-        return
-
-    # ======================================================
-    # USER DATAFRAME
-    # ======================================================
-
     df_user = pd.DataFrame(
+
         [dict(row) for row in users]
+
     )
 
     df_user.columns = (
@@ -611,6 +572,240 @@ def show():
 
     ] = "3ID"
 
+    # =====================================================
+    # SESSION
+    # =====================================================
+
+    role = st.session_state.outlet_role
+    user = st.session_state.outlet_user
+
+    display_name = real_name_map.get(
+        str(user).strip().upper(),
+        user
+    )
+
+    initials = "".join(
+        [w[0].upper() for w in str(display_name).split()[:2]]
+    ) or "-"
+
+    # =====================================================
+    # HEADER (gaya sama seperti Promotor)
+    # =====================================================
+
+    logo_b64 = get_base64_image("icon.png")
+
+    st.markdown(
+
+        f"""
+        <style>
+        .bsm-header {{
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }}
+        .bsm-header-inner {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }}
+        .bsm-title-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .bsm-logo-img {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+        }}
+        .bsm-title-row span.bsm-title-text {{
+            font-size: 26px;
+            font-weight: 600;
+            color: #fff;
+        }}
+        .bsm-sub {{
+            font-size: 14px;
+            color: rgba(255,255,255,0.88);
+            margin-top: 4px;
+        }}
+        .bsm-user-card {{
+            background: rgba(255,255,255,0.16);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .bsm-avatar {{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: #993556;
+            flex-shrink: 0;
+        }}
+        .bsm-user-name {{
+            font-weight: 600;
+            font-size: 15px;
+            color: #fff;
+        }}
+        .bsm-role-pill {{
+            background: rgba(255,255,255,0.25);
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 2px;
+            display: inline-block;
+        }}
+
+        /* ============ KPI CARD ============ */
+        .bsm-kpi-card {{
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
+            border: 1px solid #f3e3e8;
+        }}
+        .bsm-kpi-icon {{
+            font-size: 22px;
+            margin-bottom: 4px;
+        }}
+        .bsm-kpi-value {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #3d2230;
+        }}
+        .bsm-kpi-label {{
+            font-size: 12px;
+            color: #9a7a86;
+            margin-top: 2px;
+        }}
+
+        /* ============ SECTION / CARD TITLE ============ */
+        .bsm-card-title {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #993556;
+            margin-bottom: 10px;
+        }}
+        </style>
+
+        <div class="bsm-header">
+            <div class="bsm-header-inner">
+                <div>
+                    <div class="bsm-title-row">
+                        <img src="data:image/png;base64,{logo_b64}" class="bsm-logo-img" />
+                        <span class="bsm-title-text">Dashboard BSM</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+    # =====================================================
+    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
+    # =====================================================
+
+    latest_date = get_latest_data_date()
+
+    with st.container(border=True):
+
+        col_tgl, col_brand = st.columns(2)
+
+        with col_tgl:
+
+            tanggal = st.date_input(
+
+                ":material/calendar_month: Filter Tanggal",
+
+                value=(
+
+                    latest_date,
+
+                    latest_date
+
+                ),
+
+                key="pm_tanggal"
+
+            )
+
+        with col_brand:
+
+            brand = st.selectbox(
+
+                ":material/sim_card: Filter Brand",
+
+                options=[
+
+                    "Semua",
+                    "IM3",
+                    "3ID"
+
+                ],
+
+                index=0
+
+            )
+
+    if isinstance(tanggal, tuple):
+
+        if len(tanggal) == 2:
+
+            start_date, end_date = tanggal
+
+        elif len(tanggal) == 1:
+
+            start_date = end_date = tanggal[0]
+
+        else:
+
+            start_date = end_date = latest_date
+
+    else:
+
+        start_date = end_date = tanggal
+
+    # =====================================================
+    # LOAD DATA SESUAI RENTANG TANGGAL
+    # =====================================================
+
+    data = tampil_data_by_date(
+
+        start_date,
+
+        end_date
+
+    )
+
+    if len(data) == 0:
+
+        st.info(
+
+            "Belum ada data."
+
+        )
+
+        return
+
     # ======================================================
     # DATAFRAME
     # ======================================================
@@ -647,15 +842,8 @@ def show():
     )
 
     # ======================================================
-    # SESSION
-    # ======================================================
-
-    role = st.session_state.outlet_role
-    user = st.session_state.outlet_user
-
-    # =====================================================
     # FILTER
-    # =====================================================
+    # ======================================================
 
     df["Tanggal"] = pd.to_datetime(
 
@@ -664,6 +852,9 @@ def show():
         errors="coerce"
 
     ).dt.date
+
+    st.divider()
+
     # ======================================================
     # FILTER ROLE
     # ======================================================
@@ -819,32 +1010,36 @@ def show():
     ) if total_msisdn > 0 else 0
 
     # =====================================================
-    # UI KPI
+    # UI KPI (card berwarna, bukan st.metric polos)
     # =====================================================
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric(
-        "👤 BSM",
-        total_user
-    )
+    with col1:
 
-    col2.metric(
-        "🔥 BSM Aktif",
-        user_aktif
-    )
+        kpi_card("groups", "BSM", total_user, "#F5B400")
 
-    col3.metric(
-        "% BSM Aktif",
-        f"{persen_user_aktif}%"
-    )
+    with col2:
 
-    col4.metric(
-        "📱 MSISDN",
-        total_msisdn
-    )
+        kpi_card("bolt", "BSM Aktif", user_aktif, "#F0997B")
+
+    with col3:
+
+        kpi_card("trending_up", "% BSM Aktif", f"{persen_user_aktif}%", "#D4537E")
+
+    with col4:
+
+        kpi_card("smartphone", "MSISDN", total_msisdn, "#993556")
 
     st.divider()
+
+    # =====================================================
+    # HIERARCHY SESSION
+    # =====================================================
+
+    if "selected_hos_bsm" not in st.session_state:
+
+        st.session_state.selected_hos_bsm = None
 
     # ======================================================
     # BSM (LEAF - INPUT SENDIRI)
@@ -852,9 +1047,7 @@ def show():
 
     if role == "BSM":
 
-        st.subheader(
-            "📋 Detail Input"
-        )
+        section_title("Detail Input", icon="list_alt")
 
         detail_df = df[[
 
@@ -866,21 +1059,23 @@ def show():
 
         ]]
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Detail Input",
+            st.download_button(
 
-            data=to_excel(detail_df),
+                label=":material/download: Download Detail Input",
 
-            file_name="detail_input.xlsx",
+                data=to_excel(detail_df),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="detail_input.xlsx",
 
-            key="download_detail_bsm"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_detail_bsm"
 
-        show_grid(detail_df)
+            )
+
+            show_grid(detail_df)
 
     # ======================================================
     # HOS (REKAP BSM DI BAWAHNYA)
@@ -892,15 +1087,14 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap BSM"
-            )
+            section_title("Rekap BSM", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
+                "Reset",
+                icon=":material/refresh:",
 
                 use_container_width=True,
 
@@ -1009,40 +1203,40 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap BSM",
+            st.download_button(
 
-            data=to_excel(summary_bsm),
+                label=":material/download: Download Rekap BSM",
 
-            file_name="rekap_bsm.xlsx",
+                data=to_excel(summary_bsm),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_bsm.xlsx",
 
-            key="download_hos_bsm"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_hos_bsm"
 
-        show_grid(
+            )
 
-            summary_bsm,
+            show_grid(
 
-            selectable=False,
+                summary_bsm,
 
-            key="bsm_hos",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=False,
 
-        )
+                key="bsm_hos",
+                col_align={
+                    "Nama": "left"
+                }
+
+            )
 
     # ======================================================
     # ADMIN (REKAP HOS -> DRILL REKAP BSM)
     # ======================================================
 
     else:
-
-        selected_hos = None
 
         # ==================================================
         # REKAP HOS
@@ -1052,16 +1246,14 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap HOS"
-            )
+            section_title("Rekap HOS", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
-
+                "Reset",
+                icon=":material/refresh:",
                 use_container_width=True,
 
                 key="reset_admin_bsm"
@@ -1186,39 +1378,47 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap HOS",
+            st.download_button(
 
-            data=to_excel(summary_hos),
+                label=":material/download: Download Rekap HOS",
 
-            file_name="rekap_hos.xlsx",
+                data=to_excel(summary_hos),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_hos.xlsx",
 
-            key="download_admin_hos_bsm"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_admin_hos_bsm"
 
-        hos_grid = show_grid(
+            )
 
-            summary_hos,
+            hos_grid = show_grid(
 
-            selectable=True,
+                summary_hos,
 
-            key="hos_admin_bsm",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=True,
 
-        )
+                key="hos_admin_bsm",
+                col_align={
+                    "Nama": "left"
+                }
+
+            )
 
         selected_hos = get_selected_value(
             hos_grid,
             "HOS"
         )
 
-        st.session_state.selected_hos_bsm = selected_hos
+        if selected_hos:
+
+            if st.session_state.selected_hos_bsm != selected_hos:
+
+                st.session_state.selected_hos_bsm = selected_hos
+
+                st.rerun()
 
         st.divider()
 
@@ -1226,9 +1426,7 @@ def show():
         # REKAP BSM
         # ==================================================
 
-        st.subheader(
-            "📋 Rekap BSM"
-        )
+        section_title("Rekap BSM", icon="list_alt")
 
         rekap_bsm = []
 
@@ -1334,29 +1532,31 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap BSM",
+            st.download_button(
 
-            data=to_excel(summary_bsm),
+                label=":material/download: Download Rekap BSM",
 
-            file_name="rekap_bsm.xlsx",
+                data=to_excel(summary_bsm),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_bsm.xlsx",
 
-            key="download_admin_bsm_detail"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_admin_bsm_detail"
 
-        show_grid(
+            )
 
-            summary_bsm,
+            show_grid(
 
-            selectable=False,
+                summary_bsm,
 
-            key="bsm_admin",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=False,
 
-        )
+                key="bsm_admin",
+                col_align={
+                    "Nama": "left"
+                }
+
+            )

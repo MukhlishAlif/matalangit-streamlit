@@ -16,7 +16,7 @@ from database import (
 # CONSTANTS
 # ==========================================================
 
-PERSONNEL_ROLES = ["DSE", "CSE", "RSE", "RGE", "PROMOTOR", "GSE", "FRONTLINER", "GEMINI"]
+PERSONNEL_ROLES = ["BSM","DSE", "CSE", "RSE", "RGE", "PROMOTOR", "GSE", "FRONTLINER", "GEMINI","NP"]
 
 TARGET_PER_DAY = 5
 
@@ -31,6 +31,10 @@ PERSONNEL_GROUPS = {
     "DSE": ["DSE"],
     "PROMOTOR": ["PROMOTOR"],
     "GSE": ["GSE"],
+    "NP": ["NP"],
+    "BSM": ["BSM"],
+    "FRONTLINER": ["FRONLINER"],
+    "GEMINI": ["GEMINI"],
 }
 
 # ==========================================================
@@ -48,6 +52,7 @@ def inject_css():
 
     #MainMenu{visibility:hidden;}
     footer{visibility:hidden;}
+
 
     .mld-title{
         font-size:26px;
@@ -132,7 +137,7 @@ def inject_css():
 
         gap:15px;
 
-        padding-top:5px;
+        padding-top:15px;
 
     }
 
@@ -481,6 +486,7 @@ def inject_css():
 
     }
 
+
     /* LEADERBOARD */
 
     .lb-title{
@@ -579,6 +585,172 @@ def inject_css():
 
     section[data-testid="stSidebar"]{
         background:#FFFFFF;
+    }
+    /* ===== BRANCH PERFORMANCE - VISUAL BARU ===== */
+
+    .branch-card-header{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:14px;
+        padding:16px 18px;
+        border-radius:14px;
+        background:linear-gradient(135deg, rgba(37,99,235,.07), rgba(6,182,212,.07));
+        border:1px solid rgba(37,99,235,.12);
+        margin-bottom:16px;
+    }
+
+    .branch-card-name{
+        font-weight:800;
+        font-size:16px;
+        color:#111827;
+    }
+
+    .branch-card-sub{
+        font-size:12px;
+        color:#6B7280;
+        margin-top:2px;
+    }
+
+    .branch-stat-row{
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+    }
+
+    .branch-stat-chip{
+        background:white;
+        border-radius:12px;
+        padding:8px 16px;
+        text-align:center;
+        box-shadow:0 2px 8px rgba(0,0,0,.06);
+        min-width:78px;
+    }
+
+    .branch-stat-val{
+        font-size:16px;
+        font-weight:800;
+        color:#111827;
+    }
+
+    .branch-stat-label{
+        font-size:9.5px;
+        color:#9CA3AF;
+        text-transform:uppercase;
+        font-weight:700;
+        letter-spacing:.3px;
+        margin-top:1px;
+    }
+
+    .progress-wrap{
+        margin:6px 0 18px 0;
+    }
+
+    .progress-label{
+        display:flex;
+        justify-content:space-between;
+        font-size:11px;
+        font-weight:700;
+        color:#6B7280;
+        margin-bottom:5px;
+    }
+
+    .progress-track{
+        width:100%;
+        height:9px;
+        background:#EEF1F6;
+        border-radius:999px;
+        overflow:hidden;
+    }
+
+    .progress-fill{
+        height:100%;
+        border-radius:999px;
+        transition:width .3s ease;
+    }
+
+    .mc-table{
+        width:100%;
+        border-collapse:separate;
+        border-spacing:0;
+        font-size:12.5px;
+    }
+
+    .mc-table th{
+        text-align:left;
+        color:#9CA3AF;
+        font-size:10px;
+        text-transform:uppercase;
+        letter-spacing:.3px;
+        font-weight:800;
+        padding:9px 10px;
+        border-bottom:2px solid #F1F5F9;
+        background:#FAFBFF;
+    }
+
+    .mc-table td{
+        padding:10px 10px;
+        border-bottom:1px solid #F5F5F7;
+        color:#374151;
+    }
+
+    .mc-table tr:hover td{
+        background:#F8FAFF;
+    }
+
+    .mc-name-cell{
+        font-weight:700;
+        color:#111827;
+    }
+
+    .delta-up{
+        color:#15803D;
+        font-weight:800;
+        background:#DCFCE7;
+        padding:2px 8px;
+        border-radius:999px;
+        font-size:11.5px;
+    }
+
+    .delta-down{
+        color:#B91C1C;
+        font-weight:800;
+        background:#FEE2E2;
+        padding:2px 8px;
+        border-radius:999px;
+        font-size:11.5px;
+    }
+
+    .delta-flat{
+        color:#6B7280;
+        font-weight:700;
+        background:#F3F4F6;
+        padding:2px 8px;
+        border-radius:999px;
+        font-size:11.5px;
+    }
+
+    .delta-new{
+        color:#1D4ED8;
+        font-weight:800;
+        background:#DBEAFE;
+        padding:2px 8px;
+        border-radius:999px;
+        font-size:11.5px;
+    }
+
+    .mini-badge{
+        font-weight:700;
+        font-size:11px;
+        padding:2px 9px;
+        border-radius:999px;
+    }
+
+    .mat-icon{
+        font-variation-settings:'FILL' 1;
+        vertical-align:middle;
+        line-height:1;
     }
 
     </style>
@@ -742,6 +914,16 @@ def fmt(n):
 
         return str(n)
 
+def mat_icon(name, size=16, color=None, valign=-3):
+    """Render ikon Material Symbols sebagai pengganti emoji."""
+
+    style = f"font-size:{size}px;vertical-align:{valign}px;"
+
+    if color:
+        style += f"color:{color};"
+
+    return f'<span class="material-symbols-outlined mat-icon" style="{style}">{name}</span>'
+
 
 def achievement_badge(pct):
 
@@ -779,7 +961,9 @@ def kpi_card(icon, label, value, foot, color):
     st.markdown(
         f"""
         <div class="kpi-box">
-            <div class="kpi-icon" style="background:{color};">{icon}</div>
+            <div class="kpi-icon" style="background:{color};">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
             <div class="kpi-label">{label}</div>
             <div class="kpi-value">{value}</div>
             <div class="kpi-foot">{foot}</div>
@@ -827,6 +1011,15 @@ def get_base64_image(path):
 
 
 def show():
+
+    st.markdown(
+        """
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
+    )
+    
     inject_css()
 
     # ------------------------------------------------
@@ -992,13 +1185,13 @@ def show():
     # FILTER BAR
     # ------------------------------------------------
 
-    f1, f2, f3, f4, f5 = st.columns([2, 1.2, 1.5, 1.5, 1])
+    f1, f2, f3, f4, f5, f6 = st.columns([2, 1.2, 1.5, 1.5, 1, 1])
 
     with f1:
 
         periode = st.date_input(
 
-            "📅 Tanggal",
+            ":material/calendar_month: Filter Tanggal",
 
             value=(date.today(), date.today()),   # <-- tuple = aktifkan mode rentang, default cuma hari ini
 
@@ -1006,50 +1199,19 @@ def show():
 
         )
 
-# ==========================================
-    # TENTUKAN start_date/end_date DULU, sebelum load data.
-    # ==========================================
-
-    if isinstance(periode, tuple):
-
-        if len(periode) == 2:
-
-            start_date, end_date = periode
-
+        if isinstance(periode, tuple):
+            if len(periode) == 2:
+                start_date, end_date = periode
+            else:
+                start_date = end_date = periode[0]
         else:
-
-            start_date = end_date = periode[0]
-
-    else:
-
-        start_date = end_date = periode
+            start_date = end_date = periode
 
     # ==========================================
-    # BATASI MAKSIMAL RENTANG 31 HARI
-    # Kalau user pilih rentang lebih dari 31 hari, start_date
-    # otomatis dipotong (bukan error) supaya data yang di-load
-    # tidak kebesaran. end_date tetap seperti pilihan user.
-    # ==========================================
-
-    MAX_RANGE_DAYS = 31
-
-    selected_range_days = (end_date - start_date).days + 1
-
-    if selected_range_days > MAX_RANGE_DAYS:
-
-        start_date = end_date - timedelta(days=MAX_RANGE_DAYS - 1)
-
-        st.warning(
-            f"⚠️ Rentang tanggal maksimal {MAX_RANGE_DAYS} hari. "
-            f"Otomatis disesuaikan jadi {start_date.strftime('%d/%m/%Y')} "
-            f"– {end_date.strftime('%d/%m/%Y')}."
-        )
-
-    # ==========================================
-    # LOAD DATA OUTLET SESUAI TANGGAL YANG DIPILIH
-    # (bukan seluruh histori -- lihat catatan di load_all_data()).
-    # Karena start_date/end_date jadi argumen, Streamlit cache
-    # otomatis kepisah per tanggal yang dipilih.
+    # LOAD DATA OUTLET SESUAI TANGGAL YANG DIPILIH.
+    # df_user/role_map/atasan_map/brand_map/children_map SUDAH
+    # diambil di atas (tidak tergantung tanggal), jadi di sini
+    # cukup ambil df-nya saja -- tidak menimpa variabel di atas.
     # ==========================================
 
     df, _, _, _, _, _ = load_all_data(start_date, end_date)
@@ -1087,11 +1249,23 @@ def show():
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
 
         st.download_button(
-            "⬇ Export",
+            ":material/download: Export",
             data=to_excel(df),
             file_name="leaderboard_quickcount.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
+    with f6:
+
+        st.markdown("<div style='height:23px'></div>", unsafe_allow_html=True)
+
+        if st.button("Refresh", use_container_width=True, key="mld_refresh"):
+
+            # Bersihkan cache load_all_data supaya data ke-load ulang
+            # dari database, bukan dari cache lama.
+            st.cache_data.clear()
+
+            st.rerun()
 
     # ------------------------------------------------
     # APPLY FILTER
@@ -1277,7 +1451,7 @@ def show():
     kpi_defs = [
 
         (
-            "👥",
+            "group",
             "Team Total",
             fmt(total_team),
             "-",
@@ -1285,7 +1459,7 @@ def show():
         ),
 
         (
-            "🔥",
+            "bolt",
             "Team Aktif",
             fmt(active_team),
             "-",
@@ -1308,7 +1482,7 @@ def show():
         ),
 
         (
-            "📮",
+            "lock",
             "Submit Total",
             fmt(submit_total),
             f"Avg {avg_total:.1f} Submit/Person",
@@ -1330,14 +1504,16 @@ def show():
     # PERSONNEL SUMMARY (Versi Rapi & Manteb)
     # ------------------------------------------------
 
-    st.markdown("### 👥 Performance")
+    st.markdown(
+        '<h3><span class="material-symbols-outlined" style="vertical-align:-6px;">group</span> Performance</h3>',
+        unsafe_allow_html=True
+    )
 
     role_icons = {
-
-        "CSE": "👤",
-        "DSE": "👤",
-        "GSE": "👤",
-        "RGE": "👤"
+        "BSM": mat_icon("person", size=18, valign=-4),
+        "RGE": mat_icon("person", size=18, valign=-4),
+        "CSE": mat_icon("person", size=18, valign=-4),
+        "DSE": mat_icon("person", size=18, valign=-4)
 
     }
 
@@ -1368,10 +1544,10 @@ def show():
             }
 
     role_groups = {
+        "BSM": ["BSM"],
         "CSE/RSE": ["CSE", "RSE"],
-        "DSE": ["DSE"],
-        "GSE": ["GSE"],
-        "RGE": ["RGE"]
+        "RGE": ["RGE"],
+        "DSE": ["DSE"]
     }
 
     role_summary = []
@@ -1554,7 +1730,7 @@ def show():
 
             row["Role"],
 
-            "👤"
+            mat_icon("person", size=18, valign=-4)
 
         )
 
@@ -1628,7 +1804,8 @@ def show():
 
 <div class="kpi-footer">
 
-👤 {row['Input']} / {row['Total']} Personel
+{mat_icon("group", size=15, valign=-3)} {row['Input']} / {row['Total']} Personel
+
 
 </div>
 
@@ -1639,7 +1816,7 @@ def show():
     color:white;
     opacity:.95;
 ">
-📮 {row['Submit']} Submit <br>
+{mat_icon("check_circle", size=14, valign=-2)} {row['Submit']} Submit <br>
 Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
 </div>
@@ -1670,7 +1847,7 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
                 </div>
                 <div style="text-align:right;">
                     <div class="lb-val">{avg_val:.1f}</div>
-                    <div style="font-size:9px;color:#9CA3AF;">📮 {fmt(total_val)} · Avg/Person</div>
+                    <div style="font-size:9px;color:#9CA3AF;">{mat_icon("send", size=11, valign=-2)} {fmt(total_val)} · Avg/Person</div>
                 </div>
             </div>
             """,
@@ -1685,7 +1862,7 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
     def render_brand_branch_card(brand, brand_label):
 
         st.markdown(
-            f"<div class='mld-card-title'>🏆 {brand_label} Branch (by Avg Submit / Person)</div>",
+            f"<div class='mld-card-title'>{mat_icon('emoji_events', size=16, color='#F59E0B', valign=-3)} {brand_label} Branch (by Avg Submit / Person)</div>",
             unsafe_allow_html=True
         )
 
@@ -1718,7 +1895,11 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
         top3 = sorted(branch_scores, key=lambda x: x[3], reverse=True)[:3]
         bottom3 = sorted(branch_scores, key=lambda x: x[3])[:3][::-1]
 
-        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+        medals = {
+            1: mat_icon("military_tech", size=16, color="#FFD700"),
+            2: mat_icon("military_tech", size=16, color="#C0C0C0"),
+            3: mat_icon("military_tech", size=16, color="#CD7F32"),
+        }
 
         st.markdown("<div class='lb-sub'>Top 3</div>", unsafe_allow_html=True)
 
@@ -1734,9 +1915,9 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
             st.caption("Belum ada data.")
         else:
             for i, (branch_name, bsm_name, total_submit, avg_submit) in enumerate(bottom3, start=1):
-                lb_branch_row("📉", branch_name, bsm_name, avg_submit, total_submit)
+                lb_branch_row(mat_icon("trending_down", size=16, color="#EF4444"), branch_name, bsm_name, avg_submit, total_submit)
 
-    # ------------------------------------------------
+ # ------------------------------------------------
     # ACHIEVEMENT HOS + IM3 + 3ID BRANCH
     # (berbasis JUMLAH SUBMIT, bukan Biometrik)
     # ------------------------------------------------
@@ -1748,7 +1929,7 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
         with st.container(border=True):
 
             st.markdown(
-                "<div class='mld-card-title'>🏅 Achievement HOS (by Avg Submit / Person)</div>",
+                f"<div class='mld-card-title'>{mat_icon('military_tech', size=18, color='#FFD700', valign=-4)} Achievement HOS (by Avg Submit / Person)</div>",
                 unsafe_allow_html=True
             )
 
@@ -1786,8 +1967,13 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
             if hos_scores:
 
-                medal_icon = {1: "🥇", 2: "🥈", 3: "🥉", 4: "🎖️"}
-                crown = {1: "👑"}
+                medal_icon = {
+                    1: mat_icon("military_tech", size=20, color="#FFD700", valign=-4),
+                    2: mat_icon("military_tech", size=20, color="#C0C0C0", valign=-4),
+                    3: mat_icon("military_tech", size=20, color="#CD7F32", valign=-4),
+                    4: mat_icon("workspace_premium", size=20, color="#94A3B8", valign=-4),
+                }
+                crown = {1: mat_icon("workspace_premium", size=45, color="#FFD700", valign=-8)}
 
                 podium_cards = []
 
@@ -1801,7 +1987,7 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
                         f'<div style="font-size:10px;opacity:.82;margin-top:-2px;margin-bottom:6px;">{real_name}</div>'
                         f'<div class="podium-val">{avg_submit:.1f}</div>'
                         f'<div class="podium-caption">Avg Submit / Person</div>'
-                        f'<div class="podium-submit-pill">📮 {fmt(total_submit)} Submit</div>'
+                        f'<div class="podium-submit-pill">{mat_icon("check_circle", size=12, valign=-2)}  {fmt(total_submit)} Submit</div>'
                         f'</div>'
                     )
 
@@ -1846,9 +2032,9 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
     lb_defs = [
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
-        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
-        ("GSE", PERSONNEL_GROUPS["GSE"]),
+        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
+        ("NP", PERSONNEL_GROUPS["NP"]),
     ]
     for col, (title, roles) in zip(lb_cols, lb_defs):
         with col:
@@ -1925,7 +2111,10 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
     with st.container(border=True):
 
-        st.markdown("<div class='mld-card-title'>📋 Branch Performance</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='mld-card-title'>{mat_icon('assignment', size=18, valign=-4)} Branch Performance</div>",
+            unsafe_allow_html=True
+        )
 
         t1, t2 = st.columns([1, 3])
 
@@ -1939,7 +2128,15 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
 
         with t2:
 
-            search = st.text_input("🔎 Search Branch / MC", key="qc_search")
+            st.markdown(
+                f"<div style='font-size:13px;margin-bottom:2px;'>{mat_icon('search', size=14, valign=-2)} Search Branch / MC</div>",
+                unsafe_allow_html=True
+            )
+            search = st.text_input(
+                "Search Branch / MC",
+                key="qc_search",
+                label_visibility="collapsed"
+            )
 
         roles_for_table = PERSONNEL_GROUPS[table_group]
 
@@ -2121,13 +2318,13 @@ Avg Submit : <b>{row['Avg Submit']:.1f}</b> / Personel
                             mc_all["HOS"] == selected_hos
                         ]
 
-                    if selected_group != "Semua Personnel":
-
-                        mc_all = mc_all[
-                            mc_all["Role"].isin(
-                                PERSONNEL_GROUPS[selected_group]
-                            )
-                        ]
+                    # gunakan role filter yang SAMA dengan tabel ini
+                    # (roles_for_table = PERSONNEL_GROUPS[table_group])
+                    # bukan filter personnel global (selected_group),
+                    # supaya D-1/D-2/D-3 konsisten dengan kolom Submit di baris ini
+                    mc_all = mc_all[
+                        mc_all["Role"].isin(roles_for_table)
+                    ]
 
                     mc_all["Tanggal"] = pd.to_datetime(
                         mc_all["Tanggal"]

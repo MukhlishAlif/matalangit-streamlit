@@ -7,6 +7,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+import base64
 
 from st_aggrid import (
     AgGrid,
@@ -17,10 +18,55 @@ from st_aggrid import (
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user,
-    load_biometrik
+    tampil_user
 )
 
+# =========================================================
+# HELPER TAMPILAN (disamakan dengan dashboard_dse.py)
+# =========================================================
+
+def get_base64_image(path):
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return ""
+
+def kpi_card(icon, label, value, color):
+
+    st.markdown(
+
+        f"""
+        <div class="dse-kpi-card" style="border-top:4px solid {color};">
+            <div class="dse-kpi-icon">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
+            <div class="dse-kpi-value">{value}</div>
+            <div class="dse-kpi-label">{label}</div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+def section_title(text, icon=None):
+
+    icon_html = (
+
+        f'<span class="material-symbols-outlined" style="vertical-align:-6px;margin-right:6px;">{icon}</span>'
+
+        if icon else ""
+
+    )
+
+    st.markdown(
+
+        f"<div class='dse-card-title'>{icon_html}{text}</div>",
+
+        unsafe_allow_html=True
+
+    )
 
 # =========================================================
 # GET SELECTED VALUE
@@ -377,40 +423,34 @@ def show_grid(
 
             ".ag-root-wrapper": {
 
-                "border": "1px solid #e5e7eb",
+                "border": "1px solid #f0dce2",
                 "border-radius": "14px"
 
             },
 
+            # =========================================
+            # HEADER DEFAULT CENTER
+            # =========================================
+
             ".ag-header": {
 
-                "background-color": "#f8fafc",
-                "font-weight": "700"
+                "background": "linear-gradient(120deg, #FCEFE1 0%, #FBE3E0 60%, #F8DDE6 100%)"
 
             },
 
-            # Header semua kolom center
             ".ag-header-cell-label": {
 
-                "display": "flex",
                 "justify-content": "center",
-                "align-items": "center",
-                "width": "100%",
-                "text-align": "center"
+                "font-weight": "700",
+                "color": "#7A2C46"
 
             },
 
-            # Khusus kolom pertama rata kiri
-            ".ag-cell:first-child": {
+            # =========================================
+            # HEADER FIRST COLUMN LEFT
+            # =========================================
 
-                "justify-content": "flex-start !important",
-                "text-align": "left !important",
-                "padding-left": "12px"
-
-            },
-
-            # Khusus header kolom pertama rata kiri
-            ".ag-header-cell:first-child .ag-header-cell-label": {
+            ".ag-pinned-left-header .ag-header-cell-label": {
 
                 "justify-content": "flex-start !important",
                 "padding-left": "12px"
@@ -423,11 +463,17 @@ def show_grid(
 
             },
 
+            ".ag-row-hover": {
+
+                "background-color": "#FFF5F7 !important"
+
+            },
+
             ".ag-pinned-bottom": {
 
-                "background-color": "#eef2ff",
+                "background-color": "#FDF1F5",
                 "font-weight": "700",
-                "border-top": "2px solid #6366f1",
+                "border-top": "2px solid #D4537E",
                 "min-height": "42px"
 
             }
@@ -442,82 +488,22 @@ def show_grid(
 
 def show():
 
-    st.title("📊 Dashboard Frontliner")
+    st.markdown(
+        """
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
+    )
 
     # =====================================================
-    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
+    # LOAD DATA AWAL (JANGAN DIUBAH) — dipakai untuk header
+    # dan sebagai nilai default filter tanggal
     # =====================================================
 
     latest_date = get_latest_data_date()
 
-    col_tgl, col_brand = st.columns(2)
-
-    with col_tgl:
-
-        tanggal = st.date_input(
-
-            "📅 Filter Tanggal",
-
-            value=(
-
-                latest_date,
-
-                latest_date
-
-            ),
-
-            key="pm_tanggal"
-
-        )
-
-    if isinstance(tanggal, tuple):
-
-        if len(tanggal) == 2:
-
-            start_date, end_date = tanggal
-
-        elif len(tanggal) == 1:
-
-            start_date = end_date = tanggal[0]
-
-        else:
-
-            start_date = end_date = latest_date
-
-    else:
-
-        start_date = end_date = tanggal
-
-    with col_brand:
-
-        brand = st.selectbox(
-
-            "📶 Filter Brand",
-
-            options=[
-
-                "Semua",
-                "IM3",
-                "3ID"
-
-            ],
-
-            index=0
-
-        )
-
-    # =====================================================
-    # LOAD DATA SESUAI RENTANG TANGGAL
-    # =====================================================
-
-    data = tampil_data_by_date(
-
-        start_date,
-
-        end_date
-
-    )
-
+    data = tampil_data_by_date(latest_date, latest_date)
     users = tampil_user()
 
     if len(data) == 0:
@@ -652,6 +638,237 @@ def show():
     role = st.session_state.outlet_role
     user = st.session_state.outlet_user
 
+    # =====================================================
+    # ⭐ HEADER (tampil paling atas, sebelum filter)
+    # =====================================================
+
+    logo_b64 = get_base64_image("icon.png")
+
+    display_name = real_name_map.get(
+        str(user).strip().upper(),
+        user
+    )
+
+    initials = "".join(
+        [w[0].upper() for w in str(display_name).split()[:2]]
+    ) or "-"
+
+    st.markdown(
+        f"""
+        <style>
+        .dse-header {{
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+        }}
+        .dse-header-inner {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }}
+        .dse-title-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .dse-logo-img {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+        }}
+        .dse-title-row span.dse-title-text {{
+            font-size: 26px;
+            font-weight: 600;
+            color: #fff;
+        }}
+        .dse-user-card {{
+            background: rgba(255,255,255,0.16);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .dse-avatar {{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: #993556;
+        }}
+        .dse-user-name {{
+            font-weight: 600;
+            font-size: 15px;
+            color: #fff;
+        }}
+        .dse-role-pill {{
+            background: rgba(255,255,255,0.25);
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 2px;
+            display: inline-block;
+        }}
+        .dse-kpi-card {{
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
+            border: 1px solid #f3e3e8;
+        }}
+        .dse-kpi-icon {{
+            font-size: 22px;
+            margin-bottom: 4px;
+        }}
+        .dse-kpi-value {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #3d2230;
+        }}
+        .dse-kpi-label {{
+            font-size: 12px;
+            color: #9a7a86;
+            margin-top: 2px;
+        }}
+        .dse-card-title {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #993556;
+            margin-bottom: 10px;
+        }}
+        </style>
+
+        <div class="dse-header">
+            <div class="dse-header-inner">
+                <div>
+                    <div class="dse-title-row">
+                        <img src="data:image/png;base64,{logo_b64}" class="dse-logo-img" />
+                        <span class="dse-title-text">Dashboard Frontliner</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # =====================================================
+    # FILTER (tampil setelah header)
+    # =====================================================
+
+    with st.container(border=True):
+
+        col_tgl, col_brand = st.columns(2)
+
+        with col_tgl:
+
+            tanggal = st.date_input(
+
+                ":material/calendar_month: Filter Tanggal",
+
+                value=(
+
+                    latest_date,
+
+                    latest_date
+
+                ),
+
+                key="pm_tanggal"
+
+            )
+
+        if isinstance(tanggal, tuple):
+
+            if len(tanggal) == 2:
+
+                start_date, end_date = tanggal
+
+            elif len(tanggal) == 1:
+
+                start_date = end_date = tanggal[0]
+
+            else:
+
+                start_date = end_date = latest_date
+
+        else:
+
+            start_date = end_date = tanggal
+
+        with col_brand:
+
+            brand = st.selectbox(
+
+                ":material/sim_card: Filter Brand",
+
+                options=[
+
+                    "Semua",
+                    "IM3",
+                    "3ID"
+
+                ],
+
+                index=0
+
+            )
+
+    # =====================================================
+    # RELOAD DATA SESUAI RENTANG TANGGAL HASIL FILTER
+    # =====================================================
+
+    data = tampil_data_by_date(
+
+        start_date,
+
+        end_date
+
+    )
+
+    if len(data) == 0:
+
+        st.info(
+
+            "Belum ada data."
+
+        )
+
+        return
+
+    df = pd.DataFrame(
+        data,
+        columns=[
+            "ID",
+            "Nama Outlet",
+            "ID Outlet",
+            "MSISDN",
+            "Input By",
+            "Tanggal",
+            "flag_bio",
+            "ga_dt"
+        ]
+    )
+
+    df["Biometrik"] = (
+
+        df["flag_bio"]
+        .fillna(False)
+        .astype(bool)
+
+    )
 
     # =====================================================
     # FILTER ROLE
@@ -795,35 +1012,25 @@ def show():
     )
 
     # =========================
-    # KPI UI (6 COL DSE STYLE)
+    # KPI UI (disamakan dengan dashboard_dse.py)
     # =========================
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
-    col1.metric(
-        "🏪 Outlet",
-        jumlah_outlet
-    )
+    with col1:
+        kpi_card("store", "Outlet", jumlah_outlet, "#F5B400")
 
-    col2.metric(
-        "👤 Frontliner",
-        total_fl
-    )
+    with col2:
+        kpi_card("groups", "Frontliner", total_fl, "#F0997B")
 
-    col3.metric(
-        "🔥 FL Aktif",
-        fl_aktif
-    )
+    with col3:
+        kpi_card("bolt", "FL Aktif", fl_aktif, "#D4537E")
 
-    col4.metric(
-        "📱 MSISDN",
-        jumlah_msisdn
-    )
+    with col5:
+        kpi_card("smartphone", "MSISDN", jumlah_msisdn, "#7A2C46")
 
-    col5.metric(
-        "📊 % FL Aktif",
-        f"{persen_fl_aktif}%"
-    )
+    with col4:
+        kpi_card("trending_up", "% FL Aktif", f"{persen_fl_aktif}%", "#993556")
 
     st.divider()
 
@@ -852,32 +1059,31 @@ def show():
     # HEADER + RESET
     # =====================================================
 
-    if role == "ADMIN":
-
-        title_rekap = "📋 Rekap HOS"
-
-    elif role == "HOS":
-
-        title_rekap = "📋 Rekap BSM"
-
-    elif role == "BSM":
-
-        title_rekap = "📋 Rekap CSE/RSE"
-
-    else:
-
-        title_rekap = "📋 Rekap Frontliner"
-
     header_col, reset_col = st.columns([5, 1])
 
     with header_col:
 
-        st.subheader(title_rekap)
+        if role == "ADMIN":
+
+            section_title("Rekap HOS", icon="list_alt")
+
+        elif role == "HOS":
+
+            section_title("Rekap BSM", icon="list_alt")
+
+        elif role == "BSM":
+
+            section_title("Rekap CSE/RSE", icon="list_alt")
+
+        else:
+
+            section_title("Rekap Frontliner", icon="list_alt")
 
     with reset_col:
 
         if st.button(
-            "🔄 Reset",
+            "Reset",
+            icon=":material/refresh:",
             use_container_width=True,
             key="reset_fl"
         ):
@@ -986,86 +1192,44 @@ def show():
         # =====================================================
 
         if brand != "Semua":
-
             summary_hos = summary_hos[
-
                 summary_hos["HOS"]
                 .astype(str)
-                .str.contains(
-                    brand,
-                    case=False,
-                    na=False
-                )
-
+                .str.contains(brand, case=False, na=False)
             ]
 
+        with st.container(border=True):                    # ← BARU, level 8
 
-        hos_grid = show_grid(
+            buffer = BytesIO()                              # ← level 12 (masuk 1 tab ke dalam container)
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                summary_hos.to_excel(writer, index=False)
 
-            summary_hos,
-
-            selectable=True,
-
-            key=f"hos_{tanggal}_{role}_{user}",
-            col_align={
-                "Nama": "left"
-            },
-
-            total_outlet=(
-
-                df["ID Outlet"]
-
-                .dropna()
-
-                .astype(str)
-
-                .str.strip()
-
-                .nunique()
-
+            st.download_button(                             # ← level 12
+                label=":material/download: Download HOS",
+                data=buffer.getvalue(),
+                file_name="rekap_hos.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_hos"
             )
 
-        )
-
-        selected_hos = get_selected_value(
-            hos_grid,
-            "HOS"
-        )
-
-        if selected_hos:
-
-            st.session_state.selected_hos_fl = (
-                selected_hos
+            hos_grid = show_grid(                           # ← level 12
+                summary_hos,
+                selectable=True,
+                key=f"hos_{tanggal}_{role}_{user}",
+                col_align={"Nama": "left"},
+                total_outlet=(
+                    df["ID Outlet"].dropna().astype(str).str.strip().nunique()
+                )
             )
 
+        selected_hos = get_selected_value(hos_grid, "HOS")   # ← BALIK ke level 8 (di luar container)
+
+        if selected_hos:                                    # ← level 8
+            st.session_state.selected_hos_fl = selected_hos
             st.session_state.selected_bsm_fl = None
             st.session_state.selected_cse_fl = None
 
-        buffer = BytesIO()
-
-        with pd.ExcelWriter(
-            buffer,
-            engine="openpyxl"
-        ) as writer:
-
-            summary_hos.to_excel(
-                writer,
-                index=False
-            )
-
-        st.download_button(
-
-            "📥 Download HOS",
-
-            buffer.getvalue(),
-
-            file_name="rekap_hos.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-        )
-
-        st.divider()
+        st.divider()                                        # ← level 8
 
     # =====================================================
     # REKAP BSM
@@ -1075,7 +1239,7 @@ def show():
 
         if role == "ADMIN":
 
-            st.markdown("### 📋 Rekap BSM")
+            section_title("Rekap BSM", icon="list_alt")
 
         rekap_bsm = []
 
@@ -1215,32 +1379,60 @@ def show():
 
             ]
 
-        bsm_grid = show_grid(
+        with st.container(border=True):
 
-            summary_bsm,
+            buffer = BytesIO()
 
-            selectable=True,
+            with pd.ExcelWriter(
+                buffer,
+                engine="openpyxl"
+            ) as writer:
 
-            key=f"bsm_{tanggal}_{role}_{user}",
-            col_align={
-                "Nama": "left"
-            },
+                summary_bsm.to_excel(
+                    writer,
+                    index=False
+                )
 
-            total_outlet=(
+            st.download_button(
 
-                df["ID Outlet"]
+                label=":material/download: Download BSM",
 
-                .dropna()
+                data=buffer.getvalue(),
 
-                .astype(str)
+                file_name="rekap_bsm.xlsx",
 
-                .str.strip()
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                .nunique()
+                key="download_bsm"
 
             )
 
-        )
+            bsm_grid = show_grid(
+
+                summary_bsm,
+
+                selectable=True,
+
+                key=f"bsm_{tanggal}_{role}_{user}",
+                col_align={
+                    "Nama": "left"
+                },
+
+                total_outlet=(
+
+                    df["ID Outlet"]
+
+                    .dropna()
+
+                    .astype(str)
+
+                    .str.strip()
+
+                    .nunique()
+
+                )
+
+            )
 
         selected_bsm = get_selected_value(
             bsm_grid,
@@ -1255,30 +1447,6 @@ def show():
 
             st.session_state.selected_cse_fl = None
 
-        buffer = BytesIO()
-
-        with pd.ExcelWriter(
-            buffer,
-            engine="openpyxl"
-        ) as writer:
-
-            summary_bsm.to_excel(
-                writer,
-                index=False
-            )
-
-        st.download_button(
-
-            "📥 Download BSM",
-
-            buffer.getvalue(),
-
-            file_name="rekap_bsm.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-        )
-
         st.divider()
 
     # =====================================================
@@ -1289,7 +1457,7 @@ def show():
 
         if role in ["ADMIN", "HOS"]:
 
-            st.subheader("📋 Rekap CSE/RSE")
+            section_title("Rekap CSE/RSE", icon="list_alt")
 
         rekap_cse = []
 
@@ -1452,32 +1620,61 @@ def show():
                 )
 
             ]
-        cse_grid = show_grid(
 
-            summary_cse,
+        with st.container(border=True):
 
-            selectable=True,
+            buffer = BytesIO()
 
-            key=f"cse_{tanggal}_{role}_{user}",
-            col_align={
-                "Nama": "left"
-            },
+            with pd.ExcelWriter(
+                buffer,
+                engine="openpyxl"
+            ) as writer:
 
-            total_outlet=(
+                summary_cse.to_excel(
+                    writer,
+                    index=False
+                )
 
-                df["ID Outlet"]
+            st.download_button(
 
-                .dropna()
+                label=":material/download: Download CSE/RSE",
 
-                .astype(str)
+                data=buffer.getvalue(),
 
-                .str.strip()
+                file_name="rekap_cse.xlsx",
 
-                .nunique()
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+                key="download_cse"
 
             )
 
-        )
+            cse_grid = show_grid(
+
+                summary_cse,
+
+                selectable=True,
+
+                key=f"cse_{tanggal}_{role}_{user}",
+                col_align={
+                    "Nama": "left"
+                },
+
+                total_outlet=(
+
+                    df["ID Outlet"]
+
+                    .dropna()
+
+                    .astype(str)
+
+                    .str.strip()
+
+                    .nunique()
+
+                )
+
+            )
 
         selected_cse = get_selected_value(
             cse_grid,
@@ -1490,37 +1687,13 @@ def show():
                 selected_cse
             )
 
-        buffer = BytesIO()
-
-        with pd.ExcelWriter(
-            buffer,
-            engine="openpyxl"
-        ) as writer:
-
-            summary_cse.to_excel(
-                writer,
-                index=False
-            )
-
-        st.download_button(
-
-            "📥 Download CSE/RSE",
-
-            buffer.getvalue(),
-
-            file_name="rekap_cse.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-        )
-
         st.divider()
 
     # =====================================================
     # REKAP FRONTLINER
     # =====================================================
     if role not in ["CSE", "RSE"]:
-       st.subheader("📋 Rekap Frontliner")
+       section_title("Rekap Frontliner", icon="list_alt")
 
     rekap_fl = []
 
@@ -1705,10 +1878,6 @@ def show():
         rekap_fl
     )
 
-    # =====================================================
-    # FILTER BRAND
-    # =====================================================
-
     if brand != "Semua":
 
         summary_fl = summary_fl[
@@ -1723,52 +1892,57 @@ def show():
 
         ]
 
-    show_grid(
+    with st.container(border=True):
 
-        summary_fl,
+        buffer = BytesIO()
 
-        selectable=False,
+        with pd.ExcelWriter(
+            buffer,
+            engine="openpyxl"
+        ) as writer:
 
-        key="frontliner",
-        col_align={
-            "Nama": "left"
-        },
+            summary_fl.to_excel(
+                writer,
+                index=False
+            )
 
-        total_outlet=(
+        st.download_button(
 
-            df["ID Outlet"]
+            label=":material/download: Download Frontliner",
 
-            .dropna()
+            data=buffer.getvalue(),
 
-            .astype(str)
+            file_name="rekap_frontliner.xlsx",
 
-            .str.strip()
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-            .nunique()
+            key="download_frontliner"
 
         )
 
-    )
-    buffer = BytesIO()
+        show_grid(
 
-    with pd.ExcelWriter(
-        buffer,
-        engine="openpyxl"
-    ) as writer:
+            summary_fl,
 
-        summary_fl.to_excel(
-            writer,
-            index=False
+            selectable=False,
+
+            key="frontliner",
+            col_align={
+                "Nama": "left"
+            },
+
+            total_outlet=(
+
+                df["ID Outlet"]
+
+                .dropna()
+
+                .astype(str)
+
+                .str.strip()
+
+                .nunique()
+
+            )
+
         )
-
-    st.download_button(
-
-        "📥 Download Frontliner",
-
-        buffer.getvalue(),
-
-        file_name="rekap_frontliner.xlsx",
-
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-    )

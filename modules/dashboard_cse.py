@@ -4,10 +4,12 @@
 
 import streamlit as st
 import pandas as pd
+import base64
 
 from st_aggrid import (
     AgGrid,
-    GridOptionsBuilder
+    GridOptionsBuilder,
+    GridUpdateMode
 )
 
 from io import BytesIO
@@ -15,20 +17,30 @@ from io import BytesIO
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user,
-    load_biometrik
+    tampil_user
 )
+
+
+# ==========================================================
+# BASE64 IMAGE HELPER
+# ==========================================================
+
+def get_base64_image(path):
+
+    try:
+
+        with open(path, "rb") as f:
+
+            return base64.b64encode(f.read()).decode()
+
+    except Exception:
+
+        return ""
 
 
 # ==========================================================
 # GRID TABLE
 # ==========================================================
-
-from st_aggrid import (
-    AgGrid,
-    GridOptionsBuilder,
-    GridUpdateMode
-)
 
 def show_grid(
     df,
@@ -58,6 +70,13 @@ def show_grid(
 
         }
 
+        /* HEADER CENTER */
+        .header-center .ag-header-cell-label {
+
+            justify-content: center !important;
+
+        }
+
         </style>
         """,
         unsafe_allow_html=True
@@ -65,9 +84,25 @@ def show_grid(
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # =====================================================
+    # =========================
+    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
+    # =========================
+
+    def get_justify(align_value):
+
+        mapping = {
+
+            "left": "flex-start",
+            "center": "center",
+            "right": "flex-end"
+
+        }
+
+        return mapping.get(align_value, "center")
+
+    # =========================
     # DEFAULT COLUMN
-    # =====================================================
+    # =========================
 
     gb.configure_default_column(
 
@@ -75,13 +110,83 @@ def show_grid(
         sortable=True,
         filter=False,
         suppressMenu=True,
+        floatingFilter=False,
+
+        flex=1,
+        minWidth=180,
+
+        cellStyle={
+            "textAlign": "center",
+            "display": "flex",
+            "justifyContent": "center",
+            "alignItems": "center"
+        }
+
+    )
+
+    # =========================
+    # FIRST COLUMN
+    # =========================
+
+    first_col = df.columns[0]
+
+    first_col_align = col_align.get(first_col, "left")
+
+    gb.configure_column(
+
+        first_col,
+        pinned="left",
+
+        flex=2,
+        minWidth=270,
+
+        cellStyle={
+            "textAlign": first_col_align,
+            "display": "flex",
+            "justifyContent": get_justify(first_col_align),
+            "alignItems": "center",
+            "paddingLeft": "12px" if first_col_align == "left" else "0px"
+        },
+
+        filter=False,
+        suppressMenu=True,
         floatingFilter=False
 
     )
 
-    # =====================================================
-    # SELECTABLE
-    # =====================================================
+    # =========================
+    # OVERRIDE ALIGNMENT KOLOM LAIN SESUAI col_align
+    # =========================
+
+    for field, align_value in col_align.items():
+
+        if field == first_col:
+
+            continue
+
+        padding_style = {}
+
+        if align_value == "left":
+
+            padding_style = {"paddingLeft": "12px"}
+
+        elif align_value == "right":
+
+            padding_style = {"paddingRight": "12px"}
+
+        gb.configure_column(
+
+            field,
+
+            cellStyle={
+                "textAlign": align_value,
+                "display": "flex",
+                "justifyContent": get_justify(align_value),
+                "alignItems": "center",
+                **padding_style
+            }
+
+        )
 
     if selectable:
 
@@ -92,17 +197,15 @@ def show_grid(
 
         )
 
-    # =====================================================
+    # =========================
     # GRID OPTIONS
-    # =====================================================
+    # =========================
 
     gb.configure_grid_options(
 
         headerHeight=45,
         rowHeight=42,
-        domLayout="normal",
-
-        suppressMovableColumns=True
+        domLayout="normal"
 
     )
 
@@ -126,10 +229,11 @@ def show_grid(
 
                 "HOS",
                 "BSM",
-                "Branch",
                 "CSE/RSE",
-                "AE",
-                "Atasan"
+                "Branch",
+                "Atasan",
+                "Nama",
+                "Status"
 
             ]:
 
@@ -148,113 +252,7 @@ def show_grid(
     grid_options = gb.build()
 
     # =====================================================
-    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
-    # =====================================================
-
-    def get_justify(align_value):
-
-        mapping = {
-
-            "left": "flex-start",
-            "center": "center",
-            "right": "flex-end"
-
-        }
-
-        return mapping.get(align_value, "center")
-
-    def get_text_align(align_value):
-
-        return align_value if align_value in ["left", "center", "right"] else "center"
-
-    # =====================================================
-    # FIX WIDTH + FREEZE FIRST COLUMN + ALIGNMENT
-    # =====================================================
-
-    first_col = df.columns[0]
-
-    for col in grid_options["columnDefs"]:
-
-        field = col["field"]
-
-        # Hitung panjang isi terpanjang
-        max_len = max(
-            len(str(field)),
-            df[field].fillna("").astype(str).str.len().max()
-        )
-
-        # Estimasi lebar (±9 px per karakter)
-        width = max(120, min(max_len * 9 + 30, 450))
-
-        col["width"] = int(width)
-        col["minWidth"] = int(width)
-        col["maxWidth"] = int(width)
-
-        # =================================================
-        # TENTUKAN ALIGNMENT KOLOM INI
-        # =================================================
-
-        if field in col_align:
-
-            align_value = col_align[field]
-
-        elif field == first_col:
-
-            align_value = "left"
-
-        else:
-
-            align_value = "center"
-
-        justify_value = get_justify(align_value)
-        text_align_value = get_text_align(align_value)
-
-        padding_style = {}
-
-        if align_value == "left":
-
-            padding_style = {"paddingLeft": "12px"}
-
-        elif align_value == "right":
-
-            padding_style = {"paddingRight": "12px"}
-
-        # Freeze kolom pertama
-        if field == first_col:
-
-            col["pinned"] = "left"
-            col["lockPinned"] = True
-            col["lockPosition"] = True
-            col["suppressMovable"] = True
-
-            col["width"] = max(260, int(width))
-            col["minWidth"] = max(260, int(width))
-            col["maxWidth"] = max(260, int(width))
-
-            col["cellStyle"] = {
-
-                "textAlign": text_align_value,
-                "display": "flex",
-                "justifyContent": justify_value,
-                "alignItems": "center",
-                "fontWeight": "600",
-                **padding_style
-
-            }
-
-        else:
-
-            col["cellStyle"] = {
-
-                "textAlign": text_align_value,
-                "display": "flex",
-                "justifyContent": justify_value,
-                "alignItems": "center",
-                **padding_style
-
-            }
-    # =====================================================
-    # HILANGKAN CORONG SEMUA KOLOM
+    # HILANGKAN CORONG
     # =====================================================
 
     for col in grid_options["columnDefs"]:
@@ -264,16 +262,12 @@ def show_grid(
         col["suppressMenu"] = True
 
     # =====================================================
-    # FOOTER
+    # PINNED BOTTOM
     # =====================================================
 
     grid_options["pinnedBottomRowData"] = [
         total_row
     ]
-
-    # ======================================================
-    # HEIGHT
-    # ======================================================
 
     header_height = 45
     row_height = 42
@@ -290,10 +284,6 @@ def show_grid(
 
     )
 
-    # ======================================================
-    # GRID
-    # ======================================================
-
     grid_response = AgGrid(
 
         df,
@@ -304,11 +294,11 @@ def show_grid(
 
         fit_columns_on_grid_load=False,
 
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+
         height=table_height,
 
         theme="balham",
-
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
 
         allow_unsafe_jscode=True,
 
@@ -316,39 +306,33 @@ def show_grid(
 
             ".ag-root-wrapper": {
 
-                "border": "1px solid #e5e7eb",
+                "border": "1px solid #f0dce2",
                 "border-radius": "14px"
 
             },
 
+            # =========================================
+            # HEADER DEFAULT CENTER
+            # =========================================
+
             ".ag-header": {
 
-                "background-color": "#f8fafc",
-                "font-weight": "700"
+                "background": "linear-gradient(120deg, #FCEFE1 0%, #FBE3E0 60%, #F8DDE6 100%)"
 
             },
 
-            # Header semua kolom center
             ".ag-header-cell-label": {
 
-                "display": "flex",
                 "justify-content": "center",
-                "align-items": "center",
-                "width": "100%",
-                "text-align": "center"
+                "font-weight": "700",
+                "color": "#7A2C46"
 
             },
 
-            # Khusus kolom pertama rata kiri
-            ".ag-pinned-left-cols-container .ag-cell": {
+            # =========================================
+            # HEADER FIRST COLUMN LEFT
+            # =========================================
 
-                "justify-content": "flex-start !important",
-                "text-align": "left !important",
-                "padding-left": "12px"
-
-            },
-
-            # Khusus header kolom pertama rata kiri
             ".ag-pinned-left-header .ag-header-cell-label": {
 
                 "justify-content": "flex-start !important",
@@ -362,11 +346,17 @@ def show_grid(
 
             },
 
+            ".ag-row-hover": {
+
+                "background-color": "#FFF5F7 !important"
+
+            },
+
             ".ag-pinned-bottom": {
 
-                "background-color": "#eef2ff",
+                "background-color": "#FDF1F5",
                 "font-weight": "700",
-                "border-top": "2px solid #6366f1",
+                "border-top": "2px solid #D4537E",
                 "min-height": "42px"
 
             }
@@ -374,7 +364,9 @@ def show_grid(
         }
 
     )
+
     return grid_response
+
 
 # ==========================================================
 # SAFE SELECT
@@ -395,10 +387,6 @@ def get_selected_value(
     if selected is None:
         return None
 
-    # ======================================================
-    # DATAFRAME
-    # ======================================================
-
     if isinstance(
         selected,
         pd.DataFrame
@@ -407,10 +395,6 @@ def get_selected_value(
         if not selected.empty:
 
             return selected.iloc[0][column_name]
-
-    # ======================================================
-    # LIST
-    # ======================================================
 
     elif isinstance(
         selected,
@@ -423,9 +407,10 @@ def get_selected_value(
 
     return None
 
-# =========================================================
+
+# ==========================================================
 # EXPORT EXCEL
-# =========================================================
+# ==========================================================
 
 def to_excel(df):
 
@@ -449,103 +434,71 @@ def to_excel(df):
         )
 
     return output.getvalue()
+
+
+# ==========================================================
+# KPI CARD
+# ==========================================================
+
+def kpi_card(icon, label, value, color):
+
+    st.markdown(
+
+        f"""
+        <div class="cse-kpi-card" style="border-top:4px solid {color};">
+            <div class="cse-kpi-icon">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
+            <div class="cse-kpi-value">{value}</div>
+            <div class="cse-kpi-label">{label}</div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+# ==========================================================
+# SECTION TITLE
+# ==========================================================
+
+def section_title(text, icon=None):
+
+    icon_html = (
+
+        f'<span class="material-symbols-outlined" style="vertical-align:-6px;margin-right:6px;">{icon}</span>'
+
+        if icon else ""
+
+    )
+
+    st.markdown(
+
+        f"<div class='cse-card-title'>{icon_html}{text}</div>",
+
+        unsafe_allow_html=True
+
+    )
+
 # ==========================================================
 # DASHBOARD
 # ==========================================================
 
 def show():
 
-    st.title("📊 Dashboard CSE/RSE")
-
-    # =====================================================
-    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
-    # =====================================================
-
-    latest_date = get_latest_data_date()
-
-    col_tgl, col_brand = st.columns(2)
-
-    with col_tgl:
-
-        tanggal = st.date_input(
-
-            "📅 Filter Tanggal",
-
-            value=(
-
-                latest_date,
-
-                latest_date
-
-            ),
-
-            key="pm_tanggal"
-
-        )
-
-    if isinstance(tanggal, tuple):
-
-        if len(tanggal) == 2:
-
-            start_date, end_date = tanggal
-
-        elif len(tanggal) == 1:
-
-            start_date = end_date = tanggal[0]
-
-        else:
-
-            start_date = end_date = latest_date
-
-    else:
-
-        start_date = end_date = tanggal
-
-    with col_brand:
-
-        brand = st.selectbox(
-
-            "📶 Filter Brand",
-
-            options=[
-
-                "Semua",
-                "IM3",
-                "3ID"
-
-            ],
-
-            index=0
-
-        )
-
-    # =====================================================
-    # LOAD DATA SESUAI RENTANG TANGGAL
-    # =====================================================
-
-    data = tampil_data_by_date(
-
-        start_date,
-
-        end_date
-
+    st.markdown(
+        """
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
     )
 
+    # =====================================================
+    # LOAD USER LEBIH AWAL
+    # =====================================================
+
     users = tampil_user()
-
-    if len(data) == 0:
-
-        st.info(
-
-            "Belum ada data."
-
-        )
-
-        return
-
-    # ======================================================
-    # USER DATAFRAME
-    # ======================================================
 
     df_user = pd.DataFrame(
         [dict(row) for row in users],
@@ -555,7 +508,6 @@ def show():
     df_user.columns = (
         df_user.columns.str.upper()
     )
-
 
     # ======================================================
     # USER -> REAL NAME
@@ -617,6 +569,236 @@ def show():
         "BRAND"
 
     ] = "3ID"
+
+    # =====================================================
+    # SESSION
+    # =====================================================
+
+    role = st.session_state.outlet_role
+    user = st.session_state.outlet_user
+
+    display_name = real_name_map.get(
+        str(user).strip().upper(),
+        user
+    )
+
+    initials = "".join(
+        [w[0].upper() for w in str(display_name).split()[:2]]
+    ) or "-"
+
+    # =====================================================
+    # HEADER (gaya sama seperti Promotor & BSM)
+    # =====================================================
+
+    logo_b64 = get_base64_image("icon.png")
+
+    st.markdown(
+
+        f"""
+        <style>
+        .cse-header {{
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }}
+        .cse-header-inner {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            position: relative;
+        }}
+        .cse-title-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .cse-logo-img {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+        }}
+        .cse-title-row span.cse-title-text {{
+            font-size: 26px;
+            font-weight: 600;
+            color: #fff;
+        }}
+        .cse-user-card {{
+            background: rgba(255,255,255,0.16);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .cse-avatar {{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: #993556;
+            flex-shrink: 0;
+        }}
+        .cse-user-name {{
+            font-weight: 600;
+            font-size: 15px;
+            color: #fff;
+        }}
+        .cse-role-pill {{
+            background: rgba(255,255,255,0.25);
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 2px;
+            display: inline-block;
+        }}
+
+        /* ============ KPI CARD ============ */
+        .cse-kpi-card {{
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
+            border: 1px solid #f3e3e8;
+        }}
+        .cse-kpi-icon {{
+            font-size: 22px;
+            margin-bottom: 4px;
+        }}
+        .cse-kpi-value {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #3d2230;
+        }}
+        .cse-kpi-label {{
+            font-size: 12px;
+            color: #9a7a86;
+            margin-top: 2px;
+        }}
+
+        /* ============ SECTION / CARD TITLE ============ */
+        .cse-card-title {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #993556;
+            margin-bottom: 10px;
+        }}
+        </style>
+
+        <div class="cse-header">
+            <div class="cse-header-inner">
+                <div>
+                    <div class="cse-title-row">
+                        <img src="data:image/png;base64,{logo_b64}" class="cse-logo-img" />
+                        <span class="cse-title-text">Dashboard CSE/RSE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+    # =====================================================
+    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
+    # =====================================================
+
+    latest_date = get_latest_data_date()
+
+    with st.container(border=True):
+
+        col_tgl, col_brand = st.columns(2)
+
+        with col_tgl:
+
+            tanggal = st.date_input(
+
+                ":material/calendar_month: Filter Tanggal",
+
+                value=(
+
+                    latest_date,
+
+                    latest_date
+
+                ),
+
+                key="cse_tanggal"
+
+            )
+
+        with col_brand:
+
+            brand = st.selectbox(
+
+                ":material/sim_card: Filter Brand",
+
+                options=[
+
+                    "Semua",
+                    "IM3",
+                    "3ID"
+
+                ],
+
+                index=0
+
+            )
+
+    if isinstance(tanggal, tuple):
+
+        if len(tanggal) == 2:
+
+            start_date, end_date = tanggal
+
+        elif len(tanggal) == 1:
+
+            start_date = end_date = tanggal[0]
+
+        else:
+
+            start_date = end_date = latest_date
+
+    else:
+
+        start_date = end_date = tanggal
+
+    # =====================================================
+    # LOAD DATA SESUAI RENTANG TANGGAL
+    # =====================================================
+
+    data = tampil_data_by_date(
+
+        start_date,
+
+        end_date
+
+    )
+
+    if len(data) == 0:
+
+        st.info(
+
+            "Belum ada data."
+
+        )
+
+        return
+
     # ======================================================
     # DATAFRAME
     # ======================================================
@@ -639,6 +821,7 @@ def show():
         ]
 
     )
+
     # =====================================================
     # BIOMETRIK
     # =====================================================
@@ -652,16 +835,8 @@ def show():
     )
 
     # ======================================================
-    # SESSION
-    # ======================================================
-
-    role = st.session_state.outlet_role
-
-    user = st.session_state.outlet_user
-
-    # =====================================================
     # FILTER
-    # =====================================================
+    # ======================================================
 
     df["Tanggal"] = pd.to_datetime(
 
@@ -721,7 +896,6 @@ def show():
         df = df[
             df["Input By"].isin(bawahan)
         ]
-
 
     # ======================================================
     # BRAND MAP
@@ -921,41 +1095,47 @@ def show():
     ) if total_msisdn > 0 else 0
 
     # =====================================================
-    # UI KPI
+    # UI KPI (custom cards)
     # =====================================================
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
-    col1.metric(
-        "🏪 Outlet",
-        total_outlet
-    )
+    with col1:
 
-    col2.metric(
-        "👤 CSE/RSE",
-        total_user
-    )
+        kpi_card("store", "Outlet", total_outlet, "#F5B400")
 
+    with col2:
 
-    col3.metric(
-        "🔥 CSE/RSE Aktif",
-        user_aktif
-    )
+        kpi_card("groups", "CSE/RSE", total_user, "#F0997B")
 
-    col4.metric(
-        "% CSE/RSE Aktif",
-        f"{persen_user_aktif}%"
-    )
+    with col3:
 
-    col5.metric(
-        "📱 MSISDN",
-        total_msisdn
-    )
+        kpi_card("bolt", "CSE/RSE Aktif", user_aktif, "#D4537E")
+
+    with col4:
+
+        kpi_card("trending_up", "% CSE/RSE Aktif", f"{persen_user_aktif}%", "#993556")
+
+    with col5:
+
+        kpi_card("smartphone", "MSISDN", total_msisdn, "#7A2C46")
 
     st.divider()
 
+    # =====================================================
+    # HIERARCHY SESSION
+    # =====================================================
+
+    if "selected_hos_cse" not in st.session_state:
+
+        st.session_state.selected_hos_cse = None
+
+    if "selected_bsm_cse" not in st.session_state:
+
+        st.session_state.selected_bsm_cse = None
+
     # ======================================================
-    # CSE / RSE
+    # CSE / RSE (LEAF - INPUT SENDIRI)
     # ======================================================
 
     if role in [
@@ -968,9 +1148,7 @@ def show():
 
     ]:
 
-        st.subheader(
-            "📋 Detail Input"
-        )
+        section_title("📋 Detail Input")
 
         detail_df = df[[
 
@@ -982,26 +1160,26 @@ def show():
 
         ]]
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Detail Input",
+            st.download_button(
 
-            data=to_excel(detail_df),
+                label=":material/download: Download Detail Input",
 
-            file_name="detail_input.xlsx",
+                data=to_excel(detail_df),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="detail_input.xlsx",
 
-            key="download_detail"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_detail"
 
-        show_grid(detail_df)
+            )
 
-
+            show_grid(detail_df)
 
     # ======================================================
-    # BSM
+    # BSM (REKAP CSE/RSE DI BAWAHNYA)
     # ======================================================
 
     elif role == "BSM":
@@ -1010,15 +1188,14 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap CSE/RSE"
-            )
+            section_title("Rekap CSE/RSE", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
+                "Reset",
+                icon=":material/refresh:",
 
                 use_container_width=True,
 
@@ -1077,7 +1254,6 @@ def show():
                 "Nama":
                     get_real_name(nama_cse),
 
-
                 "Status":
 
                     "Aktif"
@@ -1107,10 +1283,6 @@ def show():
             rekap_cse
         )
 
-        # ======================================================
-        # FILTER BRAND
-        # ======================================================
-
         if brand != "Semua":
 
             summary_cse = summary_cse[
@@ -1124,7 +1296,6 @@ def show():
                 )
 
             ]
-
 
         if not summary_cse.empty:
 
@@ -1142,42 +1313,40 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap CSE",
+            st.download_button(
 
-            data=to_excel(summary_cse),
+                label=":material/download: Download Rekap CSE",
 
-            file_name="rekap_cse.xlsx",
+                data=to_excel(summary_cse),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_cse.xlsx",
 
-            key="download_cse"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_cse"
 
-        show_grid(
+            )
 
-            summary_cse,
+            show_grid(
 
-            selectable=False,
+                summary_cse,
 
-            key="cse_bsm",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=False,
 
-        )
+                key="cse_bsm",
+                col_align={
+                    "Nama": "left"
+                }
+
+            )
 
     # ======================================================
-    # HOS
+    # HOS (REKAP BSM -> DRILL REKAP CSE/RSE)
     # ======================================================
 
     elif role == "HOS":
-
-        selected_bsm = None
-
-
 
         # ==================================================
         # REKAP BSM
@@ -1187,15 +1356,14 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap BSM"
-            )
+            section_title("Rekap BSM", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
+                "Reset",
+                icon=":material/refresh:",
 
                 use_container_width=True,
 
@@ -1203,7 +1371,7 @@ def show():
 
             ):
 
-                st.session_state.selected_bsm = None
+                st.session_state.selected_bsm_cse = None
                 st.rerun()
 
         daftar = []
@@ -1299,10 +1467,6 @@ def show():
             daftar
         )
 
-        # ======================================================
-        # FILTER BRAND
-        # ======================================================
-
         if brand != "Semua":
 
             summary_bsm = summary_bsm[
@@ -1333,39 +1497,47 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap BSM",
+            st.download_button(
 
-            data=to_excel(summary_bsm),
+                label=":material/download: Download Rekap BSM",
 
-            file_name="rekap_bsm.xlsx",
+                data=to_excel(summary_bsm),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_bsm.xlsx",
 
-            key="download_bsm"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_bsm"
 
-        bsm_grid = show_grid(
+            )
 
-            summary_bsm,
+            bsm_grid = show_grid(
 
-            selectable=True,
+                summary_bsm,
 
-            key="hos_bsm",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=True,
 
-        )
+                key="hos_bsm",
+                col_align={
+                    "Nama": "left"
+                }
+
+            )
 
         selected_bsm = get_selected_value(
             bsm_grid,
             "BSM"
         )
 
-        st.session_state.selected_bsm = selected_bsm
+        if selected_bsm:
+
+            if st.session_state.selected_bsm_cse != selected_bsm:
+
+                st.session_state.selected_bsm_cse = selected_bsm
+
+                st.rerun()
 
         st.divider()
 
@@ -1373,9 +1545,7 @@ def show():
         # REKAP CSE/RSE
         # ==================================================
 
-        st.subheader(
-            "📋 Rekap CSE/RSE"
-        )
+        section_title("Rekap CSE/RSE", icon="list_alt")
 
         rekap_cse = []
 
@@ -1392,9 +1562,9 @@ def show():
 
             for _, row in bawahan.iterrows():
 
-                if st.session_state.selected_bsm:
+                if st.session_state.selected_bsm_cse:
 
-                    if row["ATASAN"] != st.session_state.selected_bsm:
+                    if row["ATASAN"] != st.session_state.selected_bsm_cse:
                         continue
 
                 user_cse = row["USER"]
@@ -1446,10 +1616,6 @@ def show():
             rekap_cse
         )
 
-        # ======================================================
-        # FILTER BRAND
-        # ======================================================
-
         if brand != "Semua":
 
             summary_cse = summary_cse[
@@ -1480,30 +1646,29 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap CSE",
+            st.download_button(
 
-            data=to_excel(summary_cse),
+                label=":material/download: Download Rekap CSE",
 
-            file_name="rekap_cse.xlsx",
+                data=to_excel(summary_cse),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_cse.xlsx",
 
-            key="download_hos_cse"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_hos_cse"
 
-        show_grid(summary_cse)
+            )
+
+            show_grid(summary_cse, col_align={"Nama": "left"})
 
     # ======================================================
-    # ADMIN
+    # ADMIN (REKAP HOS -> BSM -> CSE/RSE)
     # ======================================================
 
     else:
-
-        selected_hos = None
-        selected_bsm = None
 
         # ==================================================
         # REKAP HOS
@@ -1513,15 +1678,14 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap HOS"
-            )
+            section_title("Rekap HOS", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
+                "Reset",
+                icon=":material/refresh:",
 
                 use_container_width=True,
 
@@ -1529,11 +1693,11 @@ def show():
 
             ):
 
-                st.session_state.selected_hos = None
-                st.session_state.selected_bsm = None
-                st.session_state.selected_cse = None
+                st.session_state.selected_hos_cse = None
+                st.session_state.selected_bsm_cse = None
 
                 st.rerun()
+
         rekap_hos = []
 
         hos_list = df_user[
@@ -1584,7 +1748,6 @@ def show():
 
             rekap_hos.append({
 
-
                 "HOS":
                     nama_hos,
 
@@ -1619,10 +1782,6 @@ def show():
             rekap_hos
         )
 
-        # ======================================================
-        # FILTER BRAND REKAP
-        # ======================================================
-
         if brand != "Semua":
 
             summary_hos = summary_hos[
@@ -1653,39 +1812,48 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap HOS",
+            st.download_button(
 
-            data=to_excel(summary_hos),
+                label=":material/download: Download Rekap HOS",
 
-            file_name="rekap_hos.xlsx",
+                data=to_excel(summary_hos),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_hos.xlsx",
 
-            key="download_hos"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_hos"
 
-        hos_grid = show_grid(
+            )
 
-            summary_hos,
+            hos_grid = show_grid(
 
-            selectable=True,
+                summary_hos,
 
-            key="hos",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=True,
 
-        )
+                key="hos",
+                col_align={
+                    "Nama": "left"
+                }
+
+            )
 
         selected_hos = get_selected_value(
             hos_grid,
             "HOS"
         )
 
-        st.session_state.selected_hos = selected_hos
+        if selected_hos:
+
+            if st.session_state.selected_hos_cse != selected_hos:
+
+                st.session_state.selected_hos_cse = selected_hos
+                st.session_state.selected_bsm_cse = None
+
+                st.rerun()
 
         st.divider()
 
@@ -1693,9 +1861,7 @@ def show():
         # REKAP BSM
         # ==================================================
 
-        st.subheader(
-            "📋 Rekap BSM"
-        )
+        section_title("Rekap BSM", icon="list_alt")
 
         rekap_bsm = []
 
@@ -1705,9 +1871,9 @@ def show():
 
         for _, row in bsm_list.iterrows():
 
-            if selected_hos:
+            if st.session_state.selected_hos_cse:
 
-                if row["ATASAN"] != selected_hos:
+                if row["ATASAN"] != st.session_state.selected_hos_cse:
                     continue
 
             nama_bsm = row["USER"]
@@ -1768,7 +1934,6 @@ def show():
                 "Nama":
                     get_real_name(nama_bsm),
 
-
                 "CSE/RSE":
                     total_cse,
 
@@ -1797,10 +1962,6 @@ def show():
             rekap_bsm
         )
 
-        # ======================================================
-        # FILTER BRAND
-        # ======================================================
-
         if brand != "Semua":
 
             summary_bsm = summary_bsm[
@@ -1814,6 +1975,7 @@ def show():
                 )
 
             ]
+
         if not summary_bsm.empty:
 
             summary_bsm = (
@@ -1830,39 +1992,47 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap BSM",
+            st.download_button(
 
-            data=to_excel(summary_bsm),
+                label=":material/download: Download Rekap BSM",
 
-            file_name="rekap_bsm.xlsx",
+                data=to_excel(summary_bsm),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_bsm.xlsx",
 
-            key="download_admin_cse"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_admin_cse"
 
-        bsm_grid = show_grid(
+            )
 
-            summary_bsm,
+            bsm_grid = show_grid(
 
-            selectable=True,
+                summary_bsm,
 
-            key="bsm",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=True,
 
-        )
+                key="bsm",
+                col_align={
+                    "Nama": "left"
+                }
+
+            )
 
         selected_bsm = get_selected_value(
             bsm_grid,
             "BSM"
         )
 
-        st.session_state.selected_bsm = selected_bsm
+        if selected_bsm:
+
+            if st.session_state.selected_bsm_cse != selected_bsm:
+
+                st.session_state.selected_bsm_cse = selected_bsm
+
+                st.rerun()
 
         st.divider()
 
@@ -1870,9 +2040,7 @@ def show():
         # REKAP CSE/RSE
         # ==================================================
 
-        st.subheader(
-            "📋 Rekap CSE/RSE"
-        )
+        section_title("Rekap CSE/RSE", icon="list_alt")
 
         rekap_cse = []
 
@@ -1887,16 +2055,12 @@ def show():
 
         ]
 
-        # ================================================
-        # FILTER HOS
-        # ================================================
-
-        if selected_hos:
+        if st.session_state.selected_hos_cse:
 
             daftar_bsm_hos = df_user[
 
                 df_user["ATASAN"]
-                == selected_hos
+                == st.session_state.selected_hos_cse
 
             ]["USER"].tolist()
 
@@ -1907,30 +2071,18 @@ def show():
 
             ]
 
-        # ================================================
-        # FILTER BSM
-        # ================================================
-
-        if selected_bsm:
+        if st.session_state.selected_bsm_cse:
 
             cse_list = cse_list[
 
                 cse_list["ATASAN"]
-                == selected_bsm
+                == st.session_state.selected_bsm_cse
 
             ]
-
-        # ================================================
-        # LOOP
-        # ================================================
 
         for _, row in cse_list.iterrows():
 
             nama_cse = row["USER"]
-
-            # ============================================
-            # PENJUALAN CSE ITU SENDIRI
-            # ============================================
 
             temp = df[
 
@@ -1955,10 +2107,6 @@ def show():
                 2
 
             ) if total_msisdn > 0 else 0
-
-            # ============================================
-            # STATUS
-            # ============================================
 
             status_user = (
 
@@ -2002,10 +2150,6 @@ def show():
             rekap_cse
         )
 
-        # ======================================================
-        # FILTER BRAND
-        # ======================================================
-
         if brand != "Semua":
 
             summary_cse = summary_cse[
@@ -2036,40 +2180,31 @@ def show():
 
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            "⬇️ Download Rekap CSE",
+            st.download_button(
 
-            data=to_excel(summary_cse),
+                label=":material/download: Download Rekap CSE",
 
-            file_name="rekap_cse.xlsx",
+                data=to_excel(summary_cse),
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                file_name="rekap_cse.xlsx",
 
-            key="download_admin_bsm"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-        )
+                key="download_admin_bsm"
 
-        cse_grid = show_grid(
+            )
 
-            summary_cse,
+            show_grid(
 
-            selectable=True,
+                summary_cse,
 
-            key="cse_admin",
-            col_align={
-                "Nama": "left"
-            }
+                selectable=False,
 
-        )
+                key="cse_admin",
+                col_align={
+                    "Nama": "left"
+                }
 
-        selected_cse = get_selected_value(
-
-            cse_grid,
-            "CSE/RSE"
-
-        )
-
-        st.session_state.selected_cse = (
-            selected_cse
-        )
+            )
