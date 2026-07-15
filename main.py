@@ -3,7 +3,6 @@
 # =====================================
 
 import streamlit as st
-from modules.input_outlet import show as input_outlet
 from modules.data_outlet import show as data_outlet
 from modules.dashboard_cse import show as dashboard_cse
 from modules.dashboard_dse import show as dashboard_dse
@@ -16,6 +15,7 @@ from modules.master_user import show as master_user
 from modules.main_dashboard import show as main_dashboard
 from modules.quickcount_dashboard import show as quickcount_dashboard
 from modules.dashboard_bsm import show as dashboard_bsm
+from modules.dashboard_np import show as dashboard_np
 
 from auth import login_page, sidebar
 
@@ -243,7 +243,7 @@ role = st.session_state.outlet_role
 # MENU
 # =====================================
 
-if role in ["DSE", "FRONTLINER", "PROMOTOR", "GSE", "GEMINI", "RGE"]:
+if role in ["DSE", "FRONTLINER", "PROMOTOR", "GSE", "GEMINI", "RGE", "NP"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -253,7 +253,7 @@ if role in ["DSE", "FRONTLINER", "PROMOTOR", "GSE", "GEMINI", "RGE"]:
         key="outlet_menu"
     )
 
-elif role in ["CLUSTERS"]:
+elif role in ["CSE","RSE"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -269,7 +269,7 @@ elif role in ["CLUSTERS"]:
         key="outlet_menu"
     )
 
-elif role == "BRANCH":
+elif role == "BSM":
 
     menu = st.sidebar.radio(
         "Menu",
@@ -288,7 +288,7 @@ elif role == "BRANCH":
         key="outlet_menu"
     )
 
-elif role == "AREAS":
+elif role == "HOS":
 
     menu = st.sidebar.radio(
         "Menu",
@@ -376,6 +376,10 @@ elif menu == "Dashboard GEMPI":
 elif menu == "Dashboard RGE":
 
     dashboard_rge()
+
+elif menu == "Dashboard NP":
+
+    dashboard_np()
 
 elif menu == "Data MSISDN":
 

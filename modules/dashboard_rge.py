@@ -4,6 +4,7 @@
 
 import streamlit as st
 import pandas as pd
+import base64
 
 from st_aggrid import (
     AgGrid,
@@ -15,10 +16,100 @@ from io import BytesIO
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user,
-    load_biometrik
+    tampil_user
 )
 
+# =========================================================
+# HELPER TAMPILAN (disamakan dengan dashboard_dse.py)
+# =========================================================
+
+def get_base64_image(path):
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return ""
+
+def kpi_card(icon, label, value, color):
+
+    st.markdown(
+
+        f"""
+        <div class="dse-kpi-card" style="border-top:4px solid {color};">
+            <div class="dse-kpi-icon">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
+            <div class="dse-kpi-value">{value}</div>
+            <div class="dse-kpi-label">{label}</div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+def section_title(text, icon=None):
+
+    icon_html = (
+
+        f'<span class="material-symbols-outlined" style="vertical-align:-6px;margin-right:6px;">{icon}</span>'
+
+        if icon else ""
+
+    )
+
+    st.markdown(
+
+        f"<div class='dse-card-title'>{icon_html}{text}</div>",
+
+        unsafe_allow_html=True
+
+    )
+
+# ==========================================================
+# GRID TABLE
+# ==========================================================
+
+from st_aggrid import (
+    AgGrid,
+    GridOptionsBuilder,
+    GridUpdateMode
+)
+
+def show_grid(
+    df,
+    selectable=False,
+    key=None,
+    col_align=None      # <-- BARU: dict {"Nama Kolom": "left" / "center" / "right"}
+):
+
+    if df.empty:
+
+        st.info("Tidak ada data.")
+        return None
+
+    if col_align is None:
+
+        col_align = {}
+
+    st.markdown(
+        """
+        <style>
+
+        .ag-theme-balham .ag-pinned-bottom {
+
+            font-weight:700 !important;
+            min-height:42px !important;
+            line-height:42px !important;
+
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    gb = GridOptionsBuilder.from_dataframe(df)
 
 # ==========================================================
 # GRID TABLE
@@ -341,7 +432,7 @@ def show_grid(
             },
 
             # Khusus kolom pertama rata kiri
-            ".ag-pinned-left-cols-container .ag-cell": {
+            ".ag-cell:first-child": {
 
                 "justify-content": "flex-start !important",
                 "text-align": "left !important",
@@ -350,7 +441,7 @@ def show_grid(
             },
 
             # Khusus header kolom pertama rata kiri
-            ".ag-pinned-left-header .ag-header-cell-label": {
+            ".ag-header-cell:first-child .ag-header-cell-label": {
 
                 "justify-content": "flex-start !important",
                 "padding-left": "12px"
@@ -455,7 +546,88 @@ def to_excel(df):
 
 def show():
 
-    st.title("📊 Dashboard RGE")
+    st.markdown(
+        """
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
+    )
+
+    logo_b64 = get_base64_image("icon.png")
+
+    st.markdown(
+
+        f"""
+        <style>
+        .dse-header {{
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+        }}
+        .dse-title-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .dse-logo-img {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+        }}
+        .dse-title-row span.dse-title-text {{
+            font-size: 26px;
+            font-weight: 600;
+            color: #fff;
+        }}
+
+        /* ============ KPI CARD ============ */
+        .dse-kpi-card {{
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
+            border: 1px solid #f3e3e8;
+        }}
+        .dse-kpi-icon {{
+            font-size: 22px;
+            margin-bottom: 4px;
+        }}
+        .dse-kpi-value {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #3d2230;
+        }}
+        .dse-kpi-label {{
+            font-size: 12px;
+            color: #9a7a86;
+            margin-top: 2px;
+        }}
+
+        /* ============ SECTION / CARD TITLE ============ */
+        .dse-card-title {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #993556;
+            margin-bottom: 10px;
+        }}
+        </style>
+
+        <div class="dse-header">
+            <div class="dse-title-row">
+                <img src="data:image/png;base64,{logo_b64}" class="dse-logo-img" />
+                <span class="dse-title-text">Dashboard RGE</span>
+            </div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
 
     # =====================================================
     # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
@@ -463,61 +635,63 @@ def show():
 
     latest_date = get_latest_data_date()
 
-    col_tgl, col_brand = st.columns(2)
+    with st.container(border=True):
 
-    with col_tgl:
+        col_tgl, col_brand = st.columns(2)
 
-        tanggal = st.date_input(
+        with col_tgl:
 
-            "📅 Filter Tanggal",
+                tanggal = st.date_input(
 
-            value=(
+                    ":material/calendar_month: Filter Tanggal",
 
-                latest_date,
+                    value=(
 
-                latest_date
+                        latest_date,
 
-            ),
+                        latest_date
 
-            key="pm_tanggal"
+                    ),
 
-        )
+                    key="pm_tanggal"
 
-    if isinstance(tanggal, tuple):
+                )
 
-        if len(tanggal) == 2:
+        with col_brand:
 
-            start_date, end_date = tanggal
+                brand = st.selectbox(
 
-        elif len(tanggal) == 1:
+                    ":material/sim_card: Filter Brand",
 
-            start_date = end_date = tanggal[0]
+                    options=[
+
+                        "Semua",
+                        "IM3",
+                        "3ID"
+
+                    ],
+
+                    index=0
+
+                )
+
+        if isinstance(tanggal, tuple):
+
+            if len(tanggal) == 2:
+
+                start_date, end_date = tanggal
+
+            elif len(tanggal) == 1:
+
+                start_date = end_date = tanggal[0]
+
+            else:
+
+                start_date = end_date = latest_date
 
         else:
 
-            start_date = end_date = latest_date
-
-    else:
-
-        start_date = end_date = tanggal
-
-    with col_brand:
-
-        brand = st.selectbox(
-
-            "📶 Filter Brand",
-
-            options=[
-
-                "Semua",
-                "IM3",
-                "3ID"
-
-            ],
-
-            index=0
-
-        )
+            start_date = end_date = tanggal
 
     # =====================================================
     # LOAD DATA SESUAI RENTANG TANGGAL
@@ -912,25 +1086,17 @@ def show():
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric(
-        "👤 RGE",
-        total_user
-    )
+    with col1:
+        kpi_card("group", "RGE", total_user, "#F5B400")
 
-    col2.metric(
-        "🔥 RGE Aktif",
-        user_aktif
-    )
+    with col2:
+        kpi_card("bolt", "RGE Aktif", user_aktif, "#F0997B")
 
-    col3.metric(
-        "% RGE Aktif",
-        f"{persen_user_aktif}%"
-    )
+    with col3:
+        kpi_card("trending_up", "% RGE Aktif", f"{persen_user_aktif}%", "#D4537E")
 
-    col4.metric(
-        "📱 MSISDN",
-        total_msisdn
-    )
+    with col4:
+        kpi_card("smartphone", "MSISDN", total_msisdn, "#993556")
 
 
     st.divider()
@@ -945,9 +1111,8 @@ def show():
 
     ]:
 
-        st.subheader(
-            "📋 Detail Input"
-        )
+        section_title("Detail Input", icon="list_alt")
+
 
         detail_df = df[[
 
@@ -959,7 +1124,7 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Detail Input",
+            label=":material/download: Download Rekap",
 
             data=to_excel(detail_df),
 
@@ -983,15 +1148,15 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap RGE"
-            )
+            section_title("Rekap RGE", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
+                "Reset",
+
+                icon=":material/refresh:",
 
                 use_container_width=True,
 
@@ -1111,7 +1276,7 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap RGE",
+            label=":material/download: Download Rekap RGE",
 
             data=to_excel(summary_cse),
 
@@ -1154,15 +1319,15 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap BSM"
-            )
+            section_title("Rekap BSM", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
+                "Reset",
+
+                icon=":material/refresh:",
 
                 use_container_width=True,
 
@@ -1297,7 +1462,7 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap BSM",
+            label=":material/download: Download Rekap BSM",
 
             data=to_excel(summary_bsm),
 
@@ -1335,9 +1500,7 @@ def show():
         # REKAP CSE/RSE
         # ==================================================
 
-        st.subheader(
-            "📋 Rekap RGE"
-        )
+        section_title("Rekap RGE", icon="list_alt")
 
         rekap_cse = []
 
@@ -1443,7 +1606,7 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap RGE",
+            label=":material/download: Download Rekap RGE",
 
             data=to_excel(summary_cse),
 
@@ -1474,15 +1637,15 @@ def show():
 
         with header_col:
 
-            st.subheader(
-                "📋 Rekap HOS"
-            )
+            section_title("Rekap HOS", icon="list_alt")
 
         with reset_col:
 
             if st.button(
 
-                "🔄 Reset",
+                "Reset",
+
+                icon=":material/refresh:",
 
                 use_container_width=True,
 
@@ -1625,7 +1788,7 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap HOS",
+            label=":material/download: Download Rekap HOS",
 
             data=to_excel(summary_hos),
 
@@ -1663,9 +1826,7 @@ def show():
         # REKAP BSM
         # ==================================================
 
-        st.subheader(
-            "📋 Rekap BSM"
-        )
+        section_title("Rekap BSM", icon="list_alt")
 
         rekap_bsm = []
 
@@ -1796,7 +1957,7 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap BSM",
+            label=":material/download: Download Rekap BSM",
 
             data=to_excel(summary_bsm),
 
@@ -1834,9 +1995,7 @@ def show():
         # REKAP CSE/RSE
         # ==================================================
 
-        st.subheader(
-            "📋 Rekap RGE"
-        )
+        section_title("Rekap RGE", icon="list_alt")
 
         rekap_cse = []
 
@@ -2000,7 +2159,7 @@ def show():
 
         st.download_button(
 
-            "⬇️ Download Rekap RGE",
+            label=":material/download: Download Rekap RGE",
 
             data=to_excel(summary_cse),
 

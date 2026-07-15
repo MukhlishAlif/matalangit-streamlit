@@ -1,13 +1,14 @@
+
 # =========================================================
 # dashboard_promotor.py
 # DASHBOARD PROMOTOR
 # HOS -> BSM -> CSE/RSE -> PROMOTOR
 # =========================================================
 
-import base64
 import streamlit as st
 import pandas as pd
 from io import BytesIO
+import base64
 
 from st_aggrid import (
     AgGrid,
@@ -18,25 +19,55 @@ from st_aggrid import (
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user,
+    tampil_user
 )
 
 # =========================================================
-# BASE64 IMAGE HELPER (untuk logo header)
+# HELPER TAMPILAN (disamakan dengan dashboard_dse.py)
 # =========================================================
 
 def get_base64_image(path):
-
     try:
-
         with open(path, "rb") as f:
-
             return base64.b64encode(f.read()).decode()
-
     except Exception:
-
         return ""
 
+def kpi_card(icon, label, value, color):
+
+    st.markdown(
+
+        f"""
+        <div class="dse-kpi-card" style="border-top:4px solid {color};">
+            <div class="dse-kpi-icon">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
+            <div class="dse-kpi-value">{value}</div>
+            <div class="dse-kpi-label">{label}</div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+def section_title(text, icon=None):
+
+    icon_html = (
+
+        f'<span class="material-symbols-outlined" style="vertical-align:-6px;margin-right:6px;">{icon}</span>'
+
+        if icon else ""
+
+    )
+
+    st.markdown(
+
+        f"<div class='pm-card-title'>{icon_html}{text}</div>",
+
+        unsafe_allow_html=True
+
+    )
 # =========================================================
 # GET SELECTED VALUE
 # =========================================================
@@ -151,7 +182,7 @@ def show_grid(
         floatingFilter=False,
 
         flex=1,
-        minWidth=180,
+        minWidth=120,
 
         cellStyle={
             "textAlign": "center",
@@ -268,7 +299,7 @@ def show_grid(
                 "BSM",
                 "Branch",
                 "CSE/RSE",
-                "PROMOTOR",
+                "NP",
                 "Atasan"
 
             ]:
@@ -338,7 +369,7 @@ def show_grid(
 
         allow_unsafe_jscode=True,
 
-        custom_css={
+    custom_css={
 
             ".ag-root-wrapper": {
 
@@ -400,7 +431,6 @@ def show_grid(
         }
 
     )
-
     return grid_response
 # =========================================================
 # TO EXCEL
@@ -424,55 +454,10 @@ def to_excel(df):
     return output.getvalue()
 
 # =========================================================
-# KPI CARD
-# =========================================================
-
-def kpi_card(icon, label, value, color):
-
-    st.markdown(
-
-        f"""
-        <div class="pm-kpi-card" style="border-top:4px solid {color};">
-            <div class="pm-kpi-icon">
-                <span class="material-symbols-outlined">{icon}</span>
-            </div>
-            <div class="pm-kpi-value">{value}</div>
-            <div class="pm-kpi-label">{label}</div>
-        </div>
-        """,
-
-        unsafe_allow_html=True
-
-    )
-
-# =========================================================
-# SECTION TITLE (pengganti st.subheader biar nggak monoton)
-# =========================================================
-
-def section_title(text, icon=None):
-
-    icon_html = (
-
-        f'<span class="material-symbols-outlined" style="vertical-align:-6px;margin-right:6px;">{icon}</span>'
-
-        if icon else ""
-
-    )
-
-    st.markdown(
-
-        f"<div class='pm-card-title'>{icon_html}{text}</div>",
-
-        unsafe_allow_html=True
-
-    )
-
-# =========================================================
 # DASHBOARD
 # =========================================================
 
 def show():
-
     st.markdown(
         """
         <link rel="stylesheet"
@@ -481,12 +466,201 @@ def show():
         unsafe_allow_html=True
     )
 
+    logo_b64 = get_base64_image("icon.png")
+
+    st.markdown(
+
+        f"""
+        <style>
+        .dse-header {{
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+        }}
+        .dse-title-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .dse-logo-img {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+        }}
+        .dse-title-row span.dse-title-text {{
+            font-size: 26px;
+            font-weight: 600;
+            color: #fff;
+        }}
+
+        /* ============ KPI CARD ============ */
+        .dse-kpi-card {{
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
+            border: 1px solid #f3e3e8;
+        }}
+        .dse-kpi-icon {{
+            font-size: 22px;
+            margin-bottom: 4px;
+        }}
+        .dse-kpi-value {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #3d2230;
+        }}
+        .dse-kpi-label {{
+            font-size: 12px;
+            color: #9a7a86;
+            margin-top: 2px;
+        }}
+
+        /* ============ SECTION / CARD TITLE ============ */
+        .dse-card-title {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #993556;
+            margin-bottom: 10px;
+        }}
+        </style>
+
+        <div class="dse-header">
+            <div class="dse-title-row">
+                <img src="data:image/png;base64,{logo_b64}" class="dse-logo-img" />
+                <span class="dse-title-text">Dashboard NP</span>
+            </div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
     # =====================================================
-    # LOAD USER LEBIH AWAL
-    # (dipakai untuk header, hierarchy, dan real name)
+    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
     # =====================================================
 
+    latest_date = get_latest_data_date()
+
+    with st.container(border=True):
+
+        col_tgl, col_brand = st.columns(2)
+
+        with col_tgl:
+
+                tanggal = st.date_input(
+
+                    ":material/calendar_month: Filter Tanggal",
+
+                    value=(
+
+                        latest_date,
+
+                        latest_date
+
+                    ),
+
+                    key="pm_tanggal"
+
+                )
+
+        with col_brand:
+
+                brand = st.selectbox(
+
+                    ":material/sim_card: Filter Brand",
+
+                    options=[
+
+                        "Semua",
+                        "IM3",
+                        "3ID"
+
+                    ],
+
+                    index=0
+
+                )
+
+        if isinstance(tanggal, tuple):
+
+            if len(tanggal) == 2:
+
+                start_date, end_date = tanggal
+
+            elif len(tanggal) == 1:
+
+                start_date = end_date = tanggal[0]
+
+            else:
+
+                start_date = end_date = latest_date
+
+        else:
+
+            start_date = end_date = tanggal
+
+    # =====================================================
+    # LOAD DATA SESUAI RENTANG TANGGAL
+    # =====================================================
+
+    data = tampil_data_by_date(
+
+        start_date,
+
+        end_date
+
+    )
+
     users = tampil_user()
+
+    if len(data) == 0:
+
+        st.info(
+
+            "Belum ada data."
+
+        )
+
+        return
+
+    # =====================================================
+    # DATAFRAME
+    # =====================================================
+
+    df = pd.DataFrame(
+        data,
+        columns=[
+            "ID",
+            "Nama Outlet",
+            "ID Outlet",
+            "MSISDN",
+            "Input By",
+            "Tanggal",
+            "flag_bio",
+            "ga_dt"
+        ]
+    )
+
+    # =====================================================
+    # BIOMETRIK
+    # =====================================================
+
+    df["Biometrik"] = (
+
+        df["flag_bio"]
+        .fillna(False)
+        .astype(bool)
+
+    )
+    # =====================================================
+    # USER DF
+    # =====================================================
 
     df_user = pd.DataFrame(
 
@@ -506,6 +680,9 @@ def show():
     df_user.columns = (
         df_user.columns.str.upper()
     )
+    # ======================================================
+    # USER -> REAL NAME
+    # ======================================================
 
     real_name_map = (
         df_user
@@ -571,276 +748,6 @@ def show():
     role = st.session_state.outlet_role
     user = st.session_state.outlet_user
 
-    display_name = real_name_map.get(
-        str(user).strip().upper(),
-        user
-    )
-
-    initials = "".join(
-        [w[0].upper() for w in str(display_name).split()[:2]]
-    ) or "-"
-
-    # =====================================================
-    # HEADER (gaya sama seperti Leaderboard)
-    # =====================================================
-
-    logo_b64 = get_base64_image("icon.png")
-
-    st.markdown(
-
-        f"""
-        <style>
-        .pm-header {{
-            border-radius: 16px;
-            overflow: hidden;
-            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
-            padding: 1.5rem 1.75rem;
-            margin-bottom: 1.5rem;
-            position: relative;
-        }}
-        .pm-header-inner {{
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-            position: relative;
-        }}
-        .pm-title-row {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-        .pm-logo-img {{
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
-        }}
-        .pm-title-row span.pm-title-text {{
-            font-size: 26px;
-            font-weight: 600;
-            color: #fff;
-        }}
-        .pm-sub {{
-            font-size: 14px;
-            color: rgba(255,255,255,0.88);
-            margin-top: 4px;
-        }}
-        .pm-pill-row {{
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }}
-        .pm-pill {{
-            background: rgba(255,255,255,0.18);
-            color: #fff;
-            font-size: 12px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            display: inline-block;
-        }}
-        .pm-user-card {{
-            background: rgba(255,255,255,0.16);
-            border-radius: 12px;
-            padding: 10px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }}
-        .pm-avatar {{
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-            color: #993556;
-            flex-shrink: 0;
-        }}
-        .pm-user-name {{
-            font-weight: 600;
-            font-size: 15px;
-            color: #fff;
-        }}
-        .pm-role-pill {{
-            background: rgba(255,255,255,0.25);
-            color: #fff;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 2px;
-            display: inline-block;
-        }}
-
-        /* ============ KPI CARD ============ */
-        .pm-kpi-card {{
-            background: #fff;
-            border-radius: 14px;
-            padding: 16px 12px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
-            border: 1px solid #f3e3e8;
-        }}
-        .pm-kpi-icon {{
-            font-size: 22px;
-            margin-bottom: 4px;
-        }}
-        .pm-kpi-value {{
-            font-size: 22px;
-            font-weight: 700;
-            color: #3d2230;
-        }}
-        .pm-kpi-label {{
-            font-size: 12px;
-            color: #9a7a86;
-            margin-top: 2px;
-        }}
-
-        /* ============ SECTION / CARD TITLE ============ */
-        .pm-card-title {{
-            font-size: 20px;
-            font-weight: 700;
-            color: #993556;
-            margin-bottom: 10px;
-        }}
-        </style>
-
-        <div class="pm-header">
-            <div class="pm-header-inner">
-                <div>
-                    <div class="pm-title-row">
-                        <img src="data:image/png;base64,{logo_b64}" class="pm-logo-img" />
-                        <span class="pm-title-text">Dashboard Promotor</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """,
-
-        unsafe_allow_html=True
-
-    )
-
-    # =====================================================
-    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
-    # =====================================================
-
-    latest_date = get_latest_data_date()
-
-    with st.container(border=True):
-
-        col_tgl, col_brand = st.columns(2)
-
-        with col_tgl:
-
-            tanggal = st.date_input(
-
-                ":material/calendar_month: Filter Tanggal",
-
-                value=(
-
-                    latest_date,
-
-                    latest_date
-
-                ),
-
-                key="pm_tanggal"
-
-            )
-
-        with col_brand:
-
-            brand = st.selectbox(
-
-                ":material/sim_card: Filter Brand",
-
-                options=[
-
-                    "Semua",
-                    "IM3",
-                    "3ID"
-
-                ],
-
-                index=0
-
-            )
-
-    if isinstance(tanggal, tuple):
-
-        if len(tanggal) == 2:
-
-            start_date, end_date = tanggal
-
-        elif len(tanggal) == 1:
-
-            start_date = end_date = tanggal[0]
-
-        else:
-
-            start_date = end_date = latest_date
-
-    else:
-
-        start_date = end_date = tanggal
-
-    # =====================================================
-    # LOAD DATA SESUAI RENTANG TANGGAL
-    # =====================================================
-
-    data = tampil_data_by_date(
-
-        start_date,
-
-        end_date
-
-    )
-
-    if len(data) == 0:
-
-        st.info(
-
-            "Belum ada data."
-
-        )
-
-        return
-
-    # =====================================================
-    # DATAFRAME
-    # =====================================================
-
-    df = pd.DataFrame(
-        data,
-        columns=[
-            "ID",
-            "Nama Outlet",
-            "ID Outlet",
-            "MSISDN",
-            "Input By",
-            "Tanggal",
-            "flag_bio",
-            "ga_dt"
-        ]
-    )
-
-    # =====================================================
-    # BIOMETRIK
-    # =====================================================
-
-    df["Biometrik"] = (
-
-        df["flag_bio"]
-        .fillna(False)
-        .astype(bool)
-
-    )
-
     # =====================================================
     # FILTER TANGGAL
     # =====================================================
@@ -859,7 +766,7 @@ def show():
     # FILTER ROLE
     # =====================================================
 
-    if role == "PROMOTOR":
+    if role == "NP":
 
         df = df[
             df["Input By"] == user
@@ -878,7 +785,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "NP")
 
         ]["USER"].tolist()
 
@@ -900,7 +807,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "NP")
 
         ]["USER"].tolist()
 
@@ -927,7 +834,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "NP")
 
         ]["USER"].tolist()
 
@@ -967,7 +874,7 @@ def show():
     # KPI FILTER SESUAI ROLE
     # =====================================================
 
-    if role == "PROMOTOR":
+    if role == "NP":
 
         promotor_all = [user]
 
@@ -979,7 +886,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "NP")
 
         ]["USER"].tolist()
 
@@ -1006,7 +913,7 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "NP")
 
         ]["USER"].tolist()
 
@@ -1045,14 +952,14 @@ def show():
 
             &
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "NP")
 
         ]["USER"].tolist()
 
     else:
 
         promotor_all = df_user[
-            df_user["ROLE"] == "PROMOTOR"
+            df_user["ROLE"] == "NP"
         ]["USER"].tolist()
 
     # =====================================================
@@ -1063,7 +970,7 @@ def show():
 
         promotor_all = df_user[
 
-            (df_user["ROLE"] == "PROMOTOR")
+            (df_user["ROLE"] == "NP")
 
             &
 
@@ -1133,27 +1040,22 @@ def show():
     ) if jumlah_msisdn > 0 else 0
 
     # =====================================================
-    # KPI UI (card berwarna, bukan st.metric polos)
+    # KPI UI
     # =====================================================
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-
-        kpi_card("groups", "Promotor", total_promotor, "#F5B400")
+        kpi_card("group", "NP", total_promotor, "#F5B400")
 
     with col2:
-
-        kpi_card("bolt", "Promotor Aktif", promotor_aktif, "#F0997B")
+        kpi_card("bolt", "NP Aktif", promotor_aktif, "#F0997B")
 
     with col3:
-
-        kpi_card("trending_up", "% Promotor Aktif", f"{persen_aktif}%", "#D4537E")
+        kpi_card("trending_up", "% NP Aktif", f"{persen_aktif}%", "#D4537E")
 
     with col4:
-
         kpi_card("smartphone", "MSISDN", jumlah_msisdn, "#993556")
-
 
     st.divider()
     # =========================================================
@@ -1194,7 +1096,7 @@ def show():
 
         else:
 
-            section_title("Rekap Promotor", icon="list_alt")
+            section_title("Rekap NP", icon="list_alt")
 
     with col_reset:
 
@@ -1254,7 +1156,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "PROMOTOR")
+                (df_user["ROLE"] == "NP")
 
             ]["USER"].tolist()
 
@@ -1303,11 +1205,11 @@ def show():
                 "Nama":
                     get_real_name(nama_hos),
 
-                "Promotor": total_promotor,
+                "NP": total_promotor,
 
-                "Promotor Aktif": promotor_aktif,
+                "NP Aktif": promotor_aktif,
 
-                "% Promotor Aktif": f"{persen_aktif}%",
+                "% NP Aktif": f"{persen_aktif}%",
 
                 "MSISDN": total_msisdn,
 
@@ -1344,34 +1246,31 @@ def show():
                 ascending=False
             )
 
-        with st.container(border=True):
+        st.download_button(
 
-            st.download_button(
+            label=":material/download: Download Rekap HOS",
+            data=to_excel(summary_hos),
 
-                label=":material/download: Download Rekap HOS",
+            file_name="rekap_hos.xlsx",
 
-                data=to_excel(summary_hos),
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                file_name="rekap_hos.xlsx",
+            key="download_hos"
 
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
-                key="download_hos"
+        hos_grid = show_grid(
 
-            )
+            summary_hos,
 
-            hos_grid = show_grid(
+            selectable=True,
 
-                summary_hos,
+            key="hos",
+            col_align={
+                "Nama": "left"
+            }
 
-                selectable=True,
-
-                key="hos",
-                col_align={
-                    "Nama": "left"
-                }
-
-            )
+        )
 
         selected_hos = get_selected_value(
 
@@ -1459,7 +1358,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "PROMOTOR")
+                (df_user["ROLE"] == "NP")
 
             ]["USER"].tolist()
 
@@ -1509,13 +1408,13 @@ def show():
                 "Nama":
                     get_real_name(nama_bsm),
 
-                "Promotor":
+                "NP":
                     total_promotor,
 
-                "Promotor Aktif":
+                "NP Aktif":
                     promotor_aktif,
 
-                "% Promotor Aktif":
+                "% NP Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1556,34 +1455,32 @@ def show():
                 )
             )
 
-        with st.container(border=True):
+        st.download_button(
 
-            st.download_button(
+            label=":material/download: Download Rekap BSM",
 
-                label=":material/download: Download Rekap BSM",
+            data=to_excel(summary_bsm),
 
-                data=to_excel(summary_bsm),
+            file_name="rekap_bsm.xlsx",
 
-                file_name="rekap_bsm.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_bsm"
 
-                key="download_bsm"
+        )
 
-            )
+        bsm_grid = show_grid(
 
-            bsm_grid = show_grid(
+            summary_bsm,
 
-                summary_bsm,
+            selectable=True,
 
-                selectable=True,
+            key="bsm",
+            col_align={
+                "Nama": "left"
+            }
 
-                key="bsm",
-                col_align={
-                    "Nama": "left"
-                }
-
-            )
+        )
 
         selected_bsm = get_selected_value(
 
@@ -1723,7 +1620,7 @@ def show():
 
                 &
 
-                (df_user["ROLE"] == "PROMOTOR")
+                (df_user["ROLE"] == "NP")
 
             ]["USER"].tolist()
 
@@ -1773,13 +1670,13 @@ def show():
                 "Nama":
                     get_real_name(nama_cse),
 
-                "Promotor":
+                "NP":
                     total_promotor,
 
-                "Promotor Aktif":
+                "NP Aktif":
                     promotor_aktif,
 
-                "% Promotor Aktif":
+                "% NP Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1820,34 +1717,32 @@ def show():
                 )
             )
 
-        with st.container(border=True):
+        st.download_button(
 
-            st.download_button(
+            label=":material/download: Download Rekap CSE/RSE",
 
-                label=":material/download: Download Rekap CSE",
+            data=to_excel(summary_cse),
 
-                data=to_excel(summary_cse),
+            file_name="rekap_cse.xlsx",
 
-                file_name="rekap_cse.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_cse"
 
-                key="download_cse"
+        )
 
-            )
+        cse_grid = show_grid(
 
-            cse_grid = show_grid(
+            summary_cse,
 
-                summary_cse,
+            selectable=True,
 
-                selectable=True,
+            key="cse",
+            col_align={
+                "Nama": "left"
+            }
 
-                key="cse",
-                col_align={
-                    "Nama": "left"
-                }
-
-            )
+        )
 
         selected_cse = get_selected_value(
 
@@ -1878,13 +1773,13 @@ def show():
 
     if role not in ["CSE", "RSE"]:
 
-        section_title("Rekap Promotor", icon="list_alt")
+        section_title("Rekap NP", icon="list_alt")
 
     rekap_promotor = []
 
     promotor_user = df_user[
 
-        df_user["ROLE"] == "PROMOTOR"
+        df_user["ROLE"] == "NP"
 
     ]
 
@@ -2079,7 +1974,7 @@ def show():
 
         rekap_promotor.append({
 
-            "Promotor":
+            "NP":
                 nama_promotor,
 
              "Nama":
@@ -2141,32 +2036,29 @@ def show():
             )
         )
 
-        with st.container(border=True):
+        st.download_button(
 
-            st.download_button(
+            label=":material/download: Download Rekap NP",
 
-                label=":material/download: Download Rekap Promotor",
+            data=to_excel(summary_promotor),
 
-                data=to_excel(summary_promotor),
+            file_name="rekap_promotor.xlsx",
 
-                file_name="rekap_promotor.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_promotor"
 
-                key="download_promotor"
+        )
 
-            )
+        show_grid(
 
-            show_grid(
+            summary_promotor,
 
-                summary_promotor,
+            selectable=False,
 
-                selectable=False,
+            key="NP",
+            col_align={
+                "Nama": "left"
+            }
 
-                key="PROMOTOR",
-                col_align={
-                    "Nama": "left",
-                    "Upline": "Left"
-                }
-
-            )
+        )

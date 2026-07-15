@@ -17,9 +17,18 @@ from st_aggrid import (
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user,
-    load_biometrik
+    tampil_user
 )
+
+import base64
+
+# Tambah fungsi ini setelah imports:
+def get_base64_image(path):
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except Exception:
+        return ""
 
 # =========================================================
 # GRID
@@ -223,11 +232,15 @@ def show_grid(
 
     custom_css = {
 
-        ".ag-theme-balham": {
+        # Wrapper
+        ".ag-root-wrapper": {
+            "border": "1px solid #f0dce2",
+            "border-radius": "14px"
+        },
 
-            "font-family": "Poppins",
-            "font-size": "13px"
-
+        # Header background
+        ".ag-header": {
+            "background": "linear-gradient(120deg, #FCEFE1 0%, #FBE3E0 60%, #F8DDE6 100%)"
         },
 
         # =================================================
@@ -235,44 +248,43 @@ def show_grid(
         # =================================================
 
         ".ag-header-cell-label": {
-
             "display": "flex",
             "justify-content": "center",
             "align-items": "center",
             "width": "100%",
             "font-weight": "700",
-            "text-align": "center"
-
+            "text-align": "center",
+            "color": "#7A2C46"
         },
 
-        # Header kolom pertama (left)
         ".ag-header-cell[col-id='nama_outlet'] .ag-header-cell-label": {
-
             "justify-content": "flex-start !important",
             "padding-left": "1px"
-
         },
 
         # =================================================
         # CELL
         # =================================================
 
-        ".ag-cell": {
+        ".ag-row": {
+            "font-size": "14px"
+        },
 
+        ".ag-row-hover": {
+            "background-color": "#FFF5F7 !important"
+        },
+
+        ".ag-cell": {
             "display": "flex",
             "justify-content": "center",
             "align-items": "center",
             "text-align": "center"
-
         },
 
-        # Isi kolom pertama (left)
         ".ag-cell[col-id='nama_outlet']": {
-
             "justify-content": "flex-start !important",
             "text-align": "left !important",
             "padding-left": "12px"
-
         },
 
         # =================================================
@@ -280,10 +292,9 @@ def show_grid(
         # =================================================
 
         ".ag-pinned-bottom-row": {
-
-            "background-color": "#eef2ff",
-            "font-weight": "700"
-
+            "background-color": "#FDF1F5",
+            "font-weight": "700",
+            "border-top": "2px solid #D4537E"
         }
 
     }
@@ -341,98 +352,69 @@ def to_excel(df):
         )
 
     return output.getvalue()
+
+def kpi_card(icon, label, value, color):
+
+    st.markdown(
+
+        f"""
+        <div class="dse-kpi-card" style="border-top:4px solid {color};">
+            <div class="dse-kpi-icon">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
+            <div class="dse-kpi-value">{value}</div>
+            <div class="dse-kpi-label">{label}</div>
+        </div>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
+def section_title(text, icon=None):
+
+    icon_html = (
+
+        f'<span class="material-symbols-outlined" style="vertical-align:-6px;margin-right:6px;">{icon}</span>'
+
+        if icon else ""
+
+    )
+
+    st.markdown(
+
+        f"<div class='DSE-card-title'>{icon_html}{text}</div>",
+
+        unsafe_allow_html=True
+
+    )
 # =========================================================
 # DASHBOARD
 # =========================================================
 
+
 def show():
 
-    st.title("📊 Dashboard DSE")
+    st.markdown(
+        """
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
+    )
 
     # =====================================================
-    # TENTUKAN TANGGAL & BRAND DULU, SEBELUM LOAD DATA
+    # LOAD DATA AWAL (JANGAN DIUBAH) — dipakai untuk header
+    # dan sebagai nilai default filter tanggal
     # =====================================================
 
     latest_date = get_latest_data_date()
 
-    col_tgl, col_brand = st.columns(2)
-
-    with col_tgl:
-
-        tanggal = st.date_input(
-
-            "📅 Filter Tanggal",
-
-            value=(
-
-                latest_date,
-
-                latest_date
-
-            ),
-
-            key="pm_tanggal"
-
-        )
-
-    if isinstance(tanggal, tuple):
-
-        if len(tanggal) == 2:
-
-            start_date, end_date = tanggal
-
-        elif len(tanggal) == 1:
-
-            start_date = end_date = tanggal[0]
-
-        else:
-
-            start_date = end_date = latest_date
-
-    else:
-
-        start_date = end_date = tanggal
-
-    with col_brand:
-
-        brand = st.selectbox(
-
-            "📶 Filter Brand",
-
-            options=[
-
-                "Semua",
-                "IM3",
-                "3ID"
-
-            ],
-
-            index=0
-
-        )
-
-    # =====================================================
-    # LOAD DATA SESUAI RENTANG TANGGAL
-    # =====================================================
-
-    data = tampil_data_by_date(
-
-        start_date,
-
-        end_date
-
-    )
-
+    data = tampil_data_by_date(latest_date, latest_date)
     users = tampil_user()
 
     if len(data) == 0:
-
-        st.info(
-
-            "Belum ada data."
-
-        )
-
+        st.info("Belum ada data.")
         return
 
     # =====================================================
@@ -458,11 +440,9 @@ def show():
     # =====================================================
 
     df["Biometrik"] = (
-
         df["flag_bio"]
         .fillna(False)
         .astype(bool)
-
     )
 
     # =====================================================
@@ -470,23 +450,16 @@ def show():
     # =====================================================
 
     df_user = pd.DataFrame(
-
         users,
-
         columns=[
-
             "user",
             "role",
             "atasan",
             "real_name"
-
         ]
-
     )
 
-    df_user.columns = (
-        df_user.columns.str.upper()
-    )
+    df_user.columns = df_user.columns.str.upper()
 
     # ======================================================
     # USER -> REAL NAME
@@ -506,9 +479,7 @@ def show():
     )
 
     def get_real_name(username):
-
         key = str(username).strip().upper()
-
         nama = real_name_map.get(key)
 
         if (
@@ -516,7 +487,6 @@ def show():
             or str(nama).strip() == ""
             or str(nama).strip().lower() == "vacant"
         ):
-
             return username
 
         return nama
@@ -528,25 +498,19 @@ def show():
     df_user["BRAND"] = ""
 
     df_user.loc[
-
         df_user["ATASAN"]
         .astype(str)
         .str.lower()
         .str.contains("_im3"),
-
         "BRAND"
-
     ] = "IM3"
 
     df_user.loc[
-
         df_user["ATASAN"]
         .astype(str)
         .str.lower()
         .str.contains("_3id"),
-
         "BRAND"
-
     ] = "3ID"
 
     # =====================================================
@@ -557,15 +521,210 @@ def show():
     user = st.session_state.outlet_user
 
     # =====================================================
-    # FILTER
+    # ⭐ HEADER (tampil duluan, sebelum filter)
     # =====================================================
 
+    logo_b64 = get_base64_image("icon.png")
+
+    display_name = real_name_map.get(
+        str(user).strip().upper(),
+        user
+    )
+
+    initials = "".join(
+        [w[0].upper() for w in str(display_name).split()[:2]]
+    ) or "-"
+
+    st.markdown(
+        f"""
+        <style>
+        .dse-header {{
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(120deg, #F5B400 0%, #F0997B 35%, #D4537E 70%, #993556 100%);
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.5rem;
+        }}
+        .dse-header-inner {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }}
+        .dse-title-row {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .dse-logo-img {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+        }}
+        .dse-title-row span.dse-title-text {{
+            font-size: 26px;
+            font-weight: 600;
+            color: #fff;
+        }}
+        .dse-user-card {{
+            background: rgba(255,255,255,0.16);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .dse-avatar {{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: #993556;
+        }}
+        .dse-user-name {{
+            font-weight: 600;
+            font-size: 15px;
+            color: #fff;
+        }}
+        .dse-role-pill {{
+            background: rgba(255,255,255,0.25);
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 2px;
+            display: inline-block;
+        }}
+        .dse-kpi-card {{
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
+            border: 1px solid #f3e3e8;
+        }}
+        .dse-kpi-icon {{
+            font-size: 22px;
+            margin-bottom: 4px;
+        }}
+        .dse-kpi-value {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #3d2230;
+        }}
+        .dse-kpi-label {{
+            font-size: 12px;
+            color: #9a7a86;
+            margin-top: 2px;
+        }}
+        .dse-card-title {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #993556;
+            margin-bottom: 10px;
+        }}
+        </style>
+
+        <div class="dse-header">
+            <div class="dse-header-inner">
+                <div>
+                    <div class="dse-title-row">
+                        <img src="data:image/png;base64,{logo_b64}" class="dse-logo-img" />
+                        <span class="dse-title-text">Dashboard DSE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # =====================================================
+    # FILTER (tampil setelah header)
+    # =====================================================
+
+    with st.container(border=True):
+
+        col_tgl, col_brand = st.columns(2)
+
+        with col_tgl:
+
+            tanggal = st.date_input(
+                ":material/calendar_month: Filter Tanggal",
+                value=(
+                    latest_date,
+                    latest_date
+                ),
+                key="pm_tanggal"
+            )
+
+        with col_brand:
+
+            brand = st.selectbox(
+                ":material/sim_card: Filter Brand",
+                options=[
+                    "Semua",
+                    "IM3",
+                    "3ID"
+                ],
+                index=0
+            )
+
+    if isinstance(tanggal, tuple):
+
+        if len(tanggal) == 2:
+            start_date, end_date = tanggal
+        elif len(tanggal) == 1:
+            start_date = end_date = tanggal[0]
+        else:
+            start_date = end_date = latest_date
+
+    else:
+        start_date = end_date = tanggal
+
+    # =====================================================
+    # RELOAD DATA SESUAI RENTANG TANGGAL HASIL FILTER
+    # =====================================================
+
+    data = tampil_data_by_date(
+        start_date,
+        end_date
+    )
+
+    if len(data) == 0:
+        st.info("Belum ada data.")
+        return
+
+    df = pd.DataFrame(
+        data,
+        columns=[
+            "ID",
+            "Nama Outlet",
+            "ID Outlet",
+            "MSISDN",
+            "Input By",
+            "Tanggal",
+            "flag_bio",
+            "ga_dt"
+        ]
+    )
+
+    df["Biometrik"] = (
+        df["flag_bio"]
+        .fillna(False)
+        .astype(bool)
+    )
+
     df["Tanggal"] = pd.to_datetime(
-
         df["Tanggal"],
-
         errors="coerce"
-
     ).dt.date
 
 
@@ -1002,54 +1161,22 @@ def show():
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
-    col1.metric(
-        "🏪 Outlet",
-        total_outlet
-    )
+    with col1:
+        kpi_card("store", "Outlet", total_outlet, "#F5B400")
 
-    col2.metric(
-        "👤 DSE",
-        total_dse
-    )
+    with col2:
+        kpi_card("groups", "DSE", total_dse, "#F0997B")
 
-    col3.metric(
-        "🔥 DSE Aktif",
-        dse_aktif
-    )
+    with col3:
+        kpi_card("bolt", "DSE Aktif", dse_aktif, "#D4537E")
 
-    col4.metric(
-        "% DSE Aktif",
-        f"{persen_dse_aktif}%"
-    )
+    with col4:
+        kpi_card("trending_up", "% Aktif", f"{persen_dse_aktif}%", "#993556")
 
-    col5.metric(
-        "📱 MSISDN",
-        total_msisdn
-    )
-
+    with col5:
+        kpi_card("smartphone", "MSISDN", total_msisdn, "#7A2C46")
 
     st.divider()
-
-    # =====================================================
-    # HEADER + RESET
-    # =====================================================
-
-    if role == "ADMIN":
-
-        title_rekap = "📋 Rekap HOS"
-
-    elif role == "HOS":
-
-        title_rekap = "📋 Rekap BSM"
-
-    elif role == "BSM":
-
-        title_rekap = "📋 Rekap CSE/RSE"
-
-    else:
-
-        title_rekap = ""
-
     # =====================================================
     # RESET SESSION KHUSUS CSE/RSE
     # =====================================================
@@ -1072,13 +1199,28 @@ def show():
 
     with header_col:
 
-        st.subheader(title_rekap)
+        if role == "ADMIN":
+
+            section_title("Rekap HOS", icon="list_alt")
+
+        elif role == "HOS":
+
+            section_title("Rekap BSM", icon="list_alt")
+
+        elif role == "BSM":
+
+            section_title("Rekap CSE/RSE", icon="list_alt")
+
+        else:
+
+            section_title("", icon="list_alt")
 
     with reset_col:
 
         if st.button(
 
-            "🔄 Reset",
+            "Reset",
+            icon=":material/refresh:",
 
             use_container_width=True
 
@@ -1331,29 +1473,21 @@ def show():
                 ascending=False
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            label="⬇️ Download Rekap HOS",
+            st.download_button(
+                label=":material/download: Download Rekap HOS",
+                data=to_excel(summary_hos),
+                file_name="rekap_hos.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_hos"
+            )
 
-            data=to_excel(summary_hos),
-
-            file_name="rekap_hos.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-            key="download_hos"
-
-        )
-
-        hos_grid = show_grid(
-
-            summary_hos,
-
-            selectable=True,
-
-            key=f"hos_{tanggal}_{role}_{user}"
-
-        )
+            hos_grid = show_grid(
+                summary_hos,
+                selectable=True,
+                key=f"hos_{tanggal}_{role}_{user}"
+            )
 
         selected_hos = get_selected_value(
             hos_grid,
@@ -1384,7 +1518,7 @@ def show():
 
         if role == "ADMIN":
 
-            st.subheader("📋 Rekap BSM")
+            section_title("Rekap BSM", icon="list_alt")
 
         rekap_bsm = []
 
@@ -1543,29 +1677,21 @@ def show():
                 ascending=False
             )
 
-        st.download_button(
+        with st.container(border=True):
 
-            label="⬇️ Download Rekap BSM",
+            st.download_button(
+                label=":material/download: Download Rekap BSM",
+                data=to_excel(summary_bsm),
+                file_name="rekap_bsm.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_bsm"
+            )
 
-            data=to_excel(summary_bsm),
-
-            file_name="rekap_bsm.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-            key="download_bsm"
-
-        )
-
-        bsm_grid = show_grid(
-
-            summary_bsm,
-
-            selectable=True,
-
-            key=f"bsm_{tanggal}_{role}_{user}"
-
-        )
+            bsm_grid = show_grid(
+                summary_bsm,
+                selectable=True,
+                key=f"bsm_{tanggal}_{role}_{user}"
+            )
 
         selected_bsm = get_selected_value(
             bsm_grid,
@@ -1590,7 +1716,7 @@ def show():
 
     if role in ["ADMIN", "HOS", "BSM"]:
 
-        st.subheader("📋 Rekap CSE/RSE")
+        section_title("Rekap CSE/RSE", icon="list_alt")
 
         rekap_cse = []
 
@@ -1774,29 +1900,23 @@ def show():
                 ascending=False
             )
 
-        st.download_button(
 
-            label="⬇️ Download Rekap CSE",
+        with st.container(border=True):
 
-            data=to_excel(summary_cse),
+            st.download_button(
+                label=":material/download: Download Rekap CSE/RSE",
+                data=to_excel(summary_cse),
+                file_name="rekap_cse.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_cse"
+            )
 
-            file_name="rekap_cse.xlsx",
+            cse_grid = show_grid(
+                summary_cse,
+                selectable=True,
+                key=f"cse_{tanggal}_{role}_{user}"
+            )
 
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-            key="download_cse"
-
-        )
-
-        cse_grid = show_grid(
-
-            summary_cse,
-
-            selectable=True,
-
-            key=f"cse_{tanggal}_{role}_{user}"
-
-        )
 
         selected_cse = get_selected_value(
             cse_grid,
@@ -1829,7 +1949,7 @@ def show():
 
     ]:
 
-        st.subheader("📋 Rekap DSE")
+        section_title("Rekap DSE", icon="list_alt")
 
         rekap_dse = []
 
@@ -2141,26 +2261,19 @@ def show():
 
             )
 
-        st.download_button(
 
-            label="⬇️ Download Rekap",
+        with st.container(border=True):
 
-            data=to_excel(summary_dse),
+            st.download_button(
+                label=":material/download: Download Rekap DSE",
+                data=to_excel(summary_dse),
+                file_name="rekap_dse_pm_fl.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_dse"
+            )
 
-            file_name="rekap_dse_pm_fl.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-            key="download_dse"
-
-        )
-
-        show_grid(
-
-            summary_dse,
-
-            selectable=False,
-
-            key="dse"
-
-        )
+            show_grid(
+                summary_dse,
+                selectable=False,
+                key=f"dse"
+            )

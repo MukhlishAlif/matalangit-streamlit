@@ -16,7 +16,7 @@ from database import (
 # CONSTANTS
 # ==========================================================
 
-PERSONNEL_ROLES = ["DSE", "CSE", "RSE", "RGE", "PROMOTOR", "GSE", "FRONTLINER","GEMINI"]
+PERSONNEL_ROLES = ["BSM","DSE", "CSE", "RSE", "RGE", "PROMOTOR", "GSE", "FRONTLINER","GEMINI","NP"]
 
 TARGET_PER_DAY = 5
 
@@ -31,6 +31,10 @@ PERSONNEL_GROUPS = {
     "DSE": ["DSE"],
     "PROMOTOR": ["PROMOTOR"],
     "GSE": ["GSE"],
+    "NP": ["NP"],
+    "BSM": ["BSM"],
+    "FRONTLINER": ["FRONLINER"],
+    "GEMINI": ["GEMINI"],
 }
 
 # ==========================================================
@@ -742,6 +746,12 @@ def inject_css():
         padding:2px 9px;
         border-radius:999px;
     }
+
+    .mat-icon{
+        font-variation-settings:'FILL' 1;
+        vertical-align:middle;
+        line-height:1;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -767,12 +777,6 @@ def load_all_data(start_date, end_date):
 
     # ------------------------------------------------
     # OUTLET
-    # ------------------------------------------------
-    # Kolom "Biometrik" sekarang diambil LANGSUNG dari flag_bio
-    # yang dikirim API per baris outlet -- tidak perlu lagi
-    # merge terpisah dengan load_biometrik() & cocokkan tanggal
-    # manual. Lebih akurat (ikut definisi biometrik dari sumber
-    # data itu sendiri) dan lebih ringan (tidak ada merge/lookup).
     # ------------------------------------------------
 
     df = pd.DataFrame(
@@ -909,6 +913,17 @@ def fmt(n):
         return str(n)
 
 
+def mat_icon(name, size=16, color=None, valign=-3):
+    """Render ikon Material Symbols sebagai pengganti emoji."""
+
+    style = f"font-size:{size}px;vertical-align:{valign}px;"
+
+    if color:
+        style += f"color:{color};"
+
+    return f'<span class="material-symbols-outlined mat-icon" style="{style}">{name}</span>'
+
+
 def achievement_badge(pct):
 
     if pct >= 100:
@@ -945,7 +960,9 @@ def kpi_card(icon, label, value, foot, color):
     st.markdown(
         f"""
         <div class="kpi-box">
-            <div class="kpi-icon" style="background:{color};">{icon}</div>
+            <div class="kpi-icon" style="background:{color};">
+                <span class="material-symbols-outlined">{icon}</span>
+            </div>
             <div class="kpi-label">{label}</div>
             <div class="kpi-value">{value}</div>
             <div class="kpi-foot">{foot}</div>
@@ -992,6 +1009,15 @@ def get_base64_image(path):
         return base64.b64encode(f.read()).decode()
 
 def show():
+
+    st.markdown(
+        """
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
+    )
+    
     inject_css()
 
     # Hierarki user (df_user, role_map, dst) dipisah dari data outlet:
@@ -1155,7 +1181,7 @@ def show():
     # FILTER BAR
     # ------------------------------------------------
 
-    f1, f2, f3, f4, f5 = st.columns([2, 1.2, 1.5, 1.5, 1])
+    f1, f2, f3, f4, f5, f6 = st.columns([2, 1.2, 1.5, 1.5, 1, 1])
 
     with f1:
 
@@ -1166,7 +1192,7 @@ def show():
 
         periode = st.date_input(
 
-            "📅 Tanggal",
+            ":material/calendar_month: Filter Tanggal",
 
             value=(date.today(), date.today()),   # <-- tuple = aktifkan mode rentang, default cuma hari ini
 
@@ -1208,9 +1234,10 @@ def show():
         start_date = end_date - timedelta(days=MAX_RANGE_DAYS - 1)
 
         st.warning(
-            f"⚠️ Rentang tanggal maksimal {MAX_RANGE_DAYS} hari. "
-            f"Otomatis disesuaikan jadi {start_date.strftime('%d/%m/%Y')} "
-            f"– {end_date.strftime('%d/%m/%Y')}."
+            f"Rentang tanggal maksimal {MAX_RANGE_DAYS} hari. ",
+            f"Otomatis disesuaikan jadi {start_date.strftime('%d/%m/%Y')} ",
+            f"– {end_date.strftime('%d/%m/%Y')}.",
+            icon=":material/warning:"
         )
 
     # ==========================================
@@ -1254,18 +1281,24 @@ def show():
 
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
 
-        # Catatan: export ini sekarang berisi data sesuai rentang yang
-        # ter-load (tanggal terpilih + buffer 3 hari), bukan seluruh
-        # histori seperti sebelumnya -- konsekuensi dari "load sesuai
-        # tanggal filter". Kalau butuh export SELURUH histori, bilang
-        # saja, itu perlu jalur terpisah dari load_all_data ini.
-
         st.download_button(
-            "⬇ Export",
+            ":material/download: Export",
             data=to_excel(df),
             file_name="dashboard_biometrik.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
+    with f6:
+
+        st.markdown("<div style='height:23px'></div>", unsafe_allow_html=True)
+
+        if st.button("Refresh", use_container_width=True, key="mld_refresh"):
+
+            # Bersihkan cache load_all_data supaya data ke-load ulang
+            # dari database, bukan dari cache lama.
+            st.cache_data.clear()
+
+            st.rerun()
 
     # ------------------------------------------------
     # APPLY FILTER
@@ -1458,9 +1491,9 @@ def show():
     )
     kpi_defs = [
 
-        ("👥", "Team Total", fmt(total_team), "-", "#3B82F6"),
+        ("group", "Team Total", fmt(total_team), "-", "#3B82F6"),
 
-        ("🔥", "Team Aktif", fmt(active_team), "-", "#10B981"),
+        ("bolt", "Team Aktif", fmt(active_team), "-", "#10B981"),
 
         (
             f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
@@ -1479,7 +1512,7 @@ def show():
         ),
 
         (
-            "🔒",
+            "lock",
             "Biometrik Total",
             fmt(bio_total),
             f"Avg {avg_total:.1f}/Personil",
@@ -1501,14 +1534,16 @@ def show():
     # PERSONNEL SUMMARY (Versi Rapi & Manteb)
     # ------------------------------------------------
 
-    st.markdown("### 👥 Performance")
+    st.markdown(
+        '<h3><span class="material-symbols-outlined" style="vertical-align:-6px;">group</span> Performance</h3>',
+        unsafe_allow_html=True
+    )
 
     role_icons = {
-
-        "CSE": "👤",
-        "DSE": "👤",
-        "GSE": "👤",
-        "RGE": "👤"
+        "BSM": mat_icon("person", size=18, valign=-4),
+        "RGE": mat_icon("person", size=18, valign=-4),
+        "CSE": mat_icon("person", size=18, valign=-4),
+        "DSE": mat_icon("person", size=18, valign=-4)
 
     }
 
@@ -1539,10 +1574,10 @@ def show():
             }
 
     role_groups = {
+        "BSM": ["BSM"],
         "CSE/RSE": ["CSE", "RSE"],
-        "DSE": ["DSE"],
-        "GSE": ["GSE"],
-        "RGE": ["RGE"]
+        "RGE": ["RGE"],
+        "DSE": ["DSE"]
     }
 
     role_summary = []
@@ -1721,7 +1756,7 @@ def show():
 
             row["Role"],
 
-            "👤"
+            mat_icon("person", size=18, valign=-4)
 
         )
 
@@ -1795,7 +1830,7 @@ def show():
 
 <div class="kpi-footer">
 
-👤 {row['Input']} / {row['Total']} Personel
+{mat_icon("group", size=15, valign=-3)} {row['Input']} / {row['Total']} Personel
 
 </div>
 
@@ -1807,7 +1842,7 @@ def show():
     opacity:.95;
 ">
 
-🔐 {row['Biometrik']} Biometrik<br>
+{mat_icon("fingerprint", size=14, valign=-2)} {row['Biometrik']} Biometrik<br>
 
 Avg Biometrik :
 <b>{row['Avg Biometrik']:.1f}</b> / Personel
@@ -1825,13 +1860,6 @@ Avg Biometrik :
     # ------------------------------------------------
     # ACHIEVEMENT HOS + TOP 3 BRANCH
     # ------------------------------------------------
-
-# ------------------------------------------------
-    # Helper kompak: 1 baris ranking branch (avg + total),
-    # ukurannya disamakan dengan card leaderboard (lb-row),
-    # bukan pakai badge bundar besar seperti sebelumnya.
-    # ------------------------------------------------
-
     def lb_branch_row(rank_label, branch_name, bsm_name, avg_val, total_val):
 
         st.markdown(
@@ -1846,7 +1874,7 @@ Avg Biometrik :
                 </div>
                 <div style="text-align:right;">
                     <div class="lb-val">{avg_val:.1f}</div>
-                    <div style="font-size:9px;color:#9CA3AF;">🔐 {fmt(total_val)} · Avg/Person</div>
+                    <div style="font-size:9px;color:#9CA3AF;">{mat_icon("fingerprint", size=10, valign=-1)} {fmt(total_val)} · Avg/Person</div>
                 </div>
             </div>
             """,
@@ -1862,7 +1890,7 @@ Avg Biometrik :
     def render_brand_branch_card(brand, brand_label):
 
         st.markdown(
-            f"<div class='mld-card-title'>🏆 {brand_label} Branch (by Avg Biometrik / Person)</div>",
+            f"<div class='mld-card-title'>{mat_icon('emoji_events', size=16, color='#F59E0B', valign=-3)} {brand_label} Branch (by Avg Biometrik / Person)</div>",
             unsafe_allow_html=True
         )
 
@@ -1898,7 +1926,11 @@ Avg Biometrik :
         top3 = sorted(branch_scores, key=lambda x: x[3], reverse=True)[:3]
         bottom3 = sorted(branch_scores, key=lambda x: x[3])[:3][::-1]
 
-        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+        medals = {
+            1: mat_icon("military_tech", size=16, color="#FFD700"),
+            2: mat_icon("military_tech", size=16, color="#C0C0C0"),
+            3: mat_icon("military_tech", size=16, color="#CD7F32"),
+        }
 
         st.markdown("<div class='lb-sub'>Top 3</div>", unsafe_allow_html=True)
 
@@ -1914,7 +1946,7 @@ Avg Biometrik :
             st.caption("Belum ada data.")
         else:
             for i, (branch_name, bsm_name, total_biom, avg_biom) in enumerate(bottom3, start=1):
-                lb_branch_row("📉", branch_name, bsm_name, avg_biom, total_biom)
+                lb_branch_row(mat_icon("trending_down", size=16, color="#EF4444"), branch_name, bsm_name, avg_biom, total_biom)
 
     # ------------------------------------------------
     # ACHIEVEMENT HOS + IM3 + 3ID BRANCH
@@ -1927,7 +1959,7 @@ Avg Biometrik :
         with st.container(border=True):
 
             st.markdown(
-                "<div class='mld-card-title'>🏅 Achievement HoS (by Avg Biometrik / Person)</div>",
+                f"<div class='mld-card-title'>{mat_icon('social_leaderboard', size=16, color='#7C3AED', valign=-3)} Achievement HoS (by Avg Biometrik / Person)</div>",
                 unsafe_allow_html=True
             )
 
@@ -1969,8 +2001,13 @@ Avg Biometrik :
 
             if hos_scores:
 
-                medal_icon = {1: "🥇", 2: "🥈", 3: "🥉", 4: "🎖️"}
-                crown = {1: "👑"}
+                medal_icon = {
+                    1: mat_icon("military_tech", size=20, color="#FFD700", valign=-4),
+                    2: mat_icon("military_tech", size=20, color="#C0C0C0", valign=-4),
+                    3: mat_icon("military_tech", size=20, color="#CD7F32", valign=-4),
+                    4: mat_icon("workspace_premium", size=20, color="#94A3B8", valign=-4),
+                }
+                crown = {1: mat_icon("workspace_premium", size=45, color="#FFD700", valign=-8)}
 
                 podium_cards = []
 
@@ -1984,7 +2021,7 @@ Avg Biometrik :
                         f'<div style="font-size:10px;opacity:.82;margin-top:-2px;margin-bottom:6px;">{real_name}</div>'
                         f'<div class="podium-val">{avg_biom:.1f}</div>'
                         f'<div class="podium-caption">Avg Biometrik / Person</div>'
-                        f'<div class="podium-submit-pill">🔐 {fmt(total_biom)} Biometrik</div>'
+                        f'<div class="podium-submit-pill">{mat_icon("fingerprint", size=12, valign=-2)} {fmt(total_biom)} Biometrik</div>'
                         f'</div>'
                     )
 
@@ -2027,9 +2064,9 @@ Avg Biometrik :
     lb_defs = [
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
-        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
-        ("GSE", PERSONNEL_GROUPS["GSE"]),
+        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
+        ("NP", PERSONNEL_GROUPS["NP"]),
     ]
     for col, (title, roles) in zip(lb_cols, lb_defs):
         with col:
@@ -2104,7 +2141,7 @@ Avg Biometrik :
 
     with st.container(border=True):
 
-        st.markdown("<div class='mld-card-title'>📋 Branch Performance</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='mld-card-title'>{mat_icon('list_alt', size=16, color='#2563EB', valign=-3)} Branch Performance</div>", unsafe_allow_html=True)
 
         t1, t2 = st.columns([1, 3])
 
@@ -2118,7 +2155,7 @@ Avg Biometrik :
 
         with t2:
 
-            search = st.text_input("🔎 Search Branch / MC", key="mld_search")
+            search = st.text_input(":material/search: Search Branch / MC", key="mld_search")
 
         roles_for_table = PERSONNEL_GROUPS[table_group]
 
@@ -2296,13 +2333,9 @@ Avg Biometrik :
                             mc_all["HOS"] == selected_hos
                         ]
 
-                    if selected_group != "Semua Personnel":
-
-                        mc_all = mc_all[
-                            mc_all["Role"].isin(
-                                PERSONNEL_GROUPS[selected_group]
-                            )
-                        ]
+                    mc_all = mc_all[
+                        mc_all["Role"].isin(roles_for_table)
+                    ]
 
                     mc_all["Tanggal"] = pd.to_datetime(mc_all["Tanggal"])
 
