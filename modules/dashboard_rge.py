@@ -756,7 +756,7 @@ def show():
             or str(nama).strip().lower() == "vacant"
         ):
 
-            return username
+            return nama
 
         return nama
 
@@ -1046,6 +1046,39 @@ def show():
 
         ]["Input By"].nunique()
 
+
+    # =====================================================
+    # JUMLAH VACANT
+    # =====================================================
+
+    user_master = (
+        df_user[
+            df_user["ROLE"] == "RGE"
+        ]
+        .drop_duplicates(subset="USER")
+    )
+
+    real_name_clean = (
+        user_master["REAL_NAME"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    vacant_labels = [
+        "",
+        "nan",
+        "none",
+        "null",
+        "vacant",
+        "-"
+    ]
+
+    jumlah_vacant = (
+        real_name_clean.isin(vacant_labels)
+        .sum()
+    )
+
     # =====================================================
     # KPI TOTAL
     # =====================================================
@@ -1084,20 +1117,22 @@ def show():
     # UI KPI
     # =====================================================
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         kpi_card("group", "RGE", total_user, "#F5B400")
 
     with col2:
-        kpi_card("bolt", "RGE Aktif", user_aktif, "#F0997B")
+        kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
 
     with col3:
-        kpi_card("trending_up", "% RGE Aktif", f"{persen_user_aktif}%", "#D4537E")
+        kpi_card("bolt", "RGE Aktif", user_aktif, "#F0997B")
 
     with col4:
-        kpi_card("smartphone", "MSISDN", total_msisdn, "#993556")
+        kpi_card("trending_up", "% RGE Aktif", f"{persen_user_aktif}%", "#D4537E")
 
+    with col5:
+        kpi_card("smartphone", "MSISDN", total_msisdn, "#993556")
 
     st.divider()
 

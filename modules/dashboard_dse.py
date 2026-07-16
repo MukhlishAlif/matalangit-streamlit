@@ -487,7 +487,7 @@ def show():
             or str(nama).strip() == ""
             or str(nama).strip().lower() == "vacant"
         ):
-            return username
+            return nama
 
         return nama
 
@@ -936,7 +936,7 @@ def show():
 
         return dataframe
 
-    # =====================================================
+# =====================================================
     # KPI ROLE AWARE
     # =====================================================
 
@@ -961,6 +961,8 @@ def show():
             else 0
 
         )
+
+        daftar_user = [user]
 
     elif role in [
 
@@ -992,6 +994,8 @@ def show():
                 daftar_dse
             )
         ]["Input By"].nunique()
+
+        daftar_user = daftar_dse
 
     elif role == "BSM":
 
@@ -1035,6 +1039,8 @@ def show():
                 daftar_dse
             )
         ]["Input By"].nunique()
+
+        daftar_user = daftar_dse
 
     elif role == "HOS":
 
@@ -1090,6 +1096,8 @@ def show():
             )
         ]["Input By"].nunique()
 
+        daftar_user = daftar_dse
+
     else:
 
         daftar_dse = df_user[
@@ -1110,6 +1118,40 @@ def show():
                 daftar_dse
             )
         ]["Input By"].nunique()
+
+        daftar_user = daftar_dse
+
+    # =====================================================
+    # JUMLAH VACANT (FILTERED BY ROLE SCOPE)
+    # =====================================================
+
+    user_master = (
+        df_user[
+            df_user["USER"].isin(daftar_user)
+        ]
+        .drop_duplicates(subset="USER")
+    )
+
+    real_name_clean = (
+        user_master["REAL_NAME"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    vacant_labels = [
+        "",
+        "nan",
+        "none",
+        "null",
+        "vacant",
+        "-"
+    ]
+
+    jumlah_vacant = (
+        real_name_clean.isin(vacant_labels)
+        .sum()
+    )
 
     # =====================================================
     # KPI TOTAL
@@ -1159,7 +1201,7 @@ def show():
     # UI KPI
     # =====================================================
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
         kpi_card("store", "Outlet", total_outlet, "#F5B400")
@@ -1168,12 +1210,15 @@ def show():
         kpi_card("groups", "DSE", total_dse, "#F0997B")
 
     with col3:
-        kpi_card("bolt", "DSE Aktif", dse_aktif, "#D4537E")
+        kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
 
     with col4:
-        kpi_card("trending_up", "% Aktif", f"{persen_dse_aktif}%", "#993556")
+        kpi_card("bolt", "DSE Aktif", dse_aktif, "#D4537E")
 
     with col5:
+        kpi_card("trending_up", "% Aktif", f"{persen_dse_aktif}%", "#993556")
+
+    with col6:
         kpi_card("smartphone", "MSISDN", total_msisdn, "#7A2C46")
 
     st.divider()

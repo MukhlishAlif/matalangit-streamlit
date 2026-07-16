@@ -279,6 +279,7 @@ elif role == "BSM":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
+            "Dashboard NP",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -299,6 +300,7 @@ elif role == "HOS":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
+            "Dashboard NP",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -308,7 +310,7 @@ elif role == "HOS":
         key="outlet_menu"
     )
 
-elif role == "ADMIN":
+elif role in ["ADMIN", "HOR"]:
 
     menu = st.sidebar.radio(
         "Menu",
@@ -319,6 +321,7 @@ elif role == "ADMIN":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
+            "Dashboard NP",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",

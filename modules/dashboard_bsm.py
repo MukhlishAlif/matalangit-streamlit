@@ -540,7 +540,7 @@ def show():
             or nama_str in ["", "VACANT", "NAN", "NONE"]
         ):
 
-            return username
+            return nama
 
         return nama
 
@@ -939,6 +939,8 @@ def show():
 
         )
 
+        daftar_user = [user]
+
     elif role == "HOS":
 
         daftar_user = df_user[
@@ -979,6 +981,49 @@ def show():
 
         ]["Input By"].nunique()
 
+
+    # =====================================================
+    # JUMLAH VACANT (NaN / None / kosong / teks "vacant")
+    # =====================================================
+
+    user_master = df_user[
+
+        df_user["USER"]
+        .isin(daftar_user)
+
+    ]
+
+    real_name_clean = (
+
+        user_master["REAL_NAME"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+
+    )
+
+    vacant_labels = [
+
+        "",
+        "nan",
+        "none",
+        "null",
+        "vacant",
+        "-"
+
+    ]
+
+    is_vacant = real_name_clean.isin(
+        vacant_labels
+    )
+
+    jumlah_vacant = (
+
+        user_master[is_vacant]["USER"]
+        .nunique()
+
+    )
+
     # =====================================================
     # KPI TOTAL
     # =====================================================
@@ -1013,7 +1058,7 @@ def show():
     # UI KPI (card berwarna, bukan st.metric polos)
     # =====================================================
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
 
@@ -1021,13 +1066,17 @@ def show():
 
     with col2:
 
-        kpi_card("bolt", "BSM Aktif", user_aktif, "#F0997B")
+        kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
 
     with col3:
 
-        kpi_card("trending_up", "% BSM Aktif", f"{persen_user_aktif}%", "#D4537E")
+        kpi_card("bolt", "BSM Aktif", user_aktif, "#F0997B")
 
     with col4:
+
+        kpi_card("trending_up", "% BSM Aktif", f"{persen_user_aktif}%", "#D4537E")
+
+    with col5:
 
         kpi_card("smartphone", "MSISDN", total_msisdn, "#993556")
 

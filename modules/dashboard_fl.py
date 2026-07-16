@@ -598,7 +598,7 @@ def show():
             or str(nama).strip().lower() == "vacant"
         ):
 
-            return username
+            return nama
 
         return nama
 
@@ -978,6 +978,39 @@ def show():
 
         ]
 
+        # =========================
+    # JUMLAH VACANT
+    # =========================
+
+    user_master = (
+        df_user[
+            df_user["ROLE"] == "FRONTLINER"
+        ]
+        .drop_duplicates(subset="USER")
+    )
+
+    real_name_clean = (
+        user_master["REAL_NAME"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    vacant_labels = [
+        "",
+        "nan",
+        "none",
+        "null",
+        "vacant",
+        "-"
+    ]
+
+    jumlah_vacant = (
+        real_name_clean.isin(vacant_labels)
+        .sum()
+    )
+
+
     # =====================================================
     # KPI
     # =====================================================
@@ -1015,7 +1048,7 @@ def show():
     # KPI UI (disamakan dengan dashboard_dse.py)
     # =========================
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
         kpi_card("store", "Outlet", jumlah_outlet, "#F5B400")
@@ -1024,13 +1057,16 @@ def show():
         kpi_card("groups", "Frontliner", total_fl, "#F0997B")
 
     with col3:
+        kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
+
+    with col4:
         kpi_card("bolt", "FL Aktif", fl_aktif, "#D4537E")
 
     with col5:
-        kpi_card("smartphone", "MSISDN", jumlah_msisdn, "#7A2C46")
-
-    with col4:
         kpi_card("trending_up", "% FL Aktif", f"{persen_fl_aktif}%", "#993556")
+
+    with col6:
+        kpi_card("smartphone", "MSISDN", jumlah_msisdn, "#7A2C46")
 
     st.divider()
 
