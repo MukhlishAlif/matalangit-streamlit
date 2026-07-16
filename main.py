@@ -307,7 +307,7 @@ elif role == "HOS":
         key="outlet_menu"
     )
 
-elif role == "ADMIN":
+elif role in ["ADMIN", "HOR"]:
 
     menu = st.sidebar.radio(
         "Menu",
