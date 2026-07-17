@@ -278,7 +278,7 @@ elif role == "BSM":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
-            "Dashboard NP",
+            "Dashboard New Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -299,7 +299,7 @@ elif role == "HOS":
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
-            "Dashboard NP",
+            "Dashboard New Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -320,7 +320,7 @@ elif role in ["ADMIN", "HOR"]:
             "Dashboard DSE",
             "Dashboard Frontliner",
             "Dashboard Promotor",
-            "Dashboard NP",
+            "Dashboard New Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -379,7 +379,7 @@ elif menu == "Dashboard RGE":
 
     dashboard_rge()
 
-elif menu == "Dashboard NP":
+elif menu == "Dashboard New Promotor":
 
     dashboard_np()
 
