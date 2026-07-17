@@ -1471,19 +1471,19 @@ def show():
         ),
 
         (
-            "bolt",
-            "Team Aktif",
-            fmt(active_team),
-            "-",
-            "#10B981"
-        ),
-
-        (
             "person_off",
             "Vacant",
             fmt(total_vacant),
             "-",
             "#EF4444"
+        ),
+
+        (
+            "bolt",
+            "Team Aktif",
+            fmt(active_team),
+            "-",
+            "#10B981"
         ),
 
         (
@@ -2759,9 +2759,10 @@ def show():
 
     # ==========================================
     # FUNGSI HELPER (khusus Team Performance)
+    # (SEMUA BERBASIS SUBMIT, BUKAN BIOMETRIK)
     # ==========================================
 
-    def get_msisdn_bio_team(user_list):
+    def get_msisdn_avg_team(user_list):
 
         user_data = dff[
             dff["Input By"].isin(user_list)
@@ -2783,21 +2784,18 @@ def show():
 
         total_msisdn = len(user_data)
 
-        total_bio = len(
-            user_data[
-                user_data["Biometrik"] == True
-            ]
-        )
+        # pembagi = jumlah orang (dari user_list) yang BENAR-BENAR submit
+        total_person_submit = user_data["Input By"].nunique()
 
-        persen_bio = (
-            (total_bio / total_msisdn * 100)
-            if total_msisdn > 0
+        avg_per_person = (
+            (total_msisdn / total_person_submit)
+            if total_person_submit > 0
             else 0
         )
 
-        return total_msisdn, total_bio, persen_bio
+        return total_msisdn, total_person_submit, avg_per_person
 
-    def get_bio_by_date_team(user_list, target_date):
+    def get_submit_by_date_team(user_list, target_date):
         user_data = df[
             df["Input By"].isin(user_list)
         ].copy()
@@ -2819,10 +2817,10 @@ def show():
 
         return len(
             user_data[
-                (tanggal_only == target_date)
-                & (user_data["Biometrik"] == True)
+                tanggal_only == target_date
             ]
         )
+
     def stat_chip(label, value, danger=False):
 
         css_class = (
@@ -2889,23 +2887,23 @@ def show():
                 )
             )
 
-            u_msisdn, u_bio, u_persen = (
-                get_msisdn_bio_team(
+            u_msisdn, u_person_submit, u_avg = (
+                get_msisdn_avg_team(
                     downline
                 )
             )
 
-            d1_bio = get_bio_by_date_team(
+            d1_submit = get_submit_by_date_team(
                 downline,
                 d1_date
             )
 
-            d2_bio = get_bio_by_date_team(
+            d2_submit = get_submit_by_date_team(
                 downline,
                 d2_date
             )
 
-            d3_bio = get_bio_by_date_team(
+            d3_submit = get_submit_by_date_team(
                 downline,
                 d3_date
             )
@@ -2914,11 +2912,10 @@ def show():
                 id_col_name: u,
                 "Nama": u_name,
                 "MSISDN": u_msisdn,
-                "Biometrik": u_bio,
-                "% Bio": round(u_persen, 1),
-                d1_label: d1_bio,
-                d2_label: d2_bio,
-                d3_label: d3_bio,
+                "Avg MSISDN/Person": round(u_avg, 1),
+                d1_label: d1_submit,
+                d2_label: d2_submit,
+                d3_label: d3_submit,
             }
 
             if include_role_col:
@@ -2944,23 +2941,19 @@ def show():
             dfr["MSISDN"].sum()
         )
 
-        total_bio = int(
-            dfr["Biometrik"].sum()
-        )
-
-        avg_persen = (
+        avg_msisdn_person = (
             round(
-                total_bio / total_msisdn * 100,
+                dfr["Avg MSISDN/Person"].mean(),
                 1
             )
-            if total_msisdn > 0
+            if len(dfr) > 0
             else 0
         )
 
         n_chip = (
-            5
+            4
             if target_threshold is not None
-            else 4
+            else 3
         )
 
         chip_cols = st.columns(n_chip)
@@ -2976,14 +2969,8 @@ def show():
 
         with chip_cols[2]:
             stat_chip(
-                "Biometrik",
-                f"{total_bio:,}"
-            )
-
-        with chip_cols[3]:
-            stat_chip(
-                "Rata-rata % Bio",
-                f"{avg_persen}%"
+                "Avg MSISDN/Person%",
+                f"{avg_msisdn_person}"
             )
 
         if target_threshold is not None:
@@ -2995,7 +2982,7 @@ def show():
                 ).sum()
             )
 
-            with chip_cols[4]:
+            with chip_cols[3]:
                 stat_chip(
                     f"Belum Capai Target (<{target_threshold} MSISDN)",
                     below_target,
@@ -3010,7 +2997,7 @@ def show():
         )
 
         dfr = dfr.sort_values(
-            "% Bio",
+            "Avg MSISDN/Person",
             ascending=False
         )
 
@@ -3018,13 +3005,11 @@ def show():
             id_col: st.column_config.TextColumn(width=130),
             "Nama": st.column_config.TextColumn(width=190),
             "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
-            "Biometrik": st.column_config.NumberColumn(format="%d", width=110),
-            "% Bio": st.column_config.NumberColumn(format="%.1f%%", width=100),
+            "Avg MSISDN/Person": st.column_config.NumberColumn(format="%.1f", width=140),
             d3_label: st.column_config.NumberColumn(format="%d", width=100),
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
         }
-        
 
         if "Role" in dfr.columns:
             column_config["Role"] = st.column_config.TextColumn(width=80)
@@ -3068,7 +3053,7 @@ def show():
         render_rekap_table(rows_bsm, "BSM", target_threshold=None)
 
     with tab_cse:
-        rows_cse = build_rekap_rows(["CSE", "RSE"], "CSE/RSE", include_role_col=True)
+        rows_cse = build_rekap_rows(["CSE", "RSE"], "CSE/RSE", include_role_col=False)
         render_rekap_table(rows_cse, "CSE/RSE", target_threshold=None)
 
     st.divider()
@@ -3237,7 +3222,6 @@ def show():
         st.caption(
             f"Berdasarkan input by masing-masing user • periode {n_days} hari • "
             f"target minimal {TARGET_AVG_PER_DAY_MIN} submit/hari • "
-            f"D-1/D-2/D-3 = submission turunan (personel + turunannya) pada tanggal tsb"
         )
 
     def get_msisdn_bio_individual(user_list):
@@ -3268,7 +3252,13 @@ def show():
 
         return len(user_data)
 
-    def build_target_rows(role_filter, id_col_name, n_days, include_role_col=False):
+    def build_target_rows(
+        role_filter,
+        id_col_name,
+        n_days,
+        include_role_col=False,
+        include_upline_col=True
+    ):
         rows = []
 
         role_list = role_filter if isinstance(role_filter, list) else [role_filter]
@@ -3306,15 +3296,34 @@ def show():
             d1_msisdn = get_msisdn_by_date_team([u], d1_date)
             d2_msisdn = get_msisdn_by_date_team([u], d2_date)
             d3_msisdn = get_msisdn_by_date_team([u], d3_date)
+
             row = {
                 id_col_name: u,
                 "Nama": u_name,
+            }
+
+            if include_upline_col:
+
+                # ==========================================
+                # UPLINE = username atasan langsung user ini
+                # ==========================================
+
+                upline_username = atasan_map.get(u, "-")
+
+                if not upline_username or str(upline_username).strip().upper() in ["", "NAN", "NONE", "-"]:
+                    upline_display = "-"
+                else:
+                    upline_display = upline_username
+
+                row["Upline"] = upline_display
+
+            row.update({
                 "MSISDN": u_msisdn,
                 "Avg Submit/Day": avg_per_day,
                 d1_label: d1_msisdn,
                 d2_label: d2_msisdn,
                 d3_label: d3_msisdn,
-            }
+            })
 
             if include_role_col:
                 row["Role"] = u_role
@@ -3365,6 +3374,9 @@ def show():
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
         }
 
+        if "Upline" in dfr.columns:
+            column_config["Upline"] = st.column_config.TextColumn(width=170)
+
         if "Role" in dfr.columns:
             column_config["Role"] = st.column_config.TextColumn(width=80)
 
@@ -3388,18 +3400,25 @@ def show():
         tab_dse2,
         tab_rge2,
         tab_promotor2,
-        tab_np2
+        tab_np2,
+        tab_gse2,
+        tab_gemini2
     ) = st.tabs([
         ":material/supervisor_account: BSM",
         ":material/group: CSE/RSE",
         ":material/person: DSE",
         ":material/badge: RGE",
         ":material/campaign: Promotor",
-        ":material/store: NP"
+        ":material/store: New Promotor",
+        ":material/store: GSE",
+        ":material/star: GEMPI"
     ])
 
     with tab_bsm2:
-        rows_bsm2 = build_target_rows("BSM", "BSM", n_days)
+        rows_bsm2 = build_target_rows(
+            "BSM", "BSM", n_days,
+            include_upline_col=False
+        )
         render_target_table(rows_bsm2, "BSM", TARGET_AVG_PER_DAY_MIN)
 
     with tab_cse2:
@@ -3407,7 +3426,8 @@ def show():
             ["CSE", "RSE"],
             "CSE/RSE",
             n_days,
-            include_role_col=True
+            include_role_col=True,
+            include_upline_col=False
         )
         render_target_table(rows_cse2, "CSE/RSE", TARGET_AVG_PER_DAY_MIN)
 
@@ -3426,5 +3446,13 @@ def show():
     with tab_np2:
         rows_np2 = build_target_rows("NP", "NP", n_days)
         render_target_table(rows_np2, "NP", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_gse2:
+        rows_gse2 = build_target_rows("GSE", "GSE", n_days)
+        render_target_table(rows_gse2, "GSE", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_gemini2:
+        rows_gemini2 = build_target_rows("GEMINI", "GEMPI", n_days)
+        render_target_table(rows_gemini2, "GEMPI", TARGET_AVG_PER_DAY_MIN)
 
     st.divider()
