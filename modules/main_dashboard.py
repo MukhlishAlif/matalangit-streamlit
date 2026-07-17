@@ -1655,7 +1655,7 @@ def show():
         "RGE": ["RGE"],
         "DSE": ["DSE"],
         "PROMOTOR": ["PROMOTOR"],
-        "NP": ["NP"],
+        "New Promotor": ["NP"],
         "GSE": ["GSE"],
         "GEMINI": ["GEMINI"],
     }
@@ -1970,7 +1970,7 @@ def show():
         "RGE": ["RGE"],
         "DSE": ["DSE"],
         "PROMOTOR": ["PROMOTOR"],
-        "NP": ["NP"],
+        "New Promotor": ["NP"],
         "GSE": ["GSE"],
         "GEMINI": ["GEMINI"],
     }
@@ -2204,12 +2204,11 @@ def show():
                     <span class="lb-num">{rank_label}</span>
                     <div>
                         <div class="lb-name">{branch_name}</div>
-                        <div class="lb-branch"><b>{bsm_name}</b></div>
                     </div>
                 </div>
                 <div style="text-align:right;">
                     <div class="lb-val">{avg_val:.1f}</div>
-                    <div style="font-size:9px;color:#9CA3AF;">{mat_icon("fingerprint", size=10, valign=-1)} {fmt(total_val)} · Avg/Person</div>
+                    <div style="font-size:9px;color:#9CA3AF;">{mat_icon("fingerprint", size=12, valign=3)} {fmt(total_val)} · Avg/Person</div>
                 </div>
             </div>
             """,
@@ -3448,14 +3447,14 @@ def show():
         render_rekap_table(rows_bsm, "BSM", target_threshold=None)
 
     with tab_cse:
-        rows_cse = build_rekap_rows(["CSE", "RSE"], "CSE/RSE", include_role_col=True)
+        rows_cse = build_rekap_rows(["CSE", "RSE"], "CSE/RSE", include_role_col=False)
         render_rekap_table(rows_cse, "CSE/RSE", target_threshold=None)
 
     st.divider()
 
 # ------------------------------------------------
 # SECTION 2: INDIVIDUAL PERFORMANCE
-# (6 TAB: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP)
+# (8 TAB: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP, GSE, GEMINI)
 # Kolom MSISDN/Avg Submit/Day tetap dari INPUT BY DIA SENDIRI.
 # Kolom D-1/D-2/D-3 = submission TURUNAN (dia + descendants) pada tanggal itu.
 # ------------------------------------------------
@@ -3617,7 +3616,7 @@ def show():
         st.caption(
             f"Berdasarkan input by masing-masing user • periode {n_days} hari • "
             f"target minimal {TARGET_AVG_PER_DAY_MIN} submit/hari • "
-            f"D-1/D-2/D-3 = submission turunan (personel + turunannya) pada tanggal tsb"
+
         )
 
     def get_msisdn_bio_individual(user_list):
@@ -3648,7 +3647,13 @@ def show():
 
         return len(user_data)
 
-    def build_target_rows(role_filter, id_col_name, n_days, include_role_col=False):
+    def build_target_rows(
+        role_filter,
+        id_col_name,
+        n_days,
+        include_role_col=False,
+        include_upline_col=True
+    ):
         rows = []
 
         role_list = role_filter if isinstance(role_filter, list) else [role_filter]
@@ -3686,15 +3691,34 @@ def show():
             d1_msisdn = get_msisdn_by_date_team([u], d1_date)
             d2_msisdn = get_msisdn_by_date_team([u], d2_date)
             d3_msisdn = get_msisdn_by_date_team([u], d3_date)
+
             row = {
                 id_col_name: u,
                 "Nama": u_name,
+            }
+
+            if include_upline_col:
+
+                # ==========================================
+                # UPLINE = username atasan langsung user ini
+                # ==========================================
+
+                upline_username = atasan_map.get(u, "-")
+
+                if not upline_username or str(upline_username).strip().upper() in ["", "NAN", "NONE", "-"]:
+                    upline_display = "-"
+                else:
+                    upline_display = upline_username
+
+                row["Upline"] = upline_display
+
+            row.update({
                 "MSISDN": u_msisdn,
                 "Avg Submit/Day": avg_per_day,
                 d1_label: d1_msisdn,
                 d2_label: d2_msisdn,
                 d3_label: d3_msisdn,
-            }
+            })
 
             if include_role_col:
                 row["Role"] = u_role
@@ -3745,6 +3769,9 @@ def show():
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
         }
 
+        if "Upline" in dfr.columns:
+            column_config["Upline"] = st.column_config.TextColumn(width=170)
+
         if "Role" in dfr.columns:
             column_config["Role"] = st.column_config.TextColumn(width=80)
 
@@ -3768,18 +3795,25 @@ def show():
         tab_dse2,
         tab_rge2,
         tab_promotor2,
-        tab_np2
+        tab_np2,
+        tab_gse2,
+        tab_gemini2
     ) = st.tabs([
         ":material/supervisor_account: BSM",
         ":material/group: CSE/RSE",
         ":material/person: DSE",
         ":material/badge: RGE",
         ":material/campaign: Promotor",
-        ":material/store: NP"
+        ":material/store: New Promotor",
+        ":material/store: GSE",
+        ":material/star: GEMPI"
     ])
 
     with tab_bsm2:
-        rows_bsm2 = build_target_rows("BSM", "BSM", n_days)
+        rows_bsm2 = build_target_rows(
+            "BSM", "BSM", n_days,
+            include_upline_col=False
+        )
         render_target_table(rows_bsm2, "BSM", TARGET_AVG_PER_DAY_MIN)
 
     with tab_cse2:
@@ -3787,7 +3821,8 @@ def show():
             ["CSE", "RSE"],
             "CSE/RSE",
             n_days,
-            include_role_col=True
+            include_role_col=False,
+            include_upline_col=False
         )
         render_target_table(rows_cse2, "CSE/RSE", TARGET_AVG_PER_DAY_MIN)
 
@@ -3805,6 +3840,14 @@ def show():
 
     with tab_np2:
         rows_np2 = build_target_rows("NP", "NP", n_days)
-        render_target_table(rows_np2, "NP", TARGET_AVG_PER_DAY_MIN)
+        render_target_table(rows_np2, "New Promotor", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_gse2:
+        rows_gse2 = build_target_rows("GSE", "GSE", n_days)
+        render_target_table(rows_gse2, "GSE", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_gemini2:
+        rows_gemini2 = build_target_rows("GEMINI", "GEMPI", n_days)
+        render_target_table(rows_gemini2, "GEMPI", TARGET_AVG_PER_DAY_MIN)
 
     st.divider()
