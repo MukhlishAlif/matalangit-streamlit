@@ -538,7 +538,7 @@ def show():
             or str(nama).strip().lower() == "vacant"
         ):
 
-            return username
+            return nama
 
         return nama
 
@@ -1060,6 +1060,37 @@ def show():
 
         ]["Input By"].nunique()
 
+        # =====================================================
+    # JUMLAH VACANT (NaN / None / kosong / teks "vacant")
+    # =====================================================
+
+    user_master = df_user[
+        df_user["USER"].isin(daftar_user)
+    ]
+
+    real_name_clean = (
+        user_master["REAL_NAME"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    vacant_labels = [
+        "",
+        "nan",
+        "none",
+        "null",
+        "vacant",
+        "-"
+    ]
+
+    is_vacant = real_name_clean.isin(vacant_labels)
+
+    jumlah_vacant = (
+        user_master[is_vacant]["USER"]
+        .nunique()
+    )
+
     # =====================================================
     # KPI TOTAL
     # =====================================================
@@ -1098,26 +1129,24 @@ def show():
     # UI KPI (custom cards)
     # =====================================================
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-
         kpi_card("store", "Outlet", total_outlet, "#F5B400")
 
     with col2:
-
         kpi_card("groups", "CSE/RSE", total_user, "#F0997B")
 
     with col3:
-
-        kpi_card("bolt", "CSE/RSE Aktif", user_aktif, "#D4537E")
+        kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
 
     with col4:
-
-        kpi_card("trending_up", "% CSE/RSE Aktif", f"{persen_user_aktif}%", "#993556")
+        kpi_card("bolt", "CSE/RSE Aktif", user_aktif, "#D4537E")
 
     with col5:
+        kpi_card("trending_up", "% CSE/RSE Aktif", f"{persen_user_aktif}%", "#993556")
 
+    with col6:
         kpi_card("smartphone", "MSISDN", total_msisdn, "#7A2C46")
 
     st.divider()

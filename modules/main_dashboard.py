@@ -34,7 +34,7 @@ PERSONNEL_GROUPS = {
     "NP": ["NP"],
     "BSM": ["BSM"],
     "FRONTLINER": ["FRONLINER"],
-    "GEMINI": ["GEMINI"],
+    "GEMPI": ["GEMINI"],
 }
 
 # ==========================================================
@@ -1020,10 +1020,6 @@ def show():
     
     inject_css()
 
-    # Hierarki user (df_user, role_map, dst) dipisah dari data outlet:
-    # ini di-cache sendiri (ttl=300) dan tidak tergantung tanggal filter,
-    # jadi bisa dipakai duluan untuk header & dropdown HoS sebelum kita
-    # tahu tanggal apa yang dipilih user.
     (
         df_user,
         role_map,
@@ -1032,7 +1028,7 @@ def show():
         children_map
     ) = load_user_hierarchy()
 
-    # ------------------------------------------------
+# ------------------------------------------------
     # HEADER
     # ------------------------------------------------
     current_user = st.session_state.get("outlet_user", "-")
@@ -1054,9 +1050,11 @@ def show():
         [w[0].upper() for w in str(display_name).split()[:2]]
     ) or "-"
 
-    # Load logo jadi base64
-    logo_b64 = get_base64_image("icon.png")  # sesuaikan path kalau perlu, mis. "assets/icon.png"
+    logo_b64 = get_base64_image("icon.png")
 
+    # ==========================================
+    # CSS HEADER
+    # ==========================================
     st.markdown(
         f"""
         <style>
@@ -1145,8 +1143,74 @@ def show():
             margin-top: 2px;
             display: inline-block;
         }}
+        .mld-last-bio {{
+            background: rgba(255,255,255,0.16);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            min-width: 180px;
+        }}
+        .mld-last-bio-label {{
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }}
+        .mld-last-bio-value {{
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }}
+        .mld-last-bio-time {{
+            font-size: 13px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 4px;
+        }}
         </style>
+        """,
+        unsafe_allow_html=True
+    )
 
+    # ==========================================
+    # HITUNG LAST BIOMETRIK — MURNI, TIDAK TERGANTUNG FILTER TANGGAL
+    # Panggil load_all_data dengan range GLOBAL (tetap/fixed),
+    # BUKAN start_date/end_date dari filter di bawah.
+    # Streamlit cache_data akan simpan hasil ini terpisah dari
+    # cache yang dipakai untuk tabel (karena argumennya beda).
+    # ==========================================
+    GLOBAL_START = date(2000, 1, 1)
+    GLOBAL_END = date.today()
+
+    df_for_bio, _, _, _, _, _ = load_all_data(GLOBAL_START, GLOBAL_END)
+
+    last_bio_date = "-"
+    last_bio_time = "-"
+
+    try:
+        df_bio = df_for_bio.copy()
+        df_bio["Biometrik"] = df_bio["Biometrik"].fillna(0).astype(int)
+        df_bio["ga_dt"] = pd.to_datetime(df_bio["ga_dt"], errors="coerce")
+
+        biometrik_valid = df_bio[df_bio["Biometrik"] == 1]
+
+        if len(biometrik_valid) > 0:
+            last_date = biometrik_valid["ga_dt"].max()
+            if pd.notna(last_date):
+                last_bio_date = last_date.strftime("%d %b %Y")
+                last_bio_time = last_date.strftime("%H:%M:%S")
+
+    except Exception as e:
+        # st.error(f"Error hitung last biometrik: {e}")
+        pass
+
+    # ==========================================
+    # RENDER HEADER (JUDUL + LOGO + LAST BIOMETRIK)
+    # DIRENDER DI SINI, SEBELUM FILTER BAR
+    # ==========================================
+    st.markdown(
+        f"""
         <div class="mld-header">
             <div class="mld-header-inner">
                 <div>
@@ -1158,84 +1222,52 @@ def show():
                         Leaderboard berdasarkan jumlah Biometrik MSISDN
                     </div>
                 </div>
+                <div class="mld-last-bio" id="mld-last-bio">
+                    <div class="mld-last-bio-label">Terakhir Biometrik</div>
+                    <div class="mld-last-bio-value">{last_bio_date}</div>
+                </div>
             </div>
         </div>
-
-        <script>
-        function mldTick() {{
-            var d = new Date();
-            var h = String(d.getHours()).padStart(2, '0');
-            var m = String(d.getMinutes()).padStart(2, '0');
-            var s = String(d.getSeconds()).padStart(2, '0');
-            var el = document.getElementById('mld-clock');
-            if (el) {{ el.textContent = h + ':' + m + ':' + s + ' WIB'; }}
-        }}
-        mldTick();
-        setInterval(mldTick, 1000);
-        </script>
         """,
         unsafe_allow_html=True
     )
 
-    # ------------------------------------------------
-    # FILTER BAR
-    # ------------------------------------------------
-
+    # ==========================================
+    # 1) FILTER BAR
+    # (filter di bawah ini HANYA memengaruhi data tabel/leaderboard,
+    #  TIDAK memengaruhi Last Biometrik di header di atas)
+    # ==========================================
     f1, f2, f3, f4, f5, f6 = st.columns([2, 1.2, 1.5, 1.5, 1, 1])
 
     with f1:
-
-        # Default: HARI INI SAJA (single date), bukan range 7 hari.
-        # Supaya saat pertama kali dibuka nggak langsung menghitung
-        # data seminggu penuh (berat). User tetap bebas ganti ke
-        # range tanggal lain lewat widget ini kalau perlu.
-
         periode = st.date_input(
-
             ":material/calendar_month: Filter Tanggal",
-
-            value=(date.today(), date.today()),   # <-- tuple = aktifkan mode rentang, default cuma hari ini
-
+            value=(date.today(), date.today()),
             key="mld_periode"
-
         )
 
     # ==========================================
-    # TENTUKAN start_date/end_date DULU, sebelum load data.
+    # TENTUKAN start_date/end_date
     # ==========================================
-
     if isinstance(periode, tuple):
-
         if len(periode) == 2:
-
             start_date, end_date = periode
-
         else:
-
             start_date = end_date = periode[0]
-
     else:
-
         start_date = end_date = periode
 
     # ==========================================
     # BATASI MAKSIMAL RENTANG 31 HARI
-    # Kalau user pilih rentang lebih dari 31 hari, start_date
-    # otomatis dipotong (bukan error) supaya data yang di-load
-    # tidak kebesaran. end_date tetap seperti pilihan user.
     # ==========================================
-
     MAX_RANGE_DAYS = 31
-
     selected_range_days = (end_date - start_date).days + 1
 
     if selected_range_days > MAX_RANGE_DAYS:
-
         start_date = end_date - timedelta(days=MAX_RANGE_DAYS - 1)
-
         st.warning(
-            f"Rentang tanggal maksimal {MAX_RANGE_DAYS} hari. ",
-            f"Otomatis disesuaikan jadi {start_date.strftime('%d/%m/%Y')} ",
+            f"Rentang tanggal maksimal {MAX_RANGE_DAYS} hari. "
+            f"Otomatis disesuaikan jadi {start_date.strftime('%d/%m/%Y')} "
             f"– {end_date.strftime('%d/%m/%Y')}.",
             icon=":material/warning:"
         )
@@ -1246,11 +1278,9 @@ def show():
     # Karena start_date/end_date jadi argumen, Streamlit cache
     # otomatis kepisah per tanggal yang dipilih.
     # ==========================================
-
     df, _, _, _, _, _ = load_all_data(start_date, end_date)
 
     with f2:
-
         selected_brand = st.selectbox(
             "Brand",
             ["Semua Brand", "IM3", "3ID"],
@@ -1258,7 +1288,6 @@ def show():
         )
 
     with f3:
-
         hos_list = sorted(
             df_user[df_user["ROLE"] == "HOS"]["USER"].dropna().unique().tolist()
         )
@@ -1270,7 +1299,6 @@ def show():
         )
 
     with f4:
-
         selected_group = st.selectbox(
             "Personnel",
             ["Semua Personnel"] + list(PERSONNEL_GROUPS.keys()),
@@ -1278,7 +1306,6 @@ def show():
         )
 
     with f5:
-
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
 
         st.download_button(
@@ -1289,15 +1316,12 @@ def show():
         )
 
     with f6:
-
         st.markdown("<div style='height:23px'></div>", unsafe_allow_html=True)
 
         if st.button("Refresh", use_container_width=True, key="mld_refresh"):
-
             # Bersihkan cache load_all_data supaya data ke-load ulang
             # dari database, bukan dari cache lama.
             st.cache_data.clear()
-
             st.rerun()
 
     # ------------------------------------------------
@@ -1306,73 +1330,37 @@ def show():
     # Tanggal SUDAH difilter sejak load_all_data(); di sini tinggal
     # terapkan filter Brand/HoS/Personnel di atas subset yang sudah kecil.
     # ------------------------------------------------
-
     dff = df.copy()
 
-    dff["Tanggal"] = pd.to_datetime(
-        dff["Tanggal"]
-    )
+    dff["Tanggal"] = pd.to_datetime(dff["Tanggal"])
 
     dff = dff[
-
         (dff["Tanggal"].dt.date >= start_date)
-
         &
-
         (dff["Tanggal"].dt.date <= end_date)
-
     ]
 
     # ==========================================
     # FILTER BRAND
     # ==========================================
-
     if selected_brand != "Semua Brand":
-
-        dff = dff[
-
-            dff["Brand"] == selected_brand
-
-        ]
+        dff = dff[dff["Brand"] == selected_brand]
 
     # ==========================================
     # FILTER HOS
     # ==========================================
-
     if selected_hos != "Semua HoS":
-
-        dff = dff[
-
-            dff["HOS"] == selected_hos
-
-        ]
+        dff = dff[dff["HOS"] == selected_hos]
 
     # ==========================================
     # FILTER PERSONNEL
     # ==========================================
-
     if selected_group != "Semua Personnel":
-
-        dff = dff[
-
-            dff["Role"].isin(
-
-                PERSONNEL_GROUPS[
-                    selected_group
-                ]
-
-            )
-
-        ]
+        dff = dff[dff["Role"].isin(PERSONNEL_GROUPS[selected_group])]
 
     n_days = max(
-
-        dff["Tanggal"]
-        .dt.date
-        .nunique(),
-
+        dff["Tanggal"].dt.date.nunique(),
         1
-
     )
 
     st.divider()
@@ -1409,6 +1397,86 @@ def show():
         active_personnel = active_personnel[
             active_personnel["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
         ]
+
+    # ==========================================
+    # HELPER: FILTER PERSONNEL BY HOS (tembus BSM -> Promotor/GEMINI)
+    # ==========================================
+
+    def filter_personnel_by_hos(df_personnel, df_user_ref, hos_name):
+
+        if hos_name == "Semua HoS":
+            return df_personnel
+
+        daftar_bsm_under_hos = df_user_ref[
+
+            (df_user_ref["ATASAN"] == hos_name)
+
+            &
+
+            (df_user_ref["ROLE"] == "BSM")
+
+        ]["USER"].tolist()
+
+        mask = (
+
+            (df_personnel["ATASAN"] == hos_name)
+
+            |
+
+            (df_personnel["ATASAN"].isin(daftar_bsm_under_hos))
+
+        )
+
+        return df_personnel[mask]
+
+    # ==========================================
+    # FILTER HOS
+    # ==========================================
+
+    if selected_hos != "Semua HoS":
+
+        all_personnel = filter_personnel_by_hos(
+            all_personnel, df_user, selected_hos
+        )
+
+        active_personnel = filter_personnel_by_hos(
+            active_personnel, df_user, selected_hos
+        )
+
+    # ==========================================
+    # JUMLAH VACANT
+    # (dihitung SETELAH semua filter - Brand, Personnel Group, HoS -
+    #  diterapkan ke all_personnel, supaya total vacant konsisten
+    #  dengan Team Total/Aktif di KPI card)
+    # ==========================================
+
+    real_name_clean = (
+
+        all_personnel["REAL_NAME"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+
+    )
+
+    vacant_labels = [
+
+        "",
+        "nan",
+        "none",
+        "null",
+        "vacant",
+        "-"
+
+    ]
+
+    jumlah_vacant = int(
+
+        real_name_clean
+        .isin(vacant_labels)
+        .sum()
+
+    )
 
     # ==========================================
     # Hanya personel aktif yang submit pada periode terpilih
@@ -1493,6 +1561,8 @@ def show():
 
         ("group", "Team Total", fmt(total_team), "-", "#3B82F6"),
 
+        ("person_off", "Vacant", fmt(jumlah_vacant), "-", "#E8A33D"),
+
         ("bolt", "Team Aktif", fmt(active_team), "-", "#10B981"),
 
         (
@@ -1520,7 +1590,7 @@ def show():
         ),
 
     ]
-    kpi_cols = st.columns(5)
+    kpi_cols = st.columns(6)
 
     for col, (icon, label, value, foot, color) in zip(kpi_cols, kpi_defs):
 
@@ -1530,20 +1600,20 @@ def show():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+# ------------------------------------------------
+    # PERSONNEL SUMMARY (Versi Compact & Colorful)
     # ------------------------------------------------
-    # PERSONNEL SUMMARY (Versi Rapi & Manteb)
-    # ------------------------------------------------
-
+    """
     st.markdown(
         '<h3><span class="material-symbols-outlined" style="vertical-align:-6px;">group</span> Performance</h3>',
         unsafe_allow_html=True
     )
 
     role_icons = {
-        "BSM": mat_icon("person", size=18, valign=-4),
-        "RGE": mat_icon("person", size=18, valign=-4),
-        "CSE": mat_icon("person", size=18, valign=-4),
-        "DSE": mat_icon("person", size=18, valign=-4)
+        "BSM": mat_icon("person", size=16, valign=-3),
+        "RGE": mat_icon("person", size=16, valign=-3),
+        "CSE": mat_icon("person", size=16, valign=-3),
+        "DSE": mat_icon("person", size=16, valign=-3)
 
     }
 
@@ -1553,7 +1623,9 @@ def show():
 
             return {
 
-                "grad": "linear-gradient(160deg, #34d399 0%, #059669 100%)"
+                "grad": "linear-gradient(90deg, #34d399 0%, #059669 100%)",
+                "soft": "rgba(16,185,129,.10)",
+                "text": "#059669"
 
             }
 
@@ -1561,7 +1633,9 @@ def show():
 
             return {
 
-                "grad": "linear-gradient(160deg, #fbbf24 0%, #d97706 100%)"
+                "grad": "linear-gradient(90deg, #fbbf24 0%, #d97706 100%)",
+                "soft": "rgba(217,119,6,.10)",
+                "text": "#b45309"
 
             }
 
@@ -1569,7 +1643,9 @@ def show():
 
             return {
 
-                "grad": "linear-gradient(160deg, #f87171 0%, #dc2626 100%)"
+                "grad": "linear-gradient(90deg, #f87171 0%, #dc2626 100%)",
+                "soft": "rgba(220,38,38,.10)",
+                "text": "#dc2626"
 
             }
 
@@ -1577,9 +1653,327 @@ def show():
         "BSM": ["BSM"],
         "CSE/RSE": ["CSE", "RSE"],
         "RGE": ["RGE"],
-        "DSE": ["DSE"]
+        "DSE": ["DSE"],
+        "PROMOTOR": ["PROMOTOR"],
+        "NP": ["NP"],
+        "GSE": ["GSE"],
+        "GEMINI": ["GEMINI"],
+    }
+    role_summary = []
+
+    for group_label, roles in role_groups.items():
+
+        # Total personel aktif
+        total_role = df_user[
+            (df_user["ROLE"].isin(roles))
+            &
+            (df_user["STATUS"].astype(str).str.upper() == "AKTIF")
+            &
+            (
+                (selected_brand == "Semua Brand")
+                |
+                (df_user["BRAND"] == selected_brand)
+            )
+        ]["USER"].nunique()
+
+        # Data biometrik pada periode terpilih
+        role_data = dff[
+            (dff["Role"].isin(roles))
+            &
+            (dff["Biometrik"] == 1)
+        ]
+
+        # Personel yang berhasil biometrik
+        input_role = role_data["Input By"].nunique()
+
+        # Total biometrik
+        biom_role = len(role_data)
+
+        # Persentase personel biometrik
+        percent = (
+            input_role / total_role * 100
+        ) if total_role > 0 else 0
+
+        # Average biometrik per personel
+        avg_biom = (
+            biom_role / input_role
+        ) if input_role > 0 else 0
+
+        role_summary.append({
+
+            "Role": group_label,
+
+            "Total": total_role,
+
+            "Input": input_role,
+
+            "Biometrik": biom_role,
+
+            "Avg Biometrik": avg_biom,
+
+            "Persentase": percent
+
+        })
+
+    summary_role = pd.DataFrame(
+        role_summary
+    )
+
+    st.markdown(
+
+        ""
+        <style>
+
+        .kpi-row{
+
+            background:#ffffff;
+            border:1px solid #eef0f3;
+            border-radius:14px;
+            padding:12px 14px 10px 14px;
+            margin-bottom:10px;
+            box-shadow:0 2px 6px rgba(0,0,0,.04);
+            transition:all .18s ease;
+
+        }
+
+        .kpi-row:hover{
+
+            box-shadow:0 4px 14px rgba(0,0,0,.08);
+            transform:translateY(-2px);
+
+        }
+
+        .kpi-row-top{
+
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin-bottom:10px;
+
+        }
+
+        .kpi-icon-badge{
+
+            flex:0 0 auto;
+            width:32px;
+            height:32px;
+            border-radius:9px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:15px;
+            color:white;
+
+        }
+
+        .kpi-role-block{
+
+            flex:1 1 auto;
+            min-width:0;
+
+        }
+
+        .kpi-role{
+
+            font-size:12.5px;
+            font-weight:700;
+            letter-spacing:.6px;
+            text-transform:uppercase;
+            color:#111827;
+            line-height:1.1;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+
+        }
+
+        .kpi-sub{
+
+            font-size:11px;
+            color:#9ca3af;
+            font-weight:500;
+            margin-top:2px;
+
+        }
+
+        .kpi-pct{
+
+            flex:0 0 auto;
+            text-align:right;
+            font-size:16px;
+            font-weight:800;
+
+        }
+
+        .kpi-bar-track{
+
+            position:relative;
+            width:100%;
+            height:8px;
+            border-radius:999px;
+            background:#f1f2f4;
+            overflow:hidden;
+            margin-bottom:10px;
+
+        }
+
+        .kpi-bar-fill{
+
+            position:absolute;
+            top:0;
+            left:0;
+            height:100%;
+            border-radius:999px;
+
+        }
+
+        .kpi-stats{
+
+            display:flex;
+            gap:6px;
+            flex-wrap:wrap;
+
+        }
+
+        .kpi-pill{
+
+            display:flex;
+            align-items:center;
+            gap:4px;
+            background:#f8f9fb;
+            border-radius:999px;
+            padding:4px 9px;
+            font-size:11px;
+            font-weight:600;
+            color:#4b5563;
+            white-space:nowrap;
+
+        }
+
+        </style>
+        "",
+
+        unsafe_allow_html=True
+
+    )
+
+    # Layout tetap 4 kolom per baris (sama seperti sebelumnya)
+    CARDS_PER_ROW = 4
+
+    for row_start in range(0, len(summary_role), CARDS_PER_ROW):
+
+        chunk = summary_role.iloc[
+            row_start:row_start + CARDS_PER_ROW
+        ]
+
+        cols = st.columns(CARDS_PER_ROW)
+
+        for col_idx, (_, row) in enumerate(chunk.iterrows()):
+
+            theme = get_theme(
+                row["Persentase"]
+            )
+
+            icon = role_icons.get(
+
+                row["Role"],
+
+                mat_icon("person", size=16, valign=-3)
+
+            )
+
+            pct = row["Persentase"]
+
+            # PENTING: setiap baris HTML dimulai dari kolom 0 (tanpa indentasi),
+            # kalau tidak Streamlit akan menganggapnya sebagai code block Markdown.
+            card_html = (
+                '<div class="kpi-row">'
+                '<div class="kpi-row-top">'
+                f'<div class="kpi-icon-badge" style="background:{theme["grad"]};">{icon}</div>'
+                '<div class="kpi-role-block">'
+                f'<div class="kpi-role">{row["Role"]}</div>'
+                f'<div class="kpi-sub">{row["Input"]} / {row["Total"]} personel</div>'
+                '</div>'
+                f'<div class="kpi-pct" style="color:{theme["text"]};">{pct:.0f}%</div>'
+                '</div>'
+                '<div class="kpi-bar-track">'
+                f'<div class="kpi-bar-fill" style="width:{pct:.0f}%; background:{theme["grad"]};"></div>'
+                '</div>'
+                '<div class="kpi-stats">'
+                f'<div class="kpi-pill">{mat_icon("fingerprint", size=13, valign=-2)} {row["Biometrik"]}</div>'
+                f'<div class="kpi-pill">Avg <b>{row["Avg Biometrik"]:.1f}</b></div>'
+                '</div>'
+                '</div>'
+            )
+
+            with cols[col_idx]:
+
+                st.markdown(card_html, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)"""
+
+# ------------------------------------------------
+    # PERSONNEL SUMMARY (Versi Compact & Colorful)
+    # ------------------------------------------------
+
+    st.markdown(
+        '<h3><span class="material-symbols-outlined" style="vertical-align:-6px;">group</span> Performance</h3>',
+        unsafe_allow_html=True
+    )
+
+    role_icons = {
+        "BSM": mat_icon("person", size=16, valign=-3),
+        "RGE": mat_icon("person", size=16, valign=-3),
+        "CSE": mat_icon("person", size=16, valign=-3),
+        "DSE": mat_icon("person", size=16, valign=-3)
+
     }
 
+    def get_theme(percent):
+
+        if percent >= 80:
+
+            return {
+
+                "grad": "linear-gradient(160deg, #34d399 0%, #059669 100%)",
+                "stop1": "#34d399",
+                "stop2": "#059669",
+                "text": "#059669"
+
+            }
+
+        elif percent >= 50:
+
+            return {
+
+                "grad": "linear-gradient(160deg, #fbbf24 0%, #d97706 100%)",
+                "stop1": "#fbbf24",
+                "stop2": "#d97706",
+                "text": "#b45309"
+
+            }
+
+        else:
+
+            return {
+
+                "grad": "linear-gradient(160deg, #f87171 0%, #dc2626 100%)",
+                "stop1": "#f87171",
+                "stop2": "#dc2626",
+                "text": "#dc2626"
+
+            }
+
+    role_groups = {
+        "BSM": ["BSM"],
+        "CSE/RSE": ["CSE", "RSE"],
+        "RGE": ["RGE"],
+        "DSE": ["DSE"],
+        "PROMOTOR": ["PROMOTOR"],
+        "NP": ["NP"],
+        "GSE": ["GSE"],
+        "GEMINI": ["GEMINI"],
+    }
     role_summary = []
 
     for group_label, roles in role_groups.items():
@@ -1647,60 +2041,46 @@ def show():
 
         .kpi-card{
 
-            position:relative;
-            border-radius:20px;
-            padding:24px 20px 18px 20px;
+            background:var(--accent-grad, #d1d5db);
+            border-radius:16px;
+            padding:16px 14px;
             text-align:center;
-            color:white;
-            box-shadow:0 6px 18px rgba(0,0,0,.14);
-            transition:all .2s ease;
-            overflow:hidden;
+            box-shadow:0 4px 14px rgba(0,0,0,.12);
+            transition:all .18s ease;
+            margin-bottom:22px;
 
         }
 
         .kpi-card:hover{
 
-            transform:translateY(-3px);
-            box-shadow:0 10px 24px rgba(0,0,0,.20);
-
-        }
-
-        .kpi-card::before{
-
-            content:"";
-            position:absolute;
-            top:-30px;
-            right:-30px;
-            width:100px;
-            height:100px;
-            background:rgba(255,255,255,.08);
-            border-radius:50%;
+            box-shadow:0 8px 20px rgba(0,0,0,.18);
+            transform:translateY(-2px);
 
         }
 
         .kpi-icon-badge{
 
-            width:40px;
-            height:40px;
-            border-radius:12px;
-            background:rgba(255,255,255,.20);
+            width:28px;
+            height:28px;
+            border-radius:9px;
+            background:rgba(255,255,255,.22);
             display:flex;
             align-items:center;
             justify-content:center;
-            font-size:18px;
-            margin:0 auto 10px auto;
-            backdrop-filter:blur(2px);
+            font-size:13px;
+            color:white;
+            margin:0 auto 8px auto;
 
         }
 
         .kpi-role{
 
-            font-size:14px;
+            font-size:15px;
             font-weight:700;
-            letter-spacing:1.2px;
+            letter-spacing:.8px;
             text-transform:uppercase;
-            opacity:.95;
-            margin-bottom:14px;
+            color:#ffffff;
+            margin-bottom:10px;
 
         }
 
@@ -1708,32 +2088,32 @@ def show():
 
             display:flex;
             justify-content:center;
-            margin-bottom:10px;
-            position:relative;
-            z-index:1;
+            margin-bottom:8px;
 
         }
 
         .kpi-percent{
 
-            font-size:19px;
+            font-size:14px;
             font-weight:800;
-            fill:white;
+            fill:#ffffff;
 
         }
 
         .kpi-footer{
 
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            gap:6px;
-            background:rgba(255,255,255,.18);
-            border-radius:999px;
-            padding:6px 14px;
-            font-size:12.5px;
+            font-size:14px;
             font-weight:600;
-            margin-top:6px;
+            color:rgba(255,255,255,.92);
+            margin-bottom:2px;
+
+        }
+
+        .kpi-avg{
+
+            font-size:12px;
+            font-weight:500;
+            color:rgba(255,255,255,.72);
 
         }
 
@@ -1744,117 +2124,70 @@ def show():
 
     )
 
-    cols = st.columns(4)
+    # Layout tetap 4 kolom per baris
+    CARDS_PER_ROW = 4
 
-    for idx, row in summary_role.iterrows():
+    for row_start in range(0, len(summary_role), CARDS_PER_ROW):
 
-        theme = get_theme(
-            row["Persentase"]
-        )
+        chunk = summary_role.iloc[
+            row_start:row_start + CARDS_PER_ROW
+        ]
 
-        icon = role_icons.get(
+        cols = st.columns(CARDS_PER_ROW)
 
-            row["Role"],
+        for col_idx, (_, row) in enumerate(chunk.iterrows()):
 
-            mat_icon("person", size=18, valign=-4)
+            theme = get_theme(
+                row["Persentase"]
+            )
 
-        )
+            icon = role_icons.get(
 
-        pct = row["Persentase"]
+                row["Role"],
 
-        radius = 38
-
-        circumference = 2 * 3.14159 * radius
-
-        offset = circumference - (
-
-            pct / 100 * circumference
-
-        )
-
-        ring_svg = f"""
-<div class="kpi-ring-wrap">
-    <svg width="94" height="94" viewBox="0 0 94 94">
-        <circle
-            cx="47"
-            cy="47"
-            r="{radius}"
-            stroke="rgba(255,255,255,.25)"
-            stroke-width="7"
-            fill="none"
-        />
-        <circle
-            cx="47"
-            cy="47"
-            r="{radius}"
-            stroke="white"
-            stroke-width="7"
-            fill="none"
-            stroke-dasharray="{circumference:.1f}"
-            stroke-dashoffset="{offset:.1f}"
-            stroke-linecap="round"
-            transform="rotate(-90 47 47)"
-        />
-        <text
-            x="47"
-            y="53"
-            text-anchor="middle"
-            class="kpi-percent"
-        >
-            {pct:.0f}%
-        </text>
-    </svg>
-</div>
-"""
-
-        with cols[idx]:
-
-            st.markdown(
-
-                f"""
-<div class="kpi-card" style="background:{theme['grad']};">
-
-<div class="kpi-icon-badge">
-
-{icon}
-
-</div>
-
-<div class="kpi-role">
-
-{row['Role']}
-
-</div>
-
-{ring_svg}
-
-<div class="kpi-footer">
-
-{mat_icon("group", size=15, valign=-3)} {row['Input']} / {row['Total']} Personel
-
-</div>
-
-<div style="
-    margin-top:10px;
-    font-size:12px;
-    font-weight:600;
-    color:white;
-    opacity:.95;
-">
-
-{mat_icon("fingerprint", size=14, valign=-2)} {row['Biometrik']} Biometrik<br>
-
-Avg Biometrik :
-<b>{row['Avg Biometrik']:.1f}</b> / Personel
-
-</div>
-</div>
-
-                """,
-
-                unsafe_allow_html=True
+                mat_icon("person", size=13, valign=-2)
 
             )
+
+            pct = row["Persentase"]
+
+            radius = 30
+
+            circumference = 2 * 3.14159 * radius
+
+            offset = circumference - (
+
+                pct / 100 * circumference
+
+            )
+
+            # PENTING: string dibangun satu baris (tanpa newline/indentasi),
+            # kalau tidak Streamlit akan menganggapnya sebagai code block Markdown.
+            ring_svg = (
+                '<div class="kpi-ring-wrap">'
+                '<svg width="76" height="76" viewBox="0 0 76 76">'
+                f'<circle cx="38" cy="38" r="{radius}" stroke="rgba(255,255,255,.28)" stroke-width="6" fill="none" />'
+                f'<circle cx="38" cy="38" r="{radius}" stroke="#ffffff" stroke-width="6" fill="none" '
+                f'stroke-dasharray="{circumference:.1f}" stroke-dashoffset="{offset:.1f}" stroke-linecap="round" '
+                f'transform="rotate(-90 38 38)" />'
+                f'<text x="38" y="43" text-anchor="middle" class="kpi-percent">{pct:.0f}%</text>'
+                '</svg>'
+                '</div>'
+            )
+
+            card_html = (
+                f'<div class="kpi-card" style="--accent-grad:{theme["grad"]};">'
+                f'<div class="kpi-icon-badge">{icon}</div>'
+                f'<div class="kpi-role">{row["Role"]}</div>'
+                f'{ring_svg}'
+                f'<div class="kpi-footer">{row["Input"]} / {row["Total"]} personel</div>'
+                f'<div class="kpi-avg">{row["Biometrik"]} biometrik &middot; avg {row["Avg Biometrik"]:.1f}</div>'
+                '</div>'
+            )
+
+            with cols[col_idx]:
+
+                st.markdown(card_html, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     # ------------------------------------------------
@@ -2138,7 +2471,7 @@ Avg Biometrik :
     # ------------------------------------------------
     # BRANCH PERFORMANCE TABLE
     # ------------------------------------------------
-
+    """
     with st.container(border=True):
 
         st.markdown(f"<div class='mld-card-title'>{mat_icon('list_alt', size=16, color='#2563EB', valign=-3)} Branch Performance</div>", unsafe_allow_html=True)
@@ -2391,3 +2724,783 @@ Avg Biometrik :
                 else:
 
                     st.caption("Belum ada Micro Cluster / data untuk branch ini.")
+    
+    """
+    DATE_COL = "Tanggal"
+
+    dff[DATE_COL] = pd.to_datetime(dff[DATE_COL], errors="coerce").dt.date
+# ------------------------------------------------
+# SECTION 1: TEAM PERFORMANCE
+# (3 TAB: HOS, BSM, CSE/RSE)
+# ------------------------------------------------
+    with st.container(border=True):
+
+        title_col, filter_brand_col, filter_personnel_col = st.columns([2.5, 1, 1.5])
+
+        with title_col:
+            st.markdown(
+                f"<div class='mld-card-title'>{mat_icon('table_chart', size=18, valign=-4)} Team Performance</div>",
+                unsafe_allow_html=True
+            )
+
+        with filter_brand_col:
+            brand_options = ["Semua Brand", "IM3", "3ID"]
+            selected_brand_filter = st.selectbox(
+                "Brand",
+                brand_options,
+                key="team_brand_filter",
+                label_visibility="collapsed"
+            )
+
+        with filter_personnel_col:
+            personnel_options = ["Semua Personnel"] + list(PERSONNEL_GROUPS.keys())
+            selected_personnel_filter = st.selectbox(
+                "Personnel",
+                personnel_options,
+                key="team_personnel_filter",
+                label_visibility="collapsed"
+            )
+
+        st.markdown(
+            """
+            <style>
+
+                .mld-stat-chip {
+                    background: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 12px;
+                    padding: 12px 14px;
+                    height: 100%;
+                }
+
+                .mld-stat-chip.mld-stat-danger {
+                    background: #FEF2F2;
+                    border: 1px solid #FECACA;
+                }
+
+                .mld-stat-chip .mld-stat-label {
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: .3px;
+                    text-transform: uppercase;
+                    color: #64748B;
+                    margin-bottom: 4px;
+                }
+
+                .mld-stat-chip.mld-stat-danger .mld-stat-label {
+                    color: #B91C1C;
+                }
+
+                .mld-stat-chip .mld-stat-value {
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: #0F172A;
+                }
+
+                .mld-stat-chip.mld-stat-danger .mld-stat-value {
+                    color: #DC2626;
+                }
+
+                button[data-baseweb="tab"] {
+                    border-radius: 10px 10px 0 0 !important;
+                    font-weight: 600 !important;
+                }
+
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+     # ==========================================
+    # HITUNG TANGGAL D-1, D-2, D-3 DARI end_date PERIODE
+    # ==========================================
+
+    if isinstance(periode, tuple):
+        if len(periode) == 2:
+            _start_date_tmp, _end_date_tmp = periode
+        elif len(periode) == 1:
+            _start_date_tmp = _end_date_tmp = periode[0]
+        else:
+            _start_date_tmp = _end_date_tmp = date.today()
+    else:
+        _start_date_tmp = _end_date_tmp = periode
+
+    d1_date = _end_date_tmp - timedelta(days=1)
+    d2_date = _end_date_tmp - timedelta(days=2)
+    d3_date = _end_date_tmp - timedelta(days=3)
+
+    d1_label = f"D-1 ({d1_date.strftime('%d/%m')})"
+    d2_label = f"D-2 ({d2_date.strftime('%d/%m')})"
+    d3_label = f"D-3 ({d3_date.strftime('%d/%m')})"
+
+    # ==========================================
+    # FUNGSI HELPER (khusus Team Performance)
+    # ==========================================
+
+    def get_msisdn_bio_team(user_list):
+
+        user_data = dff[
+            dff["Input By"].isin(user_list)
+        ]
+
+        if selected_brand_filter != "Semua Brand":
+            user_data = user_data[
+                user_data["Brand"] == selected_brand_filter
+            ]
+
+        if selected_personnel_filter != "Semua Personnel":
+            user_data = user_data[
+                user_data["Role"].isin(
+                    PERSONNEL_GROUPS[
+                        selected_personnel_filter
+                    ]
+                )
+            ]
+
+        total_msisdn = len(user_data)
+
+        total_bio = len(
+            user_data[
+                user_data["Biometrik"] == True
+            ]
+        )
+
+        persen_bio = (
+            (total_bio / total_msisdn * 100)
+            if total_msisdn > 0
+            else 0
+        )
+
+        return total_msisdn, total_bio, persen_bio
+
+    def get_bio_by_date_team(user_list, target_date):
+        user_data = df[
+            df["Input By"].isin(user_list)
+        ].copy()
+
+        if selected_brand_filter != "Semua Brand":
+            user_data = user_data[
+                user_data["Brand"] == selected_brand_filter
+            ]
+
+        if selected_personnel_filter != "Semua Personnel":
+            user_data = user_data[
+                user_data["Role"].isin(
+                    PERSONNEL_GROUPS[selected_personnel_filter]
+                )
+            ]
+
+        # samakan tipe: strip jam, sisakan tanggal murni, baru dibandingkan
+        tanggal_only = pd.to_datetime(user_data["Tanggal"]).dt.date
+
+        return len(
+            user_data[
+                (tanggal_only == target_date)
+                & (user_data["Biometrik"] == True)
+            ]
+        )
+    def stat_chip(label, value, danger=False):
+
+        css_class = (
+            "mld-stat-chip mld-stat-danger"
+            if danger
+            else "mld-stat-chip"
+        )
+
+        st.markdown(
+            f"""
+            <div class="{css_class}">
+                <div class="mld-stat-label">{label}</div>
+                <div class="mld-stat-value">{value}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    def build_rekap_rows(
+        role_filter,
+        id_col_name,
+        include_role_col=False,
+        leaf=False
+    ):
+
+        rows = []
+
+        role_list = (
+            role_filter
+            if isinstance(role_filter, list)
+            else [role_filter]
+        )
+
+        all_users = df_user[
+            df_user["ROLE"].isin(role_list)
+        ]["USER"].unique().tolist()
+
+        if selected_brand_filter != "Semua Brand":
+
+            all_users = df_user[
+                (df_user["ROLE"].isin(role_list))
+                &
+                (
+                    df_user["BRAND"]
+                    == selected_brand_filter
+                )
+            ]["USER"].unique().tolist()
+
+        for u in all_users:
+
+            u_info = df_user[
+                df_user["USER"] == u
+            ].iloc[0]
+
+            u_name = u_info["REAL_NAME"]
+            u_role = u_info["ROLE"]
+
+            downline = [u] + (
+                []
+                if leaf
+                else get_descendants(
+                    u,
+                    children_map
+                )
+            )
+
+            u_msisdn, u_bio, u_persen = (
+                get_msisdn_bio_team(
+                    downline
+                )
+            )
+
+            d1_bio = get_bio_by_date_team(
+                downline,
+                d1_date
+            )
+
+            d2_bio = get_bio_by_date_team(
+                downline,
+                d2_date
+            )
+
+            d3_bio = get_bio_by_date_team(
+                downline,
+                d3_date
+            )
+
+            row = {
+                id_col_name: u,
+                "Nama": u_name,
+                "MSISDN": u_msisdn,
+                "Biometrik": u_bio,
+                "% Bio": round(u_persen, 1),
+                d1_label: d1_bio,
+                d2_label: d2_bio,
+                d3_label: d3_bio,
+            }
+
+            if include_role_col:
+                row["Role"] = u_role
+
+            rows.append(row)
+
+        return rows
+
+    def render_rekap_table(
+        rows,
+        id_col,
+        target_threshold=None
+    ):
+
+        if not rows:
+            st.info("Tidak ada data.")
+            return
+
+        dfr = pd.DataFrame(rows)
+
+        total_msisdn = int(
+            dfr["MSISDN"].sum()
+        )
+
+        total_bio = int(
+            dfr["Biometrik"].sum()
+        )
+
+        avg_persen = (
+            round(
+                total_bio / total_msisdn * 100,
+                1
+            )
+            if total_msisdn > 0
+            else 0
+        )
+
+        n_chip = (
+            5
+            if target_threshold is not None
+            else 4
+        )
+
+        chip_cols = st.columns(n_chip)
+
+        with chip_cols[0]:
+            stat_chip("Jumlah", len(dfr))
+
+        with chip_cols[1]:
+            stat_chip(
+                "MSISDN",
+                f"{total_msisdn:,}"
+            )
+
+        with chip_cols[2]:
+            stat_chip(
+                "Biometrik",
+                f"{total_bio:,}"
+            )
+
+        with chip_cols[3]:
+            stat_chip(
+                "Rata-rata % Bio",
+                f"{avg_persen}%"
+            )
+
+        if target_threshold is not None:
+
+            below_target = int(
+                (
+                    dfr["MSISDN"]
+                    < target_threshold
+                ).sum()
+            )
+
+            with chip_cols[4]:
+                stat_chip(
+                    f"Belum Capai Target (<{target_threshold} MSISDN)",
+                    below_target,
+                    danger=(
+                        below_target > 0
+                    )
+                )
+
+        st.markdown(
+            "<br>",
+            unsafe_allow_html=True
+        )
+
+        dfr = dfr.sort_values(
+            "% Bio",
+            ascending=False
+        )
+
+        column_config = {
+            id_col: st.column_config.TextColumn(width=130),
+            "Nama": st.column_config.TextColumn(width=190),
+            "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
+            "Biometrik": st.column_config.NumberColumn(format="%d", width=110),
+            "% Bio": st.column_config.NumberColumn(format="%.1f%%", width=100),
+            d3_label: st.column_config.NumberColumn(format="%d", width=100),
+            d2_label: st.column_config.NumberColumn(format="%d", width=100),
+            d1_label: st.column_config.NumberColumn(format="%d", width=100),
+        }
+        
+
+        if "Role" in dfr.columns:
+            column_config["Role"] = st.column_config.TextColumn(width=80)
+
+        if target_threshold is not None:
+
+            def highlight_below_target(row):
+                if row["MSISDN"] < target_threshold:
+                    return ['background-color: #FEE2E2; color: #991B1B;'] * len(row)
+                return [''] * len(row)
+
+            styled = dfr.style.apply(highlight_below_target, axis=1)
+
+            st.dataframe(
+                styled,
+                use_container_width=True,
+                hide_index=True,
+                column_config=column_config
+            )
+
+        else:
+            st.dataframe(
+                dfr,
+                use_container_width=True,
+                hide_index=True,
+                column_config=column_config
+            )
+
+    tab_hos, tab_bsm, tab_cse = st.tabs([
+        ":material/apartment: HOS",
+        ":material/supervisor_account: BSM",
+        ":material/group: CSE/RSE"
+    ])
+
+    with tab_hos:
+        rows_hos = build_rekap_rows("HOS", "HOS")
+        render_rekap_table(rows_hos, "HOS", target_threshold=None)
+
+    with tab_bsm:
+        rows_bsm = build_rekap_rows("BSM", "BSM")
+        render_rekap_table(rows_bsm, "BSM", target_threshold=None)
+
+    with tab_cse:
+        rows_cse = build_rekap_rows(["CSE", "RSE"], "CSE/RSE", include_role_col=True)
+        render_rekap_table(rows_cse, "CSE/RSE", target_threshold=None)
+
+    st.divider()
+
+# ------------------------------------------------
+# SECTION 2: INDIVIDUAL PERFORMANCE
+# (6 TAB: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP)
+# Kolom MSISDN/Avg Submit/Day tetap dari INPUT BY DIA SENDIRI.
+# Kolom D-1/D-2/D-3 = submission TURUNAN (dia + descendants) pada tanggal itu.
+# ------------------------------------------------
+
+    TARGET_AVG_PER_DAY_MIN = 5
+
+    df_user["ROLE"] = df_user["ROLE"].astype(str).str.strip().str.upper()
+    df_user["USER"] = df_user["USER"].astype(str).str.strip()
+    df_user["ATASAN"] = df_user["ATASAN"].astype(str).str.strip()
+
+    if isinstance(periode, tuple):
+        if len(periode) == 2:
+            start_date, end_date = periode
+        elif len(periode) == 1:
+            start_date = end_date = periode[0]
+        else:
+            start_date = end_date = date.today()
+    else:
+        start_date = end_date = periode
+
+    n_days = max((end_date - start_date).days + 1, 1)
+
+    # tanggal D-1/D-2/D-3 mengikuti end_date (sama seperti Section 1)
+    d1_date = end_date - timedelta(days=1)
+    d2_date = end_date - timedelta(days=2)
+    d3_date = end_date - timedelta(days=3)
+
+    d1_label = f"D-1 ({d1_date.strftime('%d/%m')})"
+    d2_label = f"D-2 ({d2_date.strftime('%d/%m')})"
+    d3_label = f"D-3 ({d3_date.strftime('%d/%m')})"
+
+    atasan_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .set_index("USER")["ATASAN"]
+        .to_dict()
+    )
+
+    def get_ancestors(user):
+        ancestors = []
+        current = atasan_map.get(user)
+        seen = set()
+        while current and current not in seen and current != "NAN":
+            ancestors.append(current)
+            seen.add(current)
+            current = atasan_map.get(current)
+        return ancestors
+
+    def matches_hierarchy_filter(u, selected_hos, selected_bsm, selected_cse):
+        ancestors = get_ancestors(u)
+
+        if selected_hos != "Semua HOS":
+            if not (u == selected_hos or selected_hos in ancestors):
+                return False
+
+        if selected_bsm != "Semua BSM":
+            if not (u == selected_bsm or selected_bsm in ancestors):
+                return False
+
+        if selected_cse != "Semua CSE/RSE":
+            if not (u == selected_cse or selected_cse in ancestors):
+                return False
+
+        return True
+
+    with st.container(border=True):
+
+        st.markdown(
+            f"<div class='mld-card-title'>{mat_icon('flag', size=18, valign=-4)} Individual Performance</div>",
+            unsafe_allow_html=True
+        )
+
+        f_brand, f_hos, f_bsm, f_cse = st.columns(4)
+
+        with f_brand:
+            brand_options = ["Semua Brand", "IM3", "3ID"]
+            selected_brand_filter = st.selectbox(
+                ":material/sim_card: Filter Brand",
+                brand_options,
+                key="ip_filter_brand"
+            )
+
+        hos_candidates = df_user[df_user["ROLE"] == "HOS"]
+        if selected_brand_filter != "Semua Brand":
+            hos_candidates = hos_candidates[
+                hos_candidates["BRAND"] == selected_brand_filter
+            ]
+
+        hos_options = ["Semua HOS"] + sorted(
+            hos_candidates["USER"].unique().tolist()
+        )
+
+        with f_hos:
+            selected_hos = st.selectbox(
+                ":material/apartment: Filter HOS",
+                hos_options,
+                key="ip_filter_hos"
+            )
+
+        bsm_candidates = df_user[df_user["ROLE"] == "BSM"]
+
+        if selected_brand_filter != "Semua Brand":
+            bsm_candidates = bsm_candidates[
+                bsm_candidates["BRAND"] == selected_brand_filter
+            ]
+
+        if selected_hos != "Semua HOS":
+            bsm_candidates = bsm_candidates[
+                bsm_candidates["ATASAN"] == selected_hos
+            ]
+
+        bsm_options = ["Semua BSM"] + sorted(
+            bsm_candidates["USER"].unique().tolist()
+        )
+
+        with f_bsm:
+            selected_bsm = st.selectbox(
+                ":material/supervisor_account: Filter BSM",
+                bsm_options,
+                key="ip_filter_bsm"
+            )
+
+        cse_candidates = df_user[
+            df_user["ROLE"].isin(["CSE", "RSE"])
+        ]
+
+        if selected_brand_filter != "Semua Brand":
+            cse_candidates = cse_candidates[
+                cse_candidates["BRAND"] == selected_brand_filter
+            ]
+
+        if selected_bsm != "Semua BSM":
+            cse_candidates = cse_candidates[
+                cse_candidates["ATASAN"] == selected_bsm
+            ]
+
+        elif selected_hos != "Semua HOS":
+
+            bsm_under_hos = df_user[
+                (df_user["ROLE"] == "BSM")
+                & (df_user["ATASAN"] == selected_hos)
+            ]["USER"].tolist()
+
+            cse_candidates = cse_candidates[
+                cse_candidates["ATASAN"].isin(bsm_under_hos)
+            ]
+
+        cse_options = ["Semua CSE/RSE"] + sorted(
+            cse_candidates["USER"].unique().tolist()
+        )
+
+        with f_cse:
+            selected_cse = st.selectbox(
+                ":material/group: Filter CSE/RSE",
+                cse_options,
+                key="ip_filter_cse"
+            )
+
+        st.caption(
+            f"Berdasarkan input by masing-masing user • periode {n_days} hari • "
+            f"target minimal {TARGET_AVG_PER_DAY_MIN} submit/hari • "
+            f"D-1/D-2/D-3 = submission turunan (personel + turunannya) pada tanggal tsb"
+        )
+
+    def get_msisdn_bio_individual(user_list):
+        user_data = dff[dff["Input By"].isin(user_list)]
+        total_msisdn = len(user_data)
+        total_bio = len(user_data[user_data["Biometrik"] == True])
+        persen_bio = (total_bio / total_msisdn * 100) if total_msisdn > 0 else 0
+        return total_msisdn, total_bio, persen_bio
+
+    def get_msisdn_by_date_team(user_list, target_date):
+        """Jumlah MSISDN submission pada 1 tanggal, untuk list user (dia + turunannya)."""
+        user_data = df[
+            df["Input By"].isin(user_list)
+        ].copy()
+
+        tanggal_only = pd.to_datetime(
+            user_data[DATE_COL]
+        ).dt.date
+
+        user_data = user_data[
+            tanggal_only == target_date
+        ]
+
+        if selected_brand_filter != "Semua Brand":
+            user_data = user_data[
+                user_data["Brand"] == selected_brand_filter
+            ]
+
+        return len(user_data)
+
+    def build_target_rows(role_filter, id_col_name, n_days, include_role_col=False):
+        rows = []
+
+        role_list = role_filter if isinstance(role_filter, list) else [role_filter]
+
+        all_users = df_user[
+            df_user["ROLE"].isin(role_list)
+        ]["USER"].unique().tolist()
+
+        if selected_brand_filter != "Semua Brand":
+            all_users = df_user[
+                (df_user["ROLE"].isin(role_list))
+                & (df_user["BRAND"] == selected_brand_filter)
+            ]["USER"].unique().tolist()
+
+        all_users = [
+            u for u in all_users
+            if matches_hierarchy_filter(u, selected_hos, selected_bsm, selected_cse)
+        ]
+
+        for u in all_users:
+
+            u_info = df_user[df_user["USER"] == u].iloc[0]
+            u_name = u_info["REAL_NAME"]
+            u_role = u_info["ROLE"]
+
+            u_msisdn, u_bio, _ = get_msisdn_bio_individual([u])
+
+            avg_per_day = round(
+                u_msisdn / n_days if n_days > 0 else 0,
+                2
+            )
+
+            # D-1/D-2/D-3 = submission user itu SENDIRI (sama seperti kolom MSISDN),
+            # cuma bedanya di tanggal
+            d1_msisdn = get_msisdn_by_date_team([u], d1_date)
+            d2_msisdn = get_msisdn_by_date_team([u], d2_date)
+            d3_msisdn = get_msisdn_by_date_team([u], d3_date)
+            row = {
+                id_col_name: u,
+                "Nama": u_name,
+                "MSISDN": u_msisdn,
+                "Avg Submit/Day": avg_per_day,
+                d1_label: d1_msisdn,
+                d2_label: d2_msisdn,
+                d3_label: d3_msisdn,
+            }
+
+            if include_role_col:
+                row["Role"] = u_role
+
+            rows.append(row)
+
+        return rows
+
+    def render_target_table(rows, id_col, target_threshold):
+        if not rows:
+            st.info("Tidak ada data.")
+            return
+
+        dfr = pd.DataFrame(rows)
+
+        total_msisdn = int(dfr["MSISDN"].sum())
+        below_target = int((dfr["Avg Submit/Day"] < target_threshold).sum())
+
+        chip_cols = st.columns(4)
+
+        with chip_cols[0]:
+            stat_chip("Jumlah", len(dfr))
+        with chip_cols[1]:
+            stat_chip("MSISDN", f"{total_msisdn:,}")
+        with chip_cols[2]:
+            stat_chip(
+                "Rata-rata Submit/Hari",
+                f"{round(dfr['Avg Submit/Day'].mean(), 2)}"
+            )
+        with chip_cols[3]:
+            stat_chip(
+                f"Belum Achiev (<{target_threshold}/hari)",
+                below_target,
+                danger=(below_target > 0)
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        dfr = dfr.sort_values("Avg Submit/Day", ascending=False)
+
+        column_config = {
+            id_col: st.column_config.TextColumn(width=130),
+            "Nama": st.column_config.TextColumn(width=190),
+            "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
+            "Avg Submit/Day": st.column_config.NumberColumn(format="%.2f", width=130),
+            d3_label: st.column_config.NumberColumn(format="%d", width=100),
+            d2_label: st.column_config.NumberColumn(format="%d", width=100),
+            d1_label: st.column_config.NumberColumn(format="%d", width=100),
+        }
+
+        if "Role" in dfr.columns:
+            column_config["Role"] = st.column_config.TextColumn(width=80)
+
+        def highlight_below_target(row):
+            if row["Avg Submit/Day"] < target_threshold:
+                return ['background-color: #FEE2E2; color: #991B1B;'] * len(row)
+            return [''] * len(row)
+
+        styled = dfr.style.apply(highlight_below_target, axis=1)
+
+        st.dataframe(
+            styled,
+            use_container_width=True,
+            hide_index=True,
+            column_config=column_config
+        )
+
+    (
+        tab_bsm2,
+        tab_cse2,
+        tab_dse2,
+        tab_rge2,
+        tab_promotor2,
+        tab_np2
+    ) = st.tabs([
+        ":material/supervisor_account: BSM",
+        ":material/group: CSE/RSE",
+        ":material/person: DSE",
+        ":material/badge: RGE",
+        ":material/campaign: Promotor",
+        ":material/store: NP"
+    ])
+
+    with tab_bsm2:
+        rows_bsm2 = build_target_rows("BSM", "BSM", n_days)
+        render_target_table(rows_bsm2, "BSM", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_cse2:
+        rows_cse2 = build_target_rows(
+            ["CSE", "RSE"],
+            "CSE/RSE",
+            n_days,
+            include_role_col=True
+        )
+        render_target_table(rows_cse2, "CSE/RSE", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_dse2:
+        rows_dse2 = build_target_rows("DSE", "DSE", n_days)
+        render_target_table(rows_dse2, "DSE", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_rge2:
+        rows_rge2 = build_target_rows("RGE", "RGE", n_days)
+        render_target_table(rows_rge2, "RGE", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_promotor2:
+        rows_promotor2 = build_target_rows("PROMOTOR", "Promotor", n_days)
+        render_target_table(rows_promotor2, "Promotor", TARGET_AVG_PER_DAY_MIN)
+
+    with tab_np2:
+        rows_np2 = build_target_rows("NP", "NP", n_days)
+        render_target_table(rows_np2, "NP", TARGET_AVG_PER_DAY_MIN)
+
+    st.divider()

@@ -532,7 +532,7 @@ def show():
             or str(nama).strip().lower() == "vacant"
         ):
 
-            return username
+            return nama
 
         return nama
 
@@ -1055,7 +1055,7 @@ def show():
             df_user["ROLE"] == "PROMOTOR"
         ]["USER"].tolist()
 
-    # =====================================================
+ # =====================================================
     # FILTER BRAND KPI
     # =====================================================
 
@@ -1094,6 +1094,48 @@ def show():
     promotor_aktif = (
         df_promotor["Input By"]
         .nunique()
+    )
+
+    # =====================================================
+    # JUMLAH VACANT (NaN / None / kosong / teks "vacant")
+    # =====================================================
+
+    promotor_master = df_user[
+
+        df_user["USER"]
+        .isin(promotor_all)
+
+    ]
+
+    real_name_clean = (
+
+        promotor_master["REAL_NAME"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+
+    )
+
+    vacant_labels = [
+
+        "",
+        "nan",
+        "none",
+        "null",
+        "vacant",
+        "-"
+
+    ]
+
+    is_vacant = real_name_clean.isin(
+        vacant_labels
+    )
+
+    jumlah_vacant = (
+
+        promotor_master[is_vacant]["USER"]
+        .nunique()
+
     )
 
     jumlah_outlet = (
@@ -1136,7 +1178,7 @@ def show():
     # KPI UI (card berwarna, bukan st.metric polos)
     # =====================================================
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
 
@@ -1144,13 +1186,17 @@ def show():
 
     with col2:
 
-        kpi_card("bolt", "Promotor Aktif", promotor_aktif, "#F0997B")
+        kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
 
     with col3:
 
-        kpi_card("trending_up", "% Promotor Aktif", f"{persen_aktif}%", "#D4537E")
+        kpi_card("bolt", "Promotor Aktif", promotor_aktif, "#F0997B")
 
     with col4:
+
+        kpi_card("trending_up", "% Promotor Aktif", f"{persen_aktif}%", "#D4537E")
+
+    with col5:
 
         kpi_card("smartphone", "MSISDN", jumlah_msisdn, "#993556")
 
