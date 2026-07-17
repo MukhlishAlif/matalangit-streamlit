@@ -1571,7 +1571,7 @@ def show():
         "RGE": ["RGE"],
         "DSE": ["DSE"],
         "PROMOTOR": ["PROMOTOR"],
-        "NP": ["NP"],
+        "New Promotor": ["NP"],
         "GSE": ["GSE"],
         "GEMPI": ["GEMINI"],
     }
@@ -1811,12 +1811,11 @@ def show():
                     <span class="lb-num">{rank_label}</span>
                     <div>
                         <div class="lb-name">{branch_name}</div>
-                        <div class="lb-branch"><b>{bsm_name}</b></div>
                     </div>
                 </div>
                 <div style="text-align:right;">
                     <div class="lb-val">{avg_val:.1f}</div>
-                    <div style="font-size:9px;color:#9CA3AF;">{mat_icon("send", size=11, valign=-2)} {fmt(total_val)} · Avg/Person</div>
+                    <div style="font-size:12px;color:#9CA3AF;">{mat_icon("send", size=12, valign=-4)} {fmt(total_val)} · Avg/Person</div>
                 </div>
             </div>
             """,
@@ -1883,7 +1882,7 @@ def show():
         if not bottom3:
             st.caption("Belum ada data.")
         else:
-            for i, (branch_name, bsm_name, total_submit, avg_submit) in enumerate(bottom3, start=1):
+            for i, (branch_name, bsm_name, total_submit, avg_submit) in enumerate(bottom3, start=0):
                 lb_branch_row(mat_icon("trending_down", size=16, color="#EF4444"), branch_name, bsm_name, avg_submit, total_submit)
 
  # ------------------------------------------------
@@ -1983,10 +1982,224 @@ def show():
 
             render_brand_branch_card("3ID", "3ID")
 
-    # ------------------------------------------------
-    # 5 LEADERBOARD: CSE/RSE, RGE, DSE, AE, GSE
+# ------------------------------------------------
+    # 6 LEADERBOARD: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP
     # (Total Submit, bukan Total Biometrik)
     # ------------------------------------------------
+
+    st.markdown(
+
+        """
+        <style>
+
+        .lb-card-wrap{
+
+            position:relative;
+            overflow:hidden;
+            width:100%;
+            box-sizing:border-box;
+
+        }
+
+        .lb-card-title{
+
+            font-size:14px;
+            font-weight:800;
+            color:#111827;
+            padding:12px 14px 10px 14px;
+            box-sizing:border-box;
+
+        }
+
+        .lb-card-title .lb-total-tag{
+
+            font-size:10.5px;
+            font-weight:600;
+            color:#9ca3af;
+            margin-left:4px;
+
+        }
+
+        .lb-split{
+
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            width:100%;
+            box-sizing:border-box;
+            overflow:hidden;
+
+        }
+
+        .lb-side{
+
+            padding:0 0 10px 0;
+            min-width:0;
+            box-sizing:border-box;
+
+        }
+
+        .lb-side.top{
+
+            border-right:1px solid #eef0f3;
+            padding-right:2px;
+
+        }
+
+        .lb-side.bottom{
+
+            padding-left:2px;
+
+        }
+
+        .lb-side-header{
+
+            display:flex;
+            align-items:center;
+            gap:6px;
+            font-size:10.5px;
+            font-weight:800;
+            letter-spacing:.5px;
+            text-transform:uppercase;
+            padding:6px 12px;
+            margin:0 10px 6px 10px;
+            border-radius:8px;
+
+        }
+
+        .lb-side-header.top{
+
+            color:#059669;
+            background:rgba(5,150,105,.10);
+
+        }
+
+        .lb-side-header.bottom{
+
+            color:#dc2626;
+            background:rgba(220,38,38,.10);
+
+        }
+
+        .lb-item{
+
+            display:flex;
+            align-items:center;
+            gap:14px;
+            padding:9px 12px;
+
+        }
+
+        .lb-item:nth-child(even){
+
+            background:#fafafa;
+
+        }
+
+        .lb-rank{
+
+            flex:0 0 20px;
+            height:20px;
+            border-radius:50%;
+            background:#eef0f3;
+            color:#9ca3af;
+            font-size:11px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+
+        }
+
+        .lb-rank .material-symbols-outlined{
+
+            font-size:12px !important;
+
+        }
+
+        .lb-side.top .lb-item:nth-child(1) .lb-rank{
+
+            background:#059669;
+            color:#ffffff;
+
+        }
+
+        .lb-side.top .lb-item:nth-child(2) .lb-rank,
+        .lb-side.top .lb-item:nth-child(3) .lb-rank{
+
+            background:rgba(5,150,105,.12);
+            color:#059669;
+
+        }
+
+        .lb-side.bottom .lb-item:nth-child(1) .lb-rank{
+
+            background:#dc2626;
+            color:#ffffff;
+
+        }
+
+        .lb-side.bottom .lb-item:nth-child(2) .lb-rank,
+        .lb-side.bottom .lb-item:nth-child(3) .lb-rank{
+
+            background:rgba(220,38,38,.12);
+            color:#dc2626;
+
+        }
+
+        .lb-name-block{
+
+            flex:1 1 auto;
+            min-width:0;
+
+        }
+
+        .lb-name{
+
+            font-size:11.5px;
+            font-weight:600;
+            color:#111827;
+            line-height:1.3;
+            margin-bottom:2px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+
+        }
+
+        .lb-branch{
+
+            font-size:10px;
+            color:#9ca3af;
+            line-height:1.2;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+
+        }
+
+        .lb-value{
+
+            flex:0 0 auto;
+            font-size:12.5px;
+            font-weight:800;
+            color:#111827;
+            padding-left:4px;
+
+        }
+
+        .lb-empty{
+
+            padding:4px 12px 8px 12px;
+            font-size:11px;
+            color:#c1c5cc;
+
+        }
+
+        </style>
+        """,
+
+        unsafe_allow_html=True
+
+    )
 
     # Map username -> nama asli (strip + upper biar aman dari mismatch)
     real_name_map = (
@@ -1997,120 +2210,158 @@ def show():
         .to_dict()
     )
 
-    lb_cols = st.columns(5)
     lb_defs = [
+        ("BSM", PERSONNEL_GROUPS["BSM"]),
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
         ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
-        ("NP", PERSONNEL_GROUPS["NP"]),
+        ("New Promotor", PERSONNEL_GROUPS["NP"]),
     ]
-    for col, (title, roles) in zip(lb_cols, lb_defs):
-        with col:
-            with st.container(border=True):
-                st.markdown(
-                    f"<div class='lb-title'>{title} <span class='muted-pill'>(Total Submit)</span></div>",
-                    unsafe_allow_html=True,
-                )
 
-                # ==========================================
-                # BASE: SEMUA USER DENGAN ROLE INI
-                # (bukan cuma yang ada di dff)
-                # ==========================================
+    # Layout 3 kolom per baris:
+    # Baris 1 -> BSM | CSE/RSE | DSE
+    # Baris 2 -> RGE | PROMOTOR | NP
+    LB_PER_ROW = 3
 
-                base_users = df_user[
-                    df_user["ROLE"].isin(roles)
-                ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
-                    columns={"USER": "Input By", "BRANCH": "Branch"}
-                )
+    for row_start in range(0, len(lb_defs), LB_PER_ROW):
 
-                # Kalau brand/branch difilter di halaman ini, terapkan juga ke base_users
-                if selected_brand != "Semua Brand":
+        chunk_defs = lb_defs[row_start:row_start + LB_PER_ROW]
+
+        lb_cols = st.columns(LB_PER_ROW)
+
+        for col, (title, roles) in zip(lb_cols, chunk_defs):
+            with col:
+                with st.container(border=True):
+
+                    # ==========================================
+                    # BASE: SEMUA USER DENGAN ROLE INI
+                    # (bukan cuma yang ada di dff)
+                    # ==========================================
+
                     base_users = df_user[
-                        (df_user["ROLE"].isin(roles))
-                        & (df_user["BRAND"] == selected_brand)
+                        df_user["ROLE"].isin(roles)
                     ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
                         columns={"USER": "Input By", "BRANCH": "Branch"}
                     )
 
-                # ==========================================
-                # SUBMIT COUNT DARI dff (bisa kosong utk user tertentu)
-                # ==========================================
+                    # Kalau brand/branch difilter di halaman ini, terapkan juga ke base_users
+                    if selected_brand != "Semua Brand":
+                        base_users = df_user[
+                            (df_user["ROLE"].isin(roles))
+                            & (df_user["BRAND"] == selected_brand)
+                        ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
+                            columns={"USER": "Input By", "BRANCH": "Branch"}
+                        )
 
-                submit_count = (
-                    dff[dff["Role"].isin(roles)]
-                    .groupby("Input By")
-                    .size()
-                    .reset_index(name="Submit")
-                )
+                    # ==========================================
+                    # SUBMIT COUNT DARI dff (bisa kosong utk user tertentu)
+                    # ==========================================
 
-                # ==========================================
-                # LEFT JOIN: semua user tetap muncul, yang gak submit -> 0
-                # ==========================================
+                    submit_count = (
+                        dff[dff["Role"].isin(roles)]
+                        .groupby("Input By")
+                        .size()
+                        .reset_index(name="Submit")
+                    )
 
-                grp = base_users.merge(
-                    submit_count,
-                    on="Input By",
-                    how="left"
-                )
+                    # ==========================================
+                    # LEFT JOIN: semua user tetap muncul, yang gak submit -> 0
+                    # ==========================================
 
-                grp["Submit"] = grp["Submit"].fillna(0).astype(int)
+                    grp = base_users.merge(
+                        submit_count,
+                        on="Input By",
+                        how="left"
+                    )
 
-                grp = grp.sort_values("Submit", ascending=False)
+                    grp["Submit"] = grp["Submit"].fillna(0).astype(int)
 
-                # Tambahkan kolom Real Name (fallback ke username kalau kosong/tidak ada)
+                    grp = grp.sort_values("Submit", ascending=False)
 
-                real_name_raw = (
-                    grp["Input By"]
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                    .map(real_name_map)
-                )
+                    # Tambahkan kolom Real Name (fallback ke username kalau kosong/tidak ada)
 
-                real_name_str = (
-                    real_name_raw
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                )
+                    real_name_raw = (
+                        grp["Input By"]
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                        .map(real_name_map)
+                    )
 
-                is_invalid = (
-                    real_name_raw.isna()
-                    | real_name_str.isin(["", "VACANT", "NAN", "NONE", "NAT"])
-                )
+                    real_name_str = (
+                        real_name_raw
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                    )
 
-                grp["Real Name"] = real_name_raw.where(
-                    ~is_invalid,
-                    grp["Input By"]
-                )
+                    is_invalid = (
+                        real_name_raw.isna()
+                        | real_name_str.isin(["", "VACANT", "NAN", "NONE", "NAT"])
+                    )
 
-                top3 = grp.head(3)
-                bottom3 = (
-                    grp
-                    .nsmallest(3, "Submit")
-                    .sort_values("Submit", ascending=False)
-                )
+                    grp["Real Name"] = real_name_raw.where(
+                        ~is_invalid,
+                        grp["Input By"]
+                    )
 
-                st.markdown(
-                    "<div class='lb-sub'>Top 3</div>",
-                    unsafe_allow_html=True,
-                )
-                if top3.empty:
-                    st.caption("-")
-                else:
-                    for i, row in enumerate(top3.itertuples(), start=1):
-                        lb_row(i, row._4, row.Branch, row.Submit)
+                    top3 = grp.head(3)
+                    bottom3 = (
+                        grp
+                        .nsmallest(3, "Submit")
+                        .sort_values("Submit", ascending=False)
+                    )
 
-                st.markdown(
-                    "<div class='lb-sub' style='margin-top:8px;'>Bottom 3</div>",
-                    unsafe_allow_html=True,
-                )
-                if bottom3.empty:
-                    st.caption("-")
-                else:
-                    for i, row in enumerate(bottom3.itertuples(), start=1):
-                        lb_row(i, row._4, row.Branch, row.Submit)
+                    def build_lb_items(df_rank, side_icon):
+
+                        # PENTING: setiap baris dibangun tanpa newline/indentasi
+                        # supaya Streamlit tidak menganggapnya sebagai code block Markdown.
+                        if df_rank.empty:
+                            return '<div class="lb-empty">-</div>'
+
+                        rank_icon = mat_icon(side_icon, size=12, valign=-2)
+
+                        rows_html = ""
+
+                        for i, r in enumerate(df_rank.itertuples(), start=0):
+
+                            name = getattr(r, "_4")
+                            branch = r.Branch
+                            value = r.Submit
+
+                            rows_html += (
+                                '<div class="lb-item">'
+                                f'<div class="lb-rank">{rank_icon}</div>'
+                                '<div class="lb-name-block">'
+                                f'<div class="lb-name">{name}</div>'
+                                f'<div class="lb-branch">{branch}</div>'
+                                '</div>'
+                                f'<div class="lb-value">{value}</div>'
+                                '</div>'
+                            )
+
+                        return rows_html
+
+                    card_html = (
+                        '<div class="lb-card-wrap">'
+                        f'<div class="lb-card-title">{title} '
+                        f'<span class="lb-total-tag">(Total Submit)</span></div>'
+                        '<div class="lb-split">'
+                        '<div class="lb-side top">'
+                        '<div class="lb-side-header top">Top 3</div>'
+                        f'{build_lb_items(top3, "military_tech")}'
+                        '</div>'
+                        '<div class="lb-side bottom">'
+                        '<div class="lb-side-header bottom">Bottom 3</div>'
+                        f'{build_lb_items(bottom3, "trending_down")}'
+                        '</div>'
+                        '</div>'
+                        '</div>'
+                    )
+
+                    st.markdown(card_html, unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
 # ------------------------------------------------
     # BRANCH PERFORMANCE TABLE
