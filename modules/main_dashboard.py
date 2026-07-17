@@ -2190,9 +2190,11 @@ def show():
                 st.markdown(card_html, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
+# ------------------------------------------------
+    # ACHIEVEMENT HOS + IM3 + 3ID BRANCH
+    # (berbasis BIOMETRIK)
     # ------------------------------------------------
-    # ACHIEVEMENT HOS + TOP 3 BRANCH
-    # ------------------------------------------------
+
     def lb_branch_row(rank_label, branch_name, bsm_name, avg_val, total_val):
 
         st.markdown(
@@ -2214,12 +2216,6 @@ def show():
             unsafe_allow_html=True
         )
 
-    # ------------------------------------------------
-    # Helper: render 1 card branch (Top3 + Bottom3) untuk 1 brand.
-    # Logic IM3 & 3ID identik, jadi cukup ditulis sekali di sini
-    # lalu dipanggil 2x (hindari copy-paste besar).
-    # ------------------------------------------------
-
     def render_brand_branch_card(brand, brand_label):
 
         st.markdown(
@@ -2239,7 +2235,24 @@ def show():
             .to_dict()
         )
 
+        # ==========================================
+        # BASE: SEMUA BRANCH VALID UNTUK BRAND INI
+        # (dari df_user, biar branch 0 biometrik tetap muncul)
+        # ==========================================
+
+        all_branches = (
+            df_user[
+                df_user["BRAND"].astype(str).str.upper() == brand.upper()
+            ]["BRANCH"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .unique()
+            .tolist()
+        )
+
         branch_scores = []
+        seen_branches = set()
 
         for branch_name, branch_df in dff[dff["Brand"] == brand].groupby("Branch"):
 
@@ -2255,6 +2268,17 @@ def show():
             bsm_name = bsm_name_map.get(str(branch_name).strip().upper(), "-")
 
             branch_scores.append((branch_name, bsm_name, total_biom, avg_biom))
+            seen_branches.add(str(branch_name).strip().upper())
+
+        # branch yang biometrik-nya 0 total (gak ke-groupby) -> inject manual
+        for branch_name in all_branches:
+
+            key = branch_name.strip().upper()
+
+            if key not in seen_branches:
+
+                bsm_name = bsm_name_map.get(key, "-")
+                branch_scores.append((branch_name, bsm_name, 0, 0.0))
 
         top3 = sorted(branch_scores, key=lambda x: x[3], reverse=True)[:3]
         bottom3 = sorted(branch_scores, key=lambda x: x[3])[:3][::-1]
@@ -2281,10 +2305,6 @@ def show():
             for i, (branch_name, bsm_name, total_biom, avg_biom) in enumerate(bottom3, start=1):
                 lb_branch_row(mat_icon("trending_down", size=16, color="#EF4444"), branch_name, bsm_name, avg_biom, total_biom)
 
-    # ------------------------------------------------
-    # ACHIEVEMENT HOS + IM3 + 3ID BRANCH
-    # ------------------------------------------------
-
     col_hos, col_im3, col_3id = st.columns([1.6, 0.8, 0.8])
 
     with col_hos:
@@ -2292,7 +2312,7 @@ def show():
         with st.container(border=True):
 
             st.markdown(
-                f"<div class='mld-card-title'>{mat_icon('social_leaderboard', size=16, color='#7C3AED', valign=-3)} Achievement HoS (by Avg Biometrik / Person)</div>",
+                f"<div class='mld-card-title'>{mat_icon('military_tech', size=18, color='#FFD700', valign=-4)} Achievement HOS (by Avg Biometrik / Person)</div>",
                 unsafe_allow_html=True
             )
 
@@ -2380,11 +2400,226 @@ def show():
         with st.container(border=True):
 
             render_brand_branch_card("3ID", "3ID")
+
     # ------------------------------------------------
-    # 5 LEADERBOARD: CSE/RSE, RGE, DSE, AE, GSE
+    # 6 LEADERBOARD: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP
+    # (Total Biometrik, layout disamakan dengan versi Submit)
     # ------------------------------------------------
 
-    # Map username -> nama asli (strip + upper biar aman dari mismatch)
+    st.markdown(
+
+        """
+        <style>
+
+        .lb-card-wrap{
+
+            position:relative;
+            overflow:hidden;
+            width:100%;
+            box-sizing:border-box;
+
+        }
+
+        .lb-card-title{
+
+            font-size:14px;
+            font-weight:800;
+            color:#111827;
+            padding:12px 14px 10px 14px;
+            box-sizing:border-box;
+
+        }
+
+        .lb-card-title .lb-total-tag{
+
+            font-size:10.5px;
+            font-weight:600;
+            color:#9ca3af;
+            margin-left:4px;
+
+        }
+
+        .lb-split{
+
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            width:100%;
+            box-sizing:border-box;
+            overflow:hidden;
+
+        }
+
+        .lb-side{
+
+            padding:0 0 10px 0;
+            min-width:0;
+            box-sizing:border-box;
+
+        }
+
+        .lb-side.top{
+
+            border-right:1px solid #eef0f3;
+            padding-right:2px;
+
+        }
+
+        .lb-side.bottom{
+
+            padding-left:2px;
+
+        }
+
+        .lb-side-header{
+
+            display:flex;
+            align-items:center;
+            gap:6px;
+            font-size:10.5px;
+            font-weight:800;
+            letter-spacing:.5px;
+            text-transform:uppercase;
+            padding:6px 12px;
+            margin:0 10px 6px 10px;
+            border-radius:8px;
+
+        }
+
+        .lb-side-header.top{
+
+            color:#059669;
+            background:rgba(5,150,105,.10);
+
+        }
+
+        .lb-side-header.bottom{
+
+            color:#dc2626;
+            background:rgba(220,38,38,.10);
+
+        }
+
+        .lb-item{
+
+            display:flex;
+            align-items:center;
+            gap:14px;
+            padding:9px 12px;
+
+        }
+
+        .lb-item:nth-child(even){
+
+            background:#fafafa;
+
+        }
+
+        .lb-rank{
+
+            flex:0 0 20px;
+            height:20px;
+            border-radius:50%;
+            background:#eef0f3;
+            color:#9ca3af;
+            font-size:11px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+
+        }
+
+        .lb-rank .material-symbols-outlined{
+
+            font-size:12px !important;
+
+        }
+
+        .lb-side.top .lb-item:nth-child(1) .lb-rank{
+
+            background:#059669;
+            color:#ffffff;
+
+        }
+
+        .lb-side.top .lb-item:nth-child(2) .lb-rank,
+        .lb-side.top .lb-item:nth-child(3) .lb-rank{
+
+            background:rgba(5,150,105,.12);
+            color:#059669;
+
+        }
+
+        .lb-side.bottom .lb-item:nth-child(1) .lb-rank{
+
+            background:#dc2626;
+            color:#ffffff;
+
+        }
+
+        .lb-side.bottom .lb-item:nth-child(2) .lb-rank,
+        .lb-side.bottom .lb-item:nth-child(3) .lb-rank{
+
+            background:rgba(220,38,38,.12);
+            color:#dc2626;
+
+        }
+
+        .lb-name-block{
+
+            flex:1 1 auto;
+            min-width:0;
+
+        }
+
+        .lb-name{
+
+            font-size:11.5px;
+            font-weight:600;
+            color:#111827;
+            line-height:1.3;
+            margin-bottom:2px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+
+        }
+
+        .lb-branch{
+
+            font-size:10px;
+            color:#9ca3af;
+            line-height:1.2;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+
+        }
+
+        .lb-value{
+
+            flex:0 0 auto;
+            font-size:12.5px;
+            font-weight:800;
+            color:#111827;
+            padding-left:4px;
+
+        }
+
+        .lb-empty{
+
+            padding:4px 12px 8px 12px;
+            font-size:11px;
+            color:#c1c5cc;
+
+        }
+
+        </style>
+        """,
+
+        unsafe_allow_html=True
+
+    )
+
     real_name_map = (
         df_user
         .drop_duplicates(subset="USER")
@@ -2393,80 +2628,149 @@ def show():
         .to_dict()
     )
 
-    lb_cols = st.columns(5)
     lb_defs = [
+        ("BSM", PERSONNEL_GROUPS["BSM"]),
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
         ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
         ("NP", PERSONNEL_GROUPS["NP"]),
     ]
-    for col, (title, roles) in zip(lb_cols, lb_defs):
-        with col:
-            with st.container(border=True):
-                st.markdown(
-                    f"<div class='lb-title'>{title} <span class='muted-pill'>(Total Biometrik)</span></div>",
-                    unsafe_allow_html=True,
-                )
-                grp = (
-                    dff[dff["Role"].isin(roles)]
-                    .groupby(["Input By", "Branch"])["Biometrik"]
-                    .sum()
-                    .reset_index()
-                    .sort_values("Biometrik", ascending=False)
-                )
 
-                # Tambahkan kolom Real Name (fallback ke username kalau tidak ketemu)
-                real_name_raw = (
-                    grp["Input By"]
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                    .map(real_name_map)
-                )
+    LB_PER_ROW = 3
 
-                real_name_str = (
-                    real_name_raw
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                )
+    for row_start in range(0, len(lb_defs), LB_PER_ROW):
 
-                is_invalid = (
-                    real_name_raw.isna()
-                    | real_name_str.isin(["", "VACANT", "NAN", "NONE", "NAT"])
-                )
+        chunk_defs = lb_defs[row_start:row_start + LB_PER_ROW]
 
-                grp["Real Name"] = real_name_raw.where(
-                    ~is_invalid,
-                    grp["Input By"]
-                )
-                top3 = grp.head(3)
-                bottom3 = (
-                    grp
-                    .nsmallest(3, "Biometrik")
-                    .sort_values("Biometrik", ascending=False)
-                )
+        lb_cols = st.columns(LB_PER_ROW)
 
-                st.markdown(
-                    "<div class='lb-sub'>Top 3</div>",
-                    unsafe_allow_html=True,
-                )
-                if top3.empty:
-                    st.caption("-")
-                else:
-                    for i, row in enumerate(top3.itertuples(), start=1):
-                        lb_row(i, row._4, row.Branch, row.Biometrik)
+        for col, (title, roles) in zip(lb_cols, chunk_defs):
+            with col:
+                with st.container(border=True):
 
-                st.markdown(
-                    "<div class='lb-sub' style='margin-top:8px;'>Bottom 3</div>",
-                    unsafe_allow_html=True,
-                )
-                if bottom3.empty:
-                    st.caption("-")
-                else:
-                    for i, row in enumerate(bottom3.itertuples(), start=1):
-                        lb_row(i, row._4, row.Branch, row.Biometrik)
+                    # ==========================================
+                    # BASE: SEMUA USER DENGAN ROLE INI
+                    # ==========================================
+
+                    base_users = df_user[
+                        df_user["ROLE"].isin(roles)
+                    ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
+                        columns={"USER": "Input By", "BRANCH": "Branch"}
+                    )
+
+                    if selected_brand != "Semua Brand":
+                        base_users = df_user[
+                            (df_user["ROLE"].isin(roles))
+                            & (df_user["BRAND"] == selected_brand)
+                        ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
+                            columns={"USER": "Input By", "BRANCH": "Branch"}
+                        )
+
+                    # ==========================================
+                    # TOTAL BIOMETRIK DARI dff (bisa kosong utk user tertentu)
+                    # ==========================================
+
+                    biom_count = (
+                        dff[dff["Role"].isin(roles)]
+                        .groupby("Input By")["Biometrik"]
+                        .sum()
+                        .reset_index(name="Biometrik_Total")
+                    )
+
+                    # ==========================================
+                    # LEFT JOIN: semua user tetap muncul, yang 0 -> 0
+                    # ==========================================
+
+                    grp = base_users.merge(
+                        biom_count,
+                        on="Input By",
+                        how="left"
+                    )
+
+                    grp["Biometrik_Total"] = grp["Biometrik_Total"].fillna(0).astype(int)
+
+                    grp = grp.sort_values("Biometrik_Total", ascending=False)
+
+                    real_name_raw = (
+                        grp["Input By"]
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                        .map(real_name_map)
+                    )
+
+                    real_name_str = (
+                        real_name_raw
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                    )
+
+                    is_invalid = (
+                        real_name_raw.isna()
+                        | real_name_str.isin(["", "VACANT", "NAN", "NONE", "NAT"])
+                    )
+
+                    grp["Real Name"] = real_name_raw.where(
+                        ~is_invalid,
+                        grp["Input By"]
+                    )
+
+                    top3 = grp.head(3)
+                    bottom3 = (
+                        grp
+                        .nsmallest(3, "Biometrik_Total")
+                        .sort_values("Biometrik_Total", ascending=False)
+                    )
+
+                    def build_lb_items(df_rank, side_icon):
+
+                        if df_rank.empty:
+                            return '<div class="lb-empty">-</div>'
+
+                        rank_icon = mat_icon(side_icon, size=12, valign=-2)
+
+                        rows_html = ""
+
+                        for i, r in enumerate(df_rank.itertuples(), start=0):
+
+                            name = getattr(r, "_4")
+                            branch = r.Branch
+                            value = r.Biometrik_Total
+
+                            rows_html += (
+                                '<div class="lb-item">'
+                                f'<div class="lb-rank">{rank_icon}</div>'
+                                '<div class="lb-name-block">'
+                                f'<div class="lb-name">{name}</div>'
+                                f'<div class="lb-branch">{branch}</div>'
+                                '</div>'
+                                f'<div class="lb-value">{value}</div>'
+                                '</div>'
+                            )
+
+                        return rows_html
+
+                    card_html = (
+                        '<div class="lb-card-wrap">'
+                        f'<div class="lb-card-title">{title} '
+                        f'<span class="lb-total-tag">(Total Biometrik)</span></div>'
+                        '<div class="lb-split">'
+                        '<div class="lb-side top">'
+                        '<div class="lb-side-header top">Top 3</div>'
+                        f'{build_lb_items(top3, "military_tech")}'
+                        '</div>'
+                        '<div class="lb-side bottom">'
+                        '<div class="lb-side-header bottom">Bottom 3</div>'
+                        f'{build_lb_items(bottom3, "trending_down")}'
+                        '</div>'
+                        '</div>'
+                        '</div>'
+                    )
+
+                    st.markdown(card_html, unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
     # ------------------------------------------------
     # BRANCH PERFORMANCE TABLE
