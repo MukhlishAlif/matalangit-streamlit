@@ -3446,9 +3446,9 @@ def show():
         )
 
         n_chip = (
-            6
+            5
             if target_threshold is not None
-            else 5
+            else 4
         )
 
         chip_cols = st.columns(n_chip)
@@ -3464,10 +3464,7 @@ def show():
 
         with chip_cols[3]:
             stat_chip("% Bio", f"{avg_persen}%", color="green")
-
-        with chip_cols[4]:
-            stat_chip("Avg Bio/Hari", f"{avg_bio_per_day}", color="teal")
-
+            
         if target_threshold is not None:
 
             below_target = int((dfr["MSISDN"] < target_threshold).sum())
@@ -3845,7 +3842,7 @@ def show():
             else 0
         )
 
-        chip_cols = st.columns(5)
+        chip_cols = st.columns(4)
 
         with chip_cols[0]:
             stat_chip("Jumlah", len(dfr), color="orange")
@@ -3858,8 +3855,6 @@ def show():
                 total_bio / total_msisdn * 100, 1
             ) if total_msisdn > 0 else 0
             stat_chip("% Bio", f"{avg_persen}%", color="green")
-        with chip_cols[4]:
-            stat_chip("Avg Bio/Hari", f"{avg_bio_per_day}", color="teal")
         
         st.markdown("<br>", unsafe_allow_html=True)
 
