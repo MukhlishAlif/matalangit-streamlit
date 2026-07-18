@@ -3199,6 +3199,14 @@ def show():
                 .mld-stat-chip.mld-stat-orange .mld-stat-label { color: #C2410C; }
                 .mld-stat-chip.mld-stat-orange .mld-stat-value { color: #C2410C; }
 
+                /* -- Teal (Avg per Hari) -- */
+                .mld-stat-chip.mld-stat-teal {
+                    background: #F0FDFA;
+                    border: 1px solid #99F6E4;
+                }
+                .mld-stat-chip.mld-stat-teal .mld-stat-label { color: #0F766E; }
+                .mld-stat-chip.mld-stat-teal .mld-stat-value { color: #0F766E; }
+
                 button[data-baseweb="tab"] {
                     border-radius: 10px 10px 0 0 !important;
                     font-weight: 600 !important;
@@ -3230,6 +3238,9 @@ def show():
     d1_label = f"D-1 ({d1_date.strftime('%d/%m')})"
     d2_label = f"D-2 ({d2_date.strftime('%d/%m')})"
     d3_label = f"D-3 ({d3_date.strftime('%d/%m')})"
+
+    # jumlah hari periode (untuk hitung rata-rata biometrik/hari)
+    n_days_team = max((_end_date_tmp - _start_date_tmp).days + 1, 1)
 
     # ==========================================
     # FUNGSI HELPER (khusus Team Performance)
@@ -3297,7 +3308,7 @@ def show():
                 & (user_data["Biometrik"] == True)
             ]
         )
-    def stat_chip(label, value, color="slate"):
+    def stat_chip(label, value, color="teal"):
         """color: slate, blue, purple, green, amber, danger"""
 
         css_class = f"mld-stat-chip mld-stat-{color}"
@@ -3386,6 +3397,7 @@ def show():
                 "MSISDN": u_msisdn,
                 "Biometrik": u_bio,
                 "% Bio": round(u_persen, 1),
+                "Avg Bio/Hari": round(u_bio / n_days_team, 2),
                 d1_label: d1_bio,
                 d2_label: d2_bio,
                 d3_label: d3_bio,
@@ -3427,10 +3439,16 @@ def show():
             else 0
         )
 
+        avg_bio_per_day = (
+            round(dfr["Avg Bio/Hari"].mean(), 2)
+            if len(dfr) > 0
+            else 0
+        )
+
         n_chip = (
-            5
+            6
             if target_threshold is not None
-            else 4
+            else 5
         )
 
         chip_cols = st.columns(n_chip)
@@ -3445,13 +3463,16 @@ def show():
             stat_chip("Biometrik", f"{total_bio:,}", color="purple")
 
         with chip_cols[3]:
-            stat_chip("Rata-rata % Bio", f"{avg_persen}%", color="green")
+            stat_chip("% Bio", f"{avg_persen}%", color="green")
+
+        with chip_cols[4]:
+            stat_chip("Avg Bio/Hari", f"{avg_bio_per_day}", color="teal")
 
         if target_threshold is not None:
 
             below_target = int((dfr["MSISDN"] < target_threshold).sum())
 
-            with chip_cols[4]:
+            with chip_cols[5]:
                 stat_chip(
                     f"Belum Capai Target (<{target_threshold} MSISDN)",
                     below_target,
@@ -3474,6 +3495,7 @@ def show():
             "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
             "Biometrik": st.column_config.NumberColumn(format="%d", width=110),
             "% Bio": st.column_config.NumberColumn(format="%.1f%%", width=100),
+            "Avg Bio/Hari": st.column_config.NumberColumn(format="%.2f", width=120),
             d3_label: st.column_config.NumberColumn(format="%d", width=100),
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
@@ -3794,6 +3816,7 @@ def show():
                 "MSISDN": u_msisdn,
                 "Biometrik": u_bio,
                 "% Bio": round(u_persen, 1),
+                "Avg Bio/Hari": round(u_bio / n_days, 2),
                 d1_label: d1_bio,
                 d2_label: d2_bio,
                 d3_label: d3_bio,
@@ -3816,7 +3839,13 @@ def show():
         total_msisdn = int(dfr["MSISDN"].sum())
         total_bio = int(dfr["Biometrik"].sum())
 
-        chip_cols = st.columns(4)
+        avg_bio_per_day = (
+            round(dfr["Avg Bio/Hari"].mean(), 2)
+            if len(dfr) > 0
+            else 0
+        )
+
+        chip_cols = st.columns(5)
 
         with chip_cols[0]:
             stat_chip("Jumlah", len(dfr), color="orange")
@@ -3828,7 +3857,10 @@ def show():
             avg_persen = round(
                 total_bio / total_msisdn * 100, 1
             ) if total_msisdn > 0 else 0
-            stat_chip("Rata-rata % Bio", f"{avg_persen}%", color="green")
+            stat_chip("% Bio", f"{avg_persen}%", color="green")
+        with chip_cols[4]:
+            stat_chip("Avg Bio/Hari", f"{avg_bio_per_day}", color="teal")
+        
         st.markdown("<br>", unsafe_allow_html=True)
 
         dfr = dfr.sort_values("% Bio", ascending=False)
@@ -3839,6 +3871,7 @@ def show():
             "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
             "Biometrik": st.column_config.NumberColumn(format="%d", width=110),
             "% Bio": st.column_config.NumberColumn(format="%.1f%%", width=100),
+            "Avg Bio/Hari": st.column_config.NumberColumn(format="%.2f", width=120),
             d3_label: st.column_config.NumberColumn(format="%d", width=100),
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),

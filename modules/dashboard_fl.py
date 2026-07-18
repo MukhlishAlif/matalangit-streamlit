@@ -901,8 +901,6 @@ def show():
 
     summary_fl = df_fl_scope.copy()
 
-    summary_fl["Nama"] = summary_fl["fl_id"].apply(get_real_name)
-
     summary_fl["Status"] = summary_fl["Eligible"].apply(
         lambda e: "Eligible" if e else "Belum Capai Target"
     )
@@ -915,15 +913,14 @@ def show():
     summary_fl = summary_fl.rename(columns={
         "organization_id": "Organization ID",
         "fl_id": "Frontliner",
-        "brand": "Brand",
-        "region_name": "Region",
+        "brand": "Nama",
         "sub_area_name": "Sub Area",
         "branch": "Branch",
         "micro_cluster_name": "Micro Cluster",
         "fl_target": "Target",
         "Biometrik": "Biometrik",
     })[[
-        "Organization ID", "Frontliner", "Nama", "Brand", "Region",
+        "Organization ID", "Frontliner", "Nama",
         "Sub Area", "Branch", "Micro Cluster",
         "Target", "Biometrik", "Status", "% Capaian"
     ]]
