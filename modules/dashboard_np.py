@@ -1078,7 +1078,7 @@ def show():
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        kpi_card("group", "New Promotor", total_promotor, "#F5B400")
+        kpi_card("group", "Promotor", total_promotor, "#F5B400")
 
     with col2:
         kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
@@ -1240,7 +1240,7 @@ def show():
                 "Nama":
                     get_real_name(nama_hos),
 
-                "New Promotor": total_promotor,
+                "Promotor": total_promotor,
 
                 "NP Aktif": promotor_aktif,
 
@@ -1443,7 +1443,7 @@ def show():
                 "Nama":
                     get_real_name(nama_bsm),
 
-                "New Promotor":
+                "Promotor":
                     total_promotor,
 
                 "NP Aktif":
@@ -1705,7 +1705,7 @@ def show():
                 "Nama":
                     get_real_name(nama_cse),
 
-                "New Promotor":
+                "Promotor":
                     total_promotor,
 
                 "NP Aktif":
@@ -1808,7 +1808,7 @@ def show():
 
     if role not in ["CSE", "RSE"]:
 
-        section_title("Rekap New Promotor", icon="list_alt")
+        section_title("Rekap Promotor", icon="list_alt")
 
     rekap_promotor = []
 
@@ -2009,7 +2009,7 @@ def show():
 
         rekap_promotor.append({
 
-            "New Promotor":
+            "Promotor":
                 nama_promotor,
 
              "Nama":

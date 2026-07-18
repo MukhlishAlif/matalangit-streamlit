@@ -714,7 +714,7 @@ def show():
                 <div>
                     <div class="pm-title-row">
                         <img src="data:image/png;base64,{logo_b64}" class="pm-logo-img" />
-                        <span class="pm-title-text">Dashboard Promotor</span>
+                        <span class="pm-title-text">Dashboard DSE Promotor</span>
                     </div>
                 </div>
             </div>
@@ -1182,7 +1182,7 @@ def show():
 
     with col1:
 
-        kpi_card("groups", "Promotor", total_promotor, "#F5B400")
+        kpi_card("groups", "DSE Promotor", total_promotor, "#F5B400")
 
     with col2:
 
@@ -1190,11 +1190,11 @@ def show():
 
     with col3:
 
-        kpi_card("bolt", "Promotor Aktif", promotor_aktif, "#F0997B")
+        kpi_card("bolt", " DSE Promotor Aktif", promotor_aktif, "#F0997B")
 
     with col4:
 
-        kpi_card("trending_up", "% Promotor Aktif", f"{persen_aktif}%", "#D4537E")
+        kpi_card("trending_up", "% DSE Promotor Aktif", f"{persen_aktif}%", "#D4537E")
 
     with col5:
 
@@ -1240,7 +1240,7 @@ def show():
 
         else:
 
-            section_title("Rekap Promotor", icon="list_alt")
+            section_title("Rekap DSE Promotor", icon="list_alt")
 
     with col_reset:
 
@@ -1349,11 +1349,11 @@ def show():
                 "Nama":
                     get_real_name(nama_hos),
 
-                "Promotor": total_promotor,
+                "DSE Promotor": total_promotor,
 
-                "Promotor Aktif": promotor_aktif,
+                "DSE Promotor Aktif": promotor_aktif,
 
-                "% Promotor Aktif": f"{persen_aktif}%",
+                "% DSE Promotor Aktif": f"{persen_aktif}%",
 
                 "MSISDN": total_msisdn,
 
@@ -1555,13 +1555,13 @@ def show():
                 "Nama":
                     get_real_name(nama_bsm),
 
-                "Promotor":
+                "DSE Promotor":
                     total_promotor,
 
-                "Promotor Aktif":
+                "DSE Promotor Aktif":
                     promotor_aktif,
 
-                "% Promotor Aktif":
+                "% DSE Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1819,13 +1819,13 @@ def show():
                 "Nama":
                     get_real_name(nama_cse),
 
-                "Promotor":
+                "DSE Promotor":
                     total_promotor,
 
-                "Promotor Aktif":
+                "DSE Promotor Aktif":
                     promotor_aktif,
 
-                "% Promotor Aktif":
+                "% DSE Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1924,7 +1924,7 @@ def show():
 
     if role not in ["CSE", "RSE"]:
 
-        section_title("Rekap Promotor", icon="list_alt")
+        section_title("Rekap DSE Promotor", icon="list_alt")
 
     rekap_promotor = []
 
@@ -2125,7 +2125,7 @@ def show():
 
         rekap_promotor.append({
 
-            "Promotor":
+            "DSE Promotor":
                 nama_promotor,
 
              "Nama":

@@ -261,7 +261,7 @@ elif role in ["CSE","RSE"]:
             "Leaderboard Quick Count",
             "Dashboard DSE",
             "Dashboard Frontliner",
-            "Dashboard Promotor",
+            "Dashboard DSE Promotor",
             "Dashboard GSE",
             "Data MSISDN"
         ],
@@ -277,8 +277,8 @@ elif role == "BSM":
             "Leaderboard Quick Count",
             "Dashboard DSE",
             "Dashboard Frontliner",
+            "Dashboard DSE Promotor",
             "Dashboard Promotor",
-            "Dashboard New Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -298,8 +298,8 @@ elif role == "HOS":
             "Dashboard BSM",
             "Dashboard DSE",
             "Dashboard Frontliner",
+            "Dashboard DSE Promotor",
             "Dashboard Promotor",
-            "Dashboard New Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -319,8 +319,8 @@ elif role in ["ADMIN", "HOR"]:
             "Dashboard BSM",
             "Dashboard DSE",
             "Dashboard Frontliner",
+            "Dashboard DSE Promotor",
             "Dashboard Promotor",
-            "Dashboard New Promotor",
             "Dashboard GSE",
             "Dashboard RGE",
             "Dashboard GEMPI",
@@ -359,7 +359,7 @@ elif menu == "Dashboard Frontliner":
 
     dashboard_fl()
 
-elif menu == "Dashboard Promotor":
+elif menu == "Dashboard DSE Promotor":
 
     dashboard_ae()
 
@@ -379,7 +379,7 @@ elif menu == "Dashboard RGE":
 
     dashboard_rge()
 
-elif menu == "Dashboard New Promotor":
+elif menu == "Dashboard Promotor":
 
     dashboard_np()
 

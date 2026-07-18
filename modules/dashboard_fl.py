@@ -1,13 +1,24 @@
 # =========================================================
 # dashboard_frontliner.py
 # DASHBOARD FRONTLINER
-# HOS -> BSM -> CSE/RSE -> FRONTLINER
+# HOS (region_name) -> BSM (branch) -> CSE/RSE (micro_cluster_name) -> FRONTLINER (fl_id)
+#
+# SUMBER DATA: endpoint /bio/fetch-all-fl + /bio/fetch-all-bio
+# (via database.load_outlet_bio_summary), BUKAN dari outlet.db /
+# tampil_data_by_date lagi.
+#
+# ASUMSI (tolong dikonfirmasi kalau meleset):
+#   - fl_id di data FL == username Frontliner di df_user (USER, ROLE=FRONTLINER)
+#   - region_name (FL) <-> REGION (user)
+#   - branch      (FL) <-> BRANCH (user)
+#   - micro_cluster_name (FL) <-> MICRO_CLUSTER (user)
 # =========================================================
-
+import requests
 import streamlit as st
 import pandas as pd
 from io import BytesIO
 import base64
+from datetime import date
 
 from st_aggrid import (
     AgGrid,
@@ -16,13 +27,13 @@ from st_aggrid import (
 )
 
 from database import (
-    tampil_data_by_date,
-    get_latest_data_date,
-    tampil_user
+    load_fl_summary,
+    load_user_hierarchy
 )
 
+
 # =========================================================
-# HELPER TAMPILAN (disamakan dengan dashboard_dse.py)
+# HELPER TAMPILAN (tidak berubah)
 # =========================================================
 
 def get_base64_image(path):
@@ -69,46 +80,31 @@ def section_title(text, icon=None):
     )
 
 # =========================================================
-# GET SELECTED VALUE
+# GET SELECTED VALUE (tidak berubah)
 # =========================================================
 
-def get_selected_value(
-    grid,
-    column_name
-):
+def get_selected_value(grid, column_name):
 
     if not grid:
         return None
 
-    selected = grid.get(
-        "selected_rows"
-    )
+    selected = grid.get("selected_rows")
 
     if selected is None:
         return None
 
-    if isinstance(
-        selected,
-        pd.DataFrame
-    ):
-
+    if isinstance(selected, pd.DataFrame):
         if not selected.empty:
-
             return selected.iloc[0][column_name]
 
-    elif isinstance(
-        selected,
-        list
-    ):
-
+    elif isinstance(selected, list):
         if len(selected) > 0:
-
             return selected[0][column_name]
 
     return None
 
 # =========================================================
-# GRID TABLE
+# GRID TABLE (tidak berubah dari versi sebelumnya)
 # =========================================================
 
 def show_grid(
@@ -125,21 +121,16 @@ def show_grid(
         return None
 
     if col_align is None:
-
         col_align = {}
 
     st.markdown(
         """
         <style>
-
         .ag-theme-balham .ag-pinned-bottom {
-
             font-weight: 700 !important;
             min-height: 42px !important;
             line-height: 42px !important;
-
         }
-
         </style>
         """,
         unsafe_allow_html=True
@@ -147,126 +138,67 @@ def show_grid(
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # =====================================================
-    # DEFAULT COLUMN
-    # =====================================================
-
     gb.configure_default_column(
-
         resizable=False,
         sortable=True,
         filter=False,
         suppressMenu=True,
         floatingFilter=False
-
     )
 
-    # =====================================================
-    # SELECTABLE
-    # =====================================================
-
     if selectable:
-
         gb.configure_selection(
-
             selection_mode="single",
             use_checkbox=False
-
         )
 
-    # =====================================================
-    # GRID OPTIONS
-    # =====================================================
-
     gb.configure_grid_options(
-
         headerHeight=45,
         rowHeight=42,
         domLayout="normal",
-
         suppressMovableColumns=True
-
     )
+
     # =====================================================
     # TOTAL ROW
     # =====================================================
 
     total_row = {}
 
+    id_cols_for_nunique = [
+        "HOS", "BSM", "Branch", "CSE/RSE", "AE", "Atasan",
+        "Region (HOS)", "Branch (BSM)", "Micro Cluster (CSE/RSE)",
+        "Frontliner"
+    ]
+
     for col in df.columns:
 
         if pd.api.types.is_numeric_dtype(df[col]):
 
-            # =============================================
-            # KHUSUS OUTLET
-            # =============================================
-
-            if col == "Outlet":
-
+            if col in ("Outlet", "Jumlah FL"):
                 total_row[col] = (
-
                     total_outlet
                     if total_outlet is not None
-                    else 0
-
+                    else int(df[col].sum())
                 )
-
             else:
-
-                total_row[col] = int(
-                    df[col].sum()
-                )
+                total_row[col] = int(df[col].sum())
 
         else:
 
-            if col in [
-
-                "HOS",
-                "BSM",
-                "Branch",
-                "CSE/RSE",
-                "AE",
-                "Atasan"
-
-            ]:
-
-                total_row[col] = (
-                    df[col].nunique()
-                )
-
+            if col in id_cols_for_nunique:
+                total_row[col] = df[col].nunique()
             else:
-
                 total_row[col] = ""
-
-    # =====================================================
-    # BUILD GRID
-    # =====================================================
 
     grid_options = gb.build()
 
-    # =====================================================
-    # HELPER: MAP ALIGNMENT -> FLEX JUSTIFY
-    # =====================================================
-
     def get_justify(align_value):
-
-        mapping = {
-
-            "left": "flex-start",
-            "center": "center",
-            "right": "flex-end"
-
-        }
-
+        mapping = {"left": "flex-start", "center": "center", "right": "flex-end"}
         return mapping.get(align_value, "center")
 
     def get_text_align(align_value):
-
         return align_value if align_value in ["left", "center", "right"] else "center"
-
-    # =====================================================
-    # FIX COLUMN WIDTH BERDASARKAN ISI + ALIGNMENT
-    # =====================================================
 
     first_col = df.columns[0]
 
@@ -275,217 +207,243 @@ def show_grid(
         field = col["field"]
 
         max_len = max(
-
             len(str(field)),
             df[field].astype(str).str.len().max()
-
         )
 
-        width = min(
-
-            max(
-                max_len * 10 + 30,
-                120
-            ),
-
-            450
-
-        )
+        width = min(max(max_len * 10 + 30, 120), 450)
 
         col["width"] = int(width)
         col["minWidth"] = int(width)
         col["maxWidth"] = int(width)
 
-        # =================================================
-        # TENTUKAN ALIGNMENT KOLOM INI
-        # =================================================
-
         if field in col_align:
-
             align_value = col_align[field]
-
         elif field == first_col:
-
             align_value = "left"
-
         else:
-
             align_value = "center"
 
         justify_value = get_justify(align_value)
         text_align_value = get_text_align(align_value)
 
         padding_style = {}
-
         if align_value == "left":
-
             padding_style = {"paddingLeft": "12px"}
-
         elif align_value == "right":
-
             padding_style = {"paddingRight": "12px"}
 
         if field == first_col:
 
-            col["width"] = 260
-            col["minWidth"] = 260
-            col["maxWidth"] = 260
+            col["width"] = 220
+            col["minWidth"] = 220
+            col["maxWidth"] = 220
 
-            # Freeze kolom pertama
             col["pinned"] = "left"
             col["lockPinned"] = True
             col["lockPosition"] = True
             col["suppressMovable"] = True
 
             col["cellStyle"] = {
-
                 "textAlign": text_align_value,
                 "display": "flex",
                 "justifyContent": justify_value,
                 "alignItems": "center",
                 "fontWeight": "600",
                 **padding_style
-
             }
 
         else:
 
             col["cellStyle"] = {
-
                 "textAlign": text_align_value,
                 "display": "flex",
                 "justifyContent": justify_value,
                 "alignItems": "center",
                 **padding_style
-
             }
 
-    # =====================================================
-    # HILANGKAN CORONG SEMUA KOLOM
-    # =====================================================
-
     for col in grid_options["columnDefs"]:
-
         col["filter"] = False
         col["floatingFilter"] = False
         col["suppressMenu"] = True
 
-    # =====================================================
-    # FOOTER
-    # =====================================================
-
-    grid_options["pinnedBottomRowData"] = [
-        total_row
-    ]
-
-    # =====================================================
-    # HEIGHT
-    # =====================================================
+    grid_options["pinnedBottomRowData"] = [total_row]
 
     header_height = 45
     row_height = 42
     footer_height = 45
 
     table_height = min(
-
-        header_height
-        + (len(df) * row_height)
-        + footer_height
-        + 10,
-
+        header_height + (len(df) * row_height) + footer_height + 10,
         560
-
     )
-
-    # ======================================================
-    # GRID
-    # ======================================================
 
     grid_response = AgGrid(
 
         df,
-
         key=key,
-
         gridOptions=grid_options,
-
         fit_columns_on_grid_load=False,
-
         height=table_height,
-
         theme="balham",
-
         update_mode=GridUpdateMode.SELECTION_CHANGED,
-
         allow_unsafe_jscode=True,
 
         custom_css={
 
             ".ag-root-wrapper": {
-
                 "border": "1px solid #f0dce2",
                 "border-radius": "14px"
-
             },
 
-            # =========================================
-            # HEADER DEFAULT CENTER
-            # =========================================
-
             ".ag-header": {
-
                 "background": "linear-gradient(120deg, #FCEFE1 0%, #FBE3E0 60%, #F8DDE6 100%)"
-
             },
 
             ".ag-header-cell-label": {
-
                 "justify-content": "center",
                 "font-weight": "700",
                 "color": "#7A2C46"
-
             },
-
-            # =========================================
-            # HEADER FIRST COLUMN LEFT
-            # =========================================
 
             ".ag-pinned-left-header .ag-header-cell-label": {
-
                 "justify-content": "flex-start !important",
                 "padding-left": "12px"
-
             },
 
-            ".ag-row": {
+            ".ag-row": {"font-size": "14px"},
 
-                "font-size": "14px"
-
-            },
-
-            ".ag-row-hover": {
-
-                "background-color": "#FFF5F7 !important"
-
-            },
+            ".ag-row-hover": {"background-color": "#FFF5F7 !important"},
 
             ".ag-pinned-bottom": {
-
                 "background-color": "#FDF1F5",
                 "font-weight": "700",
                 "border-top": "2px solid #D4537E",
                 "min-height": "42px"
-
             }
-
         }
-
     )
+
     return grid_response
+
+
+# =========================================================
+# HELPER: AGREGASI PER LEVEL (region / branch / micro_cluster)
+# =========================================================
+
+def build_rekap(df_source, group_col, id_label):
+    """
+    Agregasi df hasil load_outlet_bio_summary() per level geografis
+    (region_name / branch / micro_cluster_name). Metrik: jumlah FL,
+    total target, total biometrik, jumlah eligible, % capaian, % eligible.
+    """
+
+    if df_source.empty or group_col not in df_source.columns:
+        return pd.DataFrame()
+
+    grp = (
+        df_source
+        .groupby(group_col, dropna=False)
+        .agg(
+            **{
+                "Jumlah FL": ("fl_id", "nunique"),
+                "Target": ("fl_target", "sum"),
+                "Biometrik": ("Biometrik", "sum"),
+                "Eligible_n": ("Eligible", "sum"),
+            }
+        )
+        .reset_index()
+        .rename(columns={group_col: id_label})
+    )
+
+    grp["Target"] = grp["Target"].astype(int)
+    grp["Biometrik"] = grp["Biometrik"].astype(int)
+
+    grp["% Capaian"] = grp.apply(
+        lambda r: round(r["Biometrik"] / r["Target"] * 100, 2) if r["Target"] > 0 else 0,
+        axis=1
+    )
+
+    grp["% Eligible"] = grp.apply(
+        lambda r: round(r["Eligible_n"] / r["Jumlah FL"] * 100, 2) if r["Jumlah FL"] > 0 else 0,
+        axis=1
+    )
+
+    grp = grp.rename(columns={"Eligible_n": "FL Eligible"})
+
+    grp["% Capaian"] = grp["% Capaian"].astype(str) + "%"
+    grp["% Eligible"] = grp["% Eligible"].astype(str) + "%"
+
+    grp[id_label] = grp[id_label].fillna("-").replace("", "-")
+
+    return grp[[id_label, "Jumlah FL", "Target", "Biometrik", "FL Eligible", "% Capaian", "% Eligible"]]
+
+
+def download_button_df(dfr, label, filename, key):
+
+    buffer = BytesIO()
+
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        dfr.to_excel(writer, index=False)
+
+    st.download_button(
+        label=label,
+        data=buffer.getvalue(),
+        file_name=filename,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key=key
+    )
+
+
 # =========================================================
 # DASHBOARD
 # =========================================================
+@st.cache_data(ttl=300)
+def load_fl_api():
 
+    url = "https://api.matalangit.cloud/bio/fetch-all-fl"
+
+    try:
+
+        response = requests.get(
+            url,
+            timeout=60
+        )
+
+        response.raise_for_status()
+
+        result = response.json()
+
+        df = pd.DataFrame(result["data"])
+
+        # convert numeric
+        df["fl_target"] = pd.to_numeric(
+            df["fl_target"],
+            errors="coerce"
+        ).fillna(0).astype(int)
+
+        df["ga_mtd"] = pd.to_numeric(
+            df["ga_mtd"],
+            errors="coerce"
+        ).fillna(0).astype(int)
+
+        # supaya sama seperti dashboard lama
+        df["Biometrik"] = df["ga_mtd"]
+
+        # Eligible = target tercapai
+        df["Eligible"] = (
+            df["Biometrik"] >= df["fl_target"]
+        ).astype(int)
+
+        return df
+
+    except Exception as e:
+
+        st.error(f"Gagal mengambil data FL : {e}")
+
+        return pd.DataFrame()
+        
 def show():
 
     st.markdown(
@@ -497,161 +455,48 @@ def show():
     )
 
     # =====================================================
-    # LOAD DATA AWAL (JANGAN DIUBAH) — dipakai untuk header
-    # dan sebagai nilai default filter tanggal
+    # USER HIERARCHY (dari load_user_hierarchy, PUNYA field
+    # REGION/AREA/BRANCH/MICRO_CLUSTER per user -- dipakai untuk
+    # scoping & nama asli, BUKAN untuk data submission lagi)
     # =====================================================
 
-    latest_date = get_latest_data_date()
+    (
+        df_user,
+        role_map,
+        atasan_map,
+        brand_map,
+        children_map
+    ) = load_user_hierarchy()
 
-    data = tampil_data_by_date(latest_date, latest_date)
-    users = tampil_user()
-
-    if len(data) == 0:
-
-        st.info(
-
-            "Belum ada data."
-
-        )
-
-        return
-
-    # =====================================================
-    # DATAFRAME
-    # =====================================================
-
-    df = pd.DataFrame(
-        data,
-        columns=[
-            "ID",
-            "Nama Outlet",
-            "ID Outlet",
-            "MSISDN",
-            "Input By",
-            "Tanggal",
-            "flag_bio",
-            "ga_dt"
-        ]
-    )
-
-    # =====================================================
-    # BIOMETRIK
-    # =====================================================
-
-    df["Biometrik"] = (
-
-        df["flag_bio"]
-        .fillna(False)
-        .astype(bool)
-
-    )
-
-    # =====================================================
-    # USER DF
-    # =====================================================
-
-    df_user = pd.DataFrame(
-
-        users,
-
-        columns=[
-
-            "user",
-            "role",
-            "atasan",
-            "real_name"
-
-        ]
-
-    )
-
-    df_user.columns = (
-        df_user.columns.str.upper()
-    )
-
-    # ======================================================
-    # USER -> REAL NAME
-    # ======================================================
+    role = st.session_state.outlet_role
+    user = st.session_state.outlet_user
 
     real_name_map = (
         df_user
         .drop_duplicates(subset="USER")
-        .assign(
-            USER=lambda x: x["USER"]
-            .astype(str)
-            .str.strip()
-            .str.upper()
-        )
+        .assign(USER=lambda x: x["USER"].astype(str).str.strip().str.upper())
         .set_index("USER")["REAL_NAME"]
         .to_dict()
     )
 
     def get_real_name(username):
-
         key = str(username).strip().upper()
-
         nama = real_name_map.get(key)
+        return nama if nama else username
 
-        if (
-            pd.isna(nama)
-            or str(nama).strip() == ""
-            or str(nama).strip().lower() == "vacant"
-        ):
+    my_row = df_user[df_user["USER"] == user]
 
-            return nama
-
-        return nama
-
+    my_region = my_row["REGION"].iloc[0] if not my_row.empty and "REGION" in df_user.columns else None
+    my_branch = my_row["BRANCH"].iloc[0] if not my_row.empty and "BRANCH" in df_user.columns else None
+    my_mc = my_row["MICRO_CLUSTER"].iloc[0] if not my_row.empty and "MICRO_CLUSTER" in df_user.columns else None
 
     # =====================================================
-    # USER BRAND
-    # =====================================================
-
-    df_user["BRAND"] = ""
-
-    df_user.loc[
-
-        df_user["ATASAN"]
-        .astype(str)
-        .str.lower()
-        .str.contains("_im3", na=False),
-
-        "BRAND"
-
-    ] = "IM3"
-
-    df_user.loc[
-
-        df_user["ATASAN"]
-        .astype(str)
-        .str.lower()
-        .str.contains("_3id", na=False),
-
-        "BRAND"
-
-    ] = "3ID"
-
-    # =====================================================
-    # SESSION
-    # =====================================================
-
-    role = st.session_state.outlet_role
-    user = st.session_state.outlet_user
-
-    # =====================================================
-    # ⭐ HEADER (tampil paling atas, sebelum filter)
+    # HEADER
     # =====================================================
 
     logo_b64 = get_base64_image("icon.png")
 
-    display_name = real_name_map.get(
-        str(user).strip().upper(),
-        user
-    )
-
-    initials = "".join(
-        [w[0].upper() for w in str(display_name).split()[:2]]
-    ) or "-"
+    display_name = real_name_map.get(str(user).strip().upper(), user)
 
     st.markdown(
         f"""
@@ -686,40 +531,6 @@ def show():
             font-weight: 600;
             color: #fff;
         }}
-        .dse-user-card {{
-            background: rgba(255,255,255,0.16);
-            border-radius: 12px;
-            padding: 10px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }}
-        .dse-avatar {{
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-            color: #993556;
-        }}
-        .dse-user-name {{
-            font-weight: 600;
-            font-size: 15px;
-            color: #fff;
-        }}
-        .dse-role-pill {{
-            background: rgba(255,255,255,0.25);
-            color: #fff;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 2px;
-            display: inline-block;
-        }}
         .dse-kpi-card {{
             background: #fff;
             border-radius: 14px;
@@ -728,20 +539,9 @@ def show():
             box-shadow: 0 2px 8px rgba(153, 53, 86, 0.08);
             border: 1px solid #f3e3e8;
         }}
-        .dse-kpi-icon {{
-            font-size: 22px;
-            margin-bottom: 4px;
-        }}
-        .dse-kpi-value {{
-            font-size: 22px;
-            font-weight: 700;
-            color: #3d2230;
-        }}
-        .dse-kpi-label {{
-            font-size: 12px;
-            color: #9a7a86;
-            margin-top: 2px;
-        }}
+        .dse-kpi-icon {{ font-size: 22px; margin-bottom: 4px; }}
+        .dse-kpi-value {{ font-size: 22px; font-weight: 700; color: #3d2230; }}
+        .dse-kpi-label {{ font-size: 12px; color: #9a7a86; margin-top: 2px; }}
         .dse-card-title {{
             font-size: 20px;
             font-weight: 700;
@@ -764,355 +564,133 @@ def show():
         unsafe_allow_html=True
     )
 
-    # =====================================================
-    # FILTER (tampil setelah header)
+# =====================================================
+    # FILTER
     # =====================================================
 
     with st.container(border=True):
 
-        col_tgl, col_brand = st.columns(2)
-
-        with col_tgl:
-
-            tanggal = st.date_input(
-
-                ":material/calendar_month: Filter Tanggal",
-
-                value=(
-
-                    latest_date,
-
-                    latest_date
-
-                ),
-
-                key="pm_tanggal"
-
-            )
-
-        if isinstance(tanggal, tuple):
-
-            if len(tanggal) == 2:
-
-                start_date, end_date = tanggal
-
-            elif len(tanggal) == 1:
-
-                start_date = end_date = tanggal[0]
-
-            else:
-
-                start_date = end_date = latest_date
-
-        else:
-
-            start_date = end_date = tanggal
-
-        with col_brand:
-
-            brand = st.selectbox(
-
-                ":material/sim_card: Filter Brand",
-
-                options=[
-
-                    "Semua",
-                    "IM3",
-                    "3ID"
-
-                ],
-
-                index=0
-
-            )
-
-    # =====================================================
-    # RELOAD DATA SESUAI RENTANG TANGGAL HASIL FILTER
-    # =====================================================
-
-    data = tampil_data_by_date(
-
-        start_date,
-
-        end_date
-
-    )
-
-    if len(data) == 0:
-
-        st.info(
-
-            "Belum ada data."
-
+        st.caption(
+            ":material/info: Biometrik (ga_mtd) adalah akumulasi bulan "
+            "berjalan langsung dari sistem -- tidak ada filter tanggal."
         )
 
-        return
-
-    df = pd.DataFrame(
-        data,
-        columns=[
-            "ID",
-            "Nama Outlet",
-            "ID Outlet",
-            "MSISDN",
-            "Input By",
-            "Tanggal",
-            "flag_bio",
-            "ga_dt"
-        ]
-    )
-
-    df["Biometrik"] = (
-
-        df["flag_bio"]
-        .fillna(False)
-        .astype(bool)
-
-    )
+        brand = st.selectbox(
+            ":material/sim_card: Filter Brand",
+            options=["Semua", "IM3", "3ID"],
+            index=0
+        )
 
     # =====================================================
-    # FILTER ROLE
+    # AMBIL DATA DARI ENDPOINT FL (ga_mtd = Biometrik tercapai,
+    # sudah termasuk target & capaian langsung dari API)
+    # =====================================================
+
+    df = load_fl_api()
+
+    if brand != "Semua":
+
+        if brand == "IM3":
+
+            df = df[
+                df["fl_id"]
+                .astype(str)
+                .str.upper()
+                .str.endswith("IM3")
+            ]
+
+        elif brand == "3ID":
+
+            df = df[
+                df["fl_id"]
+                .astype(str)
+                .str.upper()
+                .str.endswith("3ID")
+            ]
+
+    if df.empty:
+        st.info("Belum ada data Frontliner / Biometrik untuk filter ini.")
+        return
+
+    # =====================================================
+    # SCOPE SESUAI ROLE YANG LOGIN
+    # (pengganti filter ATASAN chain yang dulu dari outlet.db)
     # =====================================================
 
     if role == "FRONTLINER":
 
         df = df[
-            df["Input By"] == user
+            df["fl_id"].astype(str).str.strip().str.upper()
+            == str(user).strip().upper()
         ]
 
-    elif role in [
+    elif role in ["CSE", "RSE"]:
 
-        "CSE",
-        "RSE"
-
-    ]:
-
-        daftar_fl = df_user[
-
-            (df_user["ATASAN"] == user)
-
-            &
-
-            (df_user["ROLE"] == "FRONTLINER")
-
-        ]["USER"].tolist()
-
-        df = df[
-            df["Input By"]
-            .isin(daftar_fl)
-        ]
+        df = df[df["micro_cluster_name"] == my_mc]
 
     elif role == "BSM":
 
-        daftar_cse = df_user[
-            df_user["ATASAN"] == user
-        ]["USER"].tolist()
-
-        daftar_fl = df_user[
-
-            (df_user["ATASAN"]
-            .isin(daftar_cse))
-
-            &
-
-            (df_user["ROLE"] == "FRONTLINER")
-
-        ]["USER"].tolist()
-
-        df = df[
-            df["Input By"]
-            .isin(daftar_fl)
-        ]
+        df = df[df["branch"] == my_branch]
 
     elif role == "HOS":
 
-        daftar_bsm = df_user[
-            df_user["ATASAN"] == user
-        ]["USER"].tolist()
+        df = df[df["region_name"] == my_region]
 
-        daftar_cse = df_user[
-            df_user["ATASAN"]
-            .isin(daftar_bsm)
-        ]["USER"].tolist()
+    # ADMIN / HOR -> tanpa filter scope, lihat semua
 
-        daftar_fl = df_user[
-
-            (df_user["ATASAN"]
-            .isin(daftar_cse))
-
-            &
-
-            (df_user["ROLE"] == "FRONTLINER")
-
-        ]["USER"].tolist()
-
-        df = df[
-            df["Input By"]
-            .isin(daftar_fl)
-        ]
-
-    # =====================================================
-    # BRAND MAP
-    # =====================================================
-
-    brand_map = (
-         df_user
-         .drop_duplicates(subset="USER")
-         .set_index("USER")["BRAND"]
-         .to_dict()
-    )
-
-    df["BRAND"] = df["Input By"].map(
-        brand_map
-    )
-
-    # =====================================================
-    # FILTER BRAND
-    # =====================================================
-
-    if brand != "Semua":
-
-        df = df[
-
-            df["BRAND"] == brand
-
-        ]
-
-        # =========================
-    # JUMLAH VACANT
-    # =========================
-
-    user_master = (
-        df_user[
-            df_user["ROLE"] == "FRONTLINER"
-        ]
-        .drop_duplicates(subset="USER")
-    )
-
-    real_name_clean = (
-        user_master["REAL_NAME"]
-        .astype(str)
-        .str.strip()
-        .str.lower()
-    )
-
-    vacant_labels = [
-        "",
-        "nan",
-        "none",
-        "null",
-        "vacant",
-        "-"
-    ]
-
-    jumlah_vacant = (
-        real_name_clean.isin(vacant_labels)
-        .sum()
-    )
-
+    if df.empty:
+        st.info("Tidak ada data Frontliner pada scope kamu untuk filter ini.")
+        return
 
     # =====================================================
     # KPI
     # =====================================================
 
-    fl_all = df_user[
-        df_user["ROLE"] == "FRONTLINER"
-    ]["USER"].tolist()
+    total_fl = df["fl_id"].nunique()
+    total_target = int(df["fl_target"].sum())
+    total_bio = int(df["Biometrik"].sum())
+    total_eligible = int(df["Eligible"].sum())
 
-    df_fl = df[
-        df["Input By"].isin(fl_all)
-    ]
+    persen_eligible = round(total_eligible / total_fl * 100, 2) if total_fl > 0 else 0
+    persen_capaian = round(total_bio / total_target * 100, 2) if total_target > 0 else 0
 
-    fl_aktif = df_fl["Input By"].nunique()
-    jumlah_outlet = df_fl["ID Outlet"].nunique()
-    jumlah_msisdn = len(df_fl)
-    jumlah_biometrik = (df_fl["Biometrik"] == True).sum()
-
-    total_fl = len(fl_all)
-
-    # =========================
-    # PERSENTASE
-    # =========================
-
-    persen_fl_aktif = (
-        round((fl_aktif / total_fl) * 100, 2)
-        if total_fl > 0 else 0
-    )
-
-    persen_biometrik = (
-        round((jumlah_biometrik / jumlah_msisdn) * 100, 2)
-        if jumlah_msisdn > 0 else 0
-    )
-
-    # =========================
-    # KPI UI (disamakan dengan dashboard_dse.py)
-    # =========================
-
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        kpi_card("store", "Outlet", jumlah_outlet, "#F5B400")
+        kpi_card("store", "Jumlah Frontliner", total_fl, "#F5B400")
 
     with col2:
-        kpi_card("groups", "Frontliner", total_fl, "#F0997B")
+        kpi_card("flag", "Target Biometrik", total_target, "#F0997B")
 
     with col3:
-        kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
+        kpi_card("fingerprint", "Biometrik Tercapai", total_bio, "#D4537E")
 
     with col4:
-        kpi_card("bolt", "FL Aktif", fl_aktif, "#D4537E")
+        kpi_card("verified", "FL Eligible", f"{total_eligible} ({persen_eligible}%)", "#993556")
 
     with col5:
-        kpi_card("trending_up", "% FL Aktif", f"{persen_fl_aktif}%", "#993556")
-
-    with col6:
-        kpi_card("smartphone", "MSISDN", jumlah_msisdn, "#7A2C46")
+        kpi_card("trending_up", "% Capaian Target", f"{persen_capaian}%", "#7A2C46")
 
     st.divider()
 
     # =====================================================
-    # HIERARCHY FILTER
+    # SESSION STATE UNTUK DRILL-DOWN
     # =====================================================
 
-    selected_hos = None
-    selected_bsm = None
-    selected_cse = None
-
-    # =====================================================
-    # HIERARCHY FILTER
-    # =====================================================
-
-    if "selected_hos_fl" not in st.session_state:
-        st.session_state.selected_hos_fl = None
-
-    if "selected_bsm_fl" not in st.session_state:
-        st.session_state.selected_bsm_fl = None
-
-    if "selected_cse_fl" not in st.session_state:
-        st.session_state.selected_cse_fl = None
-
-    # =====================================================
-    # HEADER + RESET
-    # =====================================================
+    for k in ["selected_region_fl", "selected_branch_fl", "selected_mc_fl"]:
+        if k not in st.session_state:
+            st.session_state[k] = None
 
     header_col, reset_col = st.columns([5, 1])
 
     with header_col:
-
-        if role == "ADMIN":
-
-            section_title("Rekap HOS", icon="list_alt")
-
+        if role == "ADMIN" or role == "HOR":
+            section_title("Rekap Region (HOS)", icon="list_alt")
         elif role == "HOS":
-
-            section_title("Rekap BSM", icon="list_alt")
-
+            section_title("Rekap Branch (BSM)", icon="list_alt")
         elif role == "BSM":
-
-            section_title("Rekap CSE/RSE", icon="list_alt")
-
+            section_title("Rekap Micro Cluster (CSE/RSE)", icon="list_alt")
         else:
-
             section_title("Rekap Frontliner", icon="list_alt")
 
     with reset_col:
@@ -1124,861 +702,245 @@ def show():
             key="reset_fl"
         ):
 
-            st.session_state.selected_hos_fl = None
-            st.session_state.selected_bsm_fl = None
-            st.session_state.selected_cse_fl = None
+            st.session_state.selected_region_fl = None
+            st.session_state.selected_branch_fl = None
+            st.session_state.selected_mc_fl = None
 
             st.rerun()
 
     # =====================================================
-    # REKAP HOS
+    # REKAP REGION (level "HOS")
     # =====================================================
 
-    if role == "ADMIN":
+    if role in ["ADMIN", "HOR"]:
 
-        rekap_hos = []
-
-        hos_list = df_user[
-            df_user["ROLE"] == "HOS"
-        ]
-
-        for _, row in hos_list.iterrows():
-
-            nama_hos = row["USER"]
-
-            daftar_bsm = df_user[
-                df_user["ATASAN"] == nama_hos
-            ]["USER"].tolist()
-
-            daftar_cse = df_user[
-                (df_user["ATASAN"].isin(daftar_bsm))
-                &
-                (df_user["ROLE"].isin([
-                    "CSE",
-                    "RSE"
-                ]))
-            ]["USER"].tolist()
-
-            daftar_fl = df_user[
-                (df_user["ATASAN"].isin(daftar_cse))
-                &
-                (df_user["ROLE"] == "FRONTLINER")
-            ]["USER"].tolist()
-
-            temp = df[
-                df["Input By"].isin(daftar_fl)
-            ]
-
-            total_fl = len(daftar_fl)
-
-            fl_aktif = temp["Input By"].nunique()
-
-            total_msisdn = len(temp)
-
-            total_bio = temp["Biometrik"].sum()
-
-            persen_active = round(
-                (fl_aktif / total_fl) * 100,
-                2
-            ) if total_fl > 0 else 0
-
-            persen_bio = round(
-                (total_bio / total_msisdn) * 100,
-                2
-            ) if total_msisdn > 0 else 0
-
-            rekap_hos.append({
-
-                "HOS":
-                    nama_hos,
-
-                "Nama":
-                    get_real_name(nama_hos), 
-
-
-                "Frontliner":
-                    total_fl,
-
-                "Frontliner Aktif":
-                    fl_aktif,
-
-                "% Frontliner Aktif":
-                    f"{persen_active}%",
-
-                "Outlet":
-                    temp["ID Outlet"].nunique(),
-
-                "MSISDN":
-                    total_msisdn,
-
-                "Biometrik":
-                    total_bio,
-
-                "% Biometrik":
-                    f"{persen_bio}%"
-
-            })
-
-        summary_hos = pd.DataFrame(
-            rekap_hos
+        rekap_region = (
+            df.groupby(
+                "region_name",
+                as_index=False
+            )
+            .agg(
+                **{
+                    "Jumlah FL": ("fl_id", "nunique"),
+                    "Target": ("fl_target", "sum"),
+                    "Biometrik": ("Biometrik", "sum"),
+                    "FL Eligible": ("Eligible", "sum"),
+                }
+            )
         )
 
-        # =====================================================
-        # FILTER BRAND
-        # =====================================================
-
-        if brand != "Semua":
-            summary_hos = summary_hos[
-                summary_hos["HOS"]
-                .astype(str)
-                .str.contains(brand, case=False, na=False)
-            ]
-
-        with st.container(border=True):                    # ← BARU, level 8
-
-            buffer = BytesIO()                              # ← level 12 (masuk 1 tab ke dalam container)
-            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                summary_hos.to_excel(writer, index=False)
-
-            st.download_button(                             # ← level 12
-                label=":material/download: Download HOS",
-                data=buffer.getvalue(),
-                file_name="rekap_hos.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="download_hos"
-            )
-
-            hos_grid = show_grid(                           # ← level 12
-                summary_hos,
-                selectable=True,
-                key=f"hos_{tanggal}_{role}_{user}",
-                col_align={"Nama": "left"},
-                total_outlet=(
-                    df["ID Outlet"].dropna().astype(str).str.strip().nunique()
-                )
-            )
-
-        selected_hos = get_selected_value(hos_grid, "HOS")   # ← BALIK ke level 8 (di luar container)
-
-        if selected_hos:                                    # ← level 8
-            st.session_state.selected_hos_fl = selected_hos
-            st.session_state.selected_bsm_fl = None
-            st.session_state.selected_cse_fl = None
-
-        st.divider()                                        # ← level 8
-
-    # =====================================================
-    # REKAP BSM
-    # =====================================================
-
-    if role in ["HOS", "ADMIN"]:
-
-        if role == "ADMIN":
-
-            section_title("Rekap BSM", icon="list_alt")
-
-        rekap_bsm = []
-
-        if role == "HOS":
-
-            bsm_list = df_user[
-
-                (df_user["ROLE"] == "BSM")
-
-                &
-
-                (df_user["ATASAN"] == user)
-
-            ]
-
-        else:
-
-            bsm_list = df_user[
-                df_user["ROLE"] == "BSM"
-            ]
-
-        for _, row in bsm_list.iterrows():
-
-            if st.session_state.selected_hos_fl:
-
-                if row["ATASAN"] != st.session_state.selected_hos_fl:
-
-                    continue
-
-            nama_bsm = row["USER"]
-
-            daftar_cse = df_user[
-
-                (df_user["ATASAN"] == nama_bsm)
-
-                &
-
-                (df_user["ROLE"].isin([
-                    "CSE",
-                    "RSE"
-                ]))
-
-            ]["USER"].tolist()
-
-            daftar_fl = df_user[
-
-                (df_user["ATASAN"].isin(
-                    daftar_cse
-                ))
-
-                &
-
-                (df_user["ROLE"] == "FRONTLINER")
-
-            ]["USER"].tolist()
-
-            temp = df[
-                df["Input By"].isin(
-                    daftar_fl
-                )
-            ]
-
-            total_fl = len(
-                daftar_fl
-            )
-
-            fl_aktif = temp[
-                "Input By"
-            ].nunique()
-
-            total_msisdn = len(temp)
-
-            total_bio = temp[
-                "Biometrik"
-            ].sum()
-
-            persen_active = round(
-                (
-                    fl_aktif / total_fl
-                ) * 100,
-                2
-            ) if total_fl > 0 else 0
-
-            persen_bio = round(
-                (
-                    total_bio / total_msisdn
-                ) * 100,
-                2
-            ) if total_msisdn > 0 else 0
-
-            rekap_bsm.append({
-
-                "BSM":
-                    nama_bsm,
-
-                "Nama":
-                    get_real_name(nama_bsm), 
-
-                "Frontliner":
-                    total_fl,
-
-                "Frontliner Aktif":
-                    fl_aktif,
-
-                "% Frontliner Aktif":
-                    f"{persen_active}%",
-
-                "Outlet":
-                    temp["ID Outlet"].nunique(),
-
-                "MSISDN":
-                    total_msisdn,
-
-                "Biometrik":
-                    total_bio,
-
-                "% Biometrik":
-                    f"{persen_bio}%"
-
-            })
-
-        summary_bsm = pd.DataFrame(
-            rekap_bsm
+        rekap_region.rename(
+            columns={
+                "region_name": "Region (HOS)"
+            },
+            inplace=True
         )
 
-        if brand != "Semua":
+        rekap_region["% Capaian"] = (
+            rekap_region["Biometrik"]
+            / rekap_region["Target"]
+            * 100
+        ).round(2)
 
-            summary_bsm = summary_bsm[
+        rekap_region["% Eligible"] = (
+            rekap_region["FL Eligible"]
+            / rekap_region["Jumlah FL"]
+            * 100
+        ).round(2)
 
-                summary_bsm["BSM"]
-                .astype(str)
-                .str.contains(
-                    brand,
-                    case=False,
-                    na=False
-                )
+        rekap_region["% Capaian"] = (
+            rekap_region["% Capaian"].astype(str)
+            + "%"
+        )
 
-            ]
+        rekap_region["% Eligible"] = (
+            rekap_region["% Eligible"].astype(str)
+            + "%"
+        )
 
         with st.container(border=True):
 
-            buffer = BytesIO()
-
-            with pd.ExcelWriter(
-                buffer,
-                engine="openpyxl"
-            ) as writer:
-
-                summary_bsm.to_excel(
-                    writer,
-                    index=False
-                )
-
-            st.download_button(
-
-                label=":material/download: Download BSM",
-
-                data=buffer.getvalue(),
-
-                file_name="rekap_bsm.xlsx",
-
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-                key="download_bsm"
-
+            download_button_df(
+                rekap_region,
+                ":material/download: Download Region",
+                "rekap_region_fl.xlsx",
+                "download_region_fl"
             )
 
-            bsm_grid = show_grid(
-
-                summary_bsm,
-
+            region_grid = show_grid(
+                rekap_region,
                 selectable=True,
-
-                key=f"bsm_{tanggal}_{role}_{user}",
+                key=f"region_{brand}_{role}_{user}",
                 col_align={
-                    "Nama": "left"
+                    "Region (HOS)": "left"
                 },
-
-                total_outlet=(
-
-                    df["ID Outlet"]
-
-                    .dropna()
-
-                    .astype(str)
-
-                    .str.strip()
-
-                    .nunique()
-
-                )
-
+                total_outlet=df["fl_id"].nunique()
             )
 
-        selected_bsm = get_selected_value(
-            bsm_grid,
-            "BSM"
+        selected_region = get_selected_value(
+            region_grid,
+            "Region (HOS)"
         )
 
-        if selected_bsm:
+        if selected_region:
 
-            st.session_state.selected_bsm_fl = (
-                selected_bsm
+            st.session_state.selected_region_fl = selected_region
+            st.session_state.selected_branch_fl = None
+            st.session_state.selected_mc_fl = None
+    st.divider()
+    # =====================================================
+    # REKAP BRANCH (level "BSM")
+    # =====================================================
+
+    if role in ["ADMIN", "HOR", "HOS"]:
+
+        if role in ["ADMIN", "HOR"]:
+            section_title("Rekap Branch (BSM)", icon="list_alt")
+
+        df_branch_scope = df.copy()
+
+        if role in ["ADMIN", "HOR"] and st.session_state.selected_region_fl:
+            df_branch_scope = df_branch_scope[
+                df_branch_scope["region_name"] == st.session_state.selected_region_fl
+            ]
+
+        rekap_branch = build_rekap(df_branch_scope, "branch", "Branch (BSM)")
+
+        with st.container(border=True):
+
+            download_button_df(
+                rekap_branch,
+                ":material/download: Download Branch",
+                "rekap_branch_fl.xlsx",
+                "download_branch_fl"
             )
 
-            st.session_state.selected_cse_fl = None
+            branch_grid = show_grid(
+                rekap_branch,
+                selectable=True,
+                key=f"branch_{brand}_{role}_{user}",
+                col_align={"Branch (BSM)": "left"},
+                total_outlet=df_branch_scope["fl_id"].nunique()
+            )
+
+        selected_branch = get_selected_value(branch_grid, "Branch (BSM)")
+
+        if selected_branch:
+            st.session_state.selected_branch_fl = selected_branch
+            st.session_state.selected_mc_fl = None
 
         st.divider()
 
     # =====================================================
-    # REKAP CSE/RSE
+    # REKAP MICRO CLUSTER (level "CSE/RSE")
     # =====================================================
 
-    if role in ["BSM", "HOS", "ADMIN"]:
+    if role in ["ADMIN", "HOR", "HOS", "BSM"]:
 
-        if role in ["ADMIN", "HOS"]:
+        if role in ["ADMIN", "HOR", "HOS"]:
+            section_title("Rekap Micro Cluster (CSE/RSE)", icon="list_alt")
 
-            section_title("Rekap CSE/RSE", icon="list_alt")
+        df_mc_scope = df.copy()
 
-        rekap_cse = []
-
-        if role == "BSM":
-
-            cse_list = df_user[
-
-                (df_user["ROLE"].isin([
-                    "CSE",
-                    "RSE"
-                ]))
-
-                &
-
-                (df_user["ATASAN"] == user)
-
+        if role in ["ADMIN", "HOR", "HOS"] and st.session_state.selected_branch_fl:
+            df_mc_scope = df_mc_scope[
+                df_mc_scope["branch"] == st.session_state.selected_branch_fl
+            ]
+        elif role in ["ADMIN", "HOR"] and st.session_state.selected_region_fl and not st.session_state.selected_branch_fl:
+            df_mc_scope = df_mc_scope[
+                df_mc_scope["region_name"] == st.session_state.selected_region_fl
             ]
 
-        elif role == "HOS":
-
-            daftar_bsm = df_user[
-
-                (df_user["ATASAN"] == user)
-
-                &
-
-                (df_user["ROLE"] == "BSM")
-
-            ]["USER"].tolist()
-
-            cse_list = df_user[
-
-                (df_user["ROLE"].isin([
-                    "CSE",
-                    "RSE"
-                ]))
-
-                &
-
-                (df_user["ATASAN"].isin(
-                    daftar_bsm
-                ))
-
-            ]
-
-        else:
-
-            cse_list = df_user[
-                df_user["ROLE"].isin([
-                    "CSE",
-                    "RSE"
-                ])
-            ]
-
-        for _, row in cse_list.iterrows():
-
-            if role in ["ADMIN", "HOS"]:
-
-                if st.session_state.selected_bsm_fl:
-
-                    if row["ATASAN"] != st.session_state.selected_bsm_fl:
-                        continue
-
-            nama_cse = row["USER"]
-
-            daftar_fl = df_user[
-
-                (df_user["ATASAN"] == nama_cse)
-
-                &
-
-                (df_user["ROLE"] == "FRONTLINER")
-
-            ]["USER"].tolist()
-
-            temp = df[
-                df["Input By"].isin(
-                    daftar_fl
-                )
-            ]
-
-            total_fl = len(daftar_fl)
-
-            fl_aktif = temp[
-                "Input By"
-            ].nunique()
-
-            total_msisdn = len(temp)
-
-            total_bio = temp[
-                "Biometrik"
-            ].sum()
-
-            persen_active = round(
-
-                (
-                    fl_aktif / total_fl
-                ) * 100,
-
-                2
-
-            ) if total_fl > 0 else 0
-
-            persen_bio = round(
-
-                (
-                    total_bio / total_msisdn
-                ) * 100,
-
-                2
-
-            ) if total_msisdn > 0 else 0
-
-            rekap_cse.append({
-
-                "CSE/RSE":
-                    nama_cse,
-
-                "Nama":
-                    get_real_name(nama_cse), 
-
-                "Frontliner":
-                    total_fl,
-
-                "Frontliner Aktif":
-                    fl_aktif,
-
-                "% Frontliner Aktif":
-                    f"{persen_active}%",
-
-                "Outlet":
-                    temp["ID Outlet"]
-                    .nunique(),
-
-                "MSISDN":
-                    total_msisdn,
-
-                "Biometrik":
-                    total_bio,
-
-                "% Biometrik":
-                    f"{persen_bio}%"
-
-            })
-
-        summary_cse = pd.DataFrame(
-            rekap_cse
-        )
-
-        if brand != "Semua":
-
-            summary_cse = summary_cse[
-
-                summary_cse["CSE/RSE"]
-                .astype(str)
-                .str.contains(
-                    brand,
-                    case=False,
-                    na=False
-                )
-
-            ]
+        rekap_mc = build_rekap(df_mc_scope, "micro_cluster_name", "Micro Cluster (CSE/RSE)")
 
         with st.container(border=True):
 
-            buffer = BytesIO()
-
-            with pd.ExcelWriter(
-                buffer,
-                engine="openpyxl"
-            ) as writer:
-
-                summary_cse.to_excel(
-                    writer,
-                    index=False
-                )
-
-            st.download_button(
-
-                label=":material/download: Download CSE/RSE",
-
-                data=buffer.getvalue(),
-
-                file_name="rekap_cse.xlsx",
-
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-                key="download_cse"
-
+            download_button_df(
+                rekap_mc,
+                ":material/download: Download Micro Cluster",
+                "rekap_mc_fl.xlsx",
+                "download_mc_fl"
             )
 
-            cse_grid = show_grid(
-
-                summary_cse,
-
+            mc_grid = show_grid(
+                rekap_mc,
                 selectable=True,
-
-                key=f"cse_{tanggal}_{role}_{user}",
-                col_align={
-                    "Nama": "left"
-                },
-
-                total_outlet=(
-
-                    df["ID Outlet"]
-
-                    .dropna()
-
-                    .astype(str)
-
-                    .str.strip()
-
-                    .nunique()
-
-                )
-
+                key=f"mc_{brand}_{role}_{user}",
+                col_align={"Micro Cluster (CSE/RSE)": "left"},
+                total_outlet=df_mc_scope["fl_id"].nunique()
             )
 
-        selected_cse = get_selected_value(
-            cse_grid,
-            "CSE/RSE"
-        )
+        selected_mc = get_selected_value(mc_grid, "Micro Cluster (CSE/RSE)")
 
-        if selected_cse:
-
-            st.session_state.selected_cse_fl = (
-                selected_cse
-            )
+        if selected_mc:
+            st.session_state.selected_mc_fl = selected_mc
 
         st.divider()
 
     # =====================================================
-    # REKAP FRONTLINER
+    # REKAP FRONTLINER (leaf level)
     # =====================================================
+
     if role not in ["CSE", "RSE"]:
-       section_title("Rekap Frontliner", icon="list_alt")
+        section_title("Rekap Frontliner", icon="list_alt")
 
-    rekap_fl = []
+    df_fl_scope = df.copy()
 
-    fl_user = df_user[
-        df_user["ROLE"] == "FRONTLINER"
-    ]
-
-    for _, row in fl_user.iterrows():
-
-        # =============================================
-        # FILTER HIERARKI
-        # =============================================
-
-        if role in ["CSE", "RSE"]:
-
-            if row["ATASAN"] != user:
-                continue
-
-        elif role == "BSM":
-
-            daftar_cse = df_user[
-
-                (df_user["ATASAN"] == user)
-
-                &
-
-                (df_user["ROLE"].isin([
-                    "CSE",
-                    "RSE"
-                ]))
-
-            ]["USER"].tolist()
-
-            if row["ATASAN"] not in daftar_cse:
-                continue
-
-        elif role == "HOS":
-
-            daftar_bsm = df_user[
-
-                (df_user["ATASAN"] == user)
-
-                &
-
-                (df_user["ROLE"] == "BSM")
-
-            ]["USER"].tolist()
-
-            daftar_cse = df_user[
-
-                (df_user["ATASAN"].isin(
-                    daftar_bsm
-                ))
-
-                &
-
-                (df_user["ROLE"].isin([
-                    "CSE",
-                    "RSE"
-                ]))
-
-            ]["USER"].tolist()
-
-            if row["ATASAN"] not in daftar_cse:
-                continue
-
-            if st.session_state.selected_cse_fl:
-
-                if row["ATASAN"] != st.session_state.selected_cse_fl:
-                    continue
-
-        elif role == "ADMIN":
-
-            if st.session_state.selected_cse_fl:
-
-                if row["ATASAN"] != st.session_state.selected_cse_fl:
-                    continue
-
-            elif st.session_state.selected_bsm_fl:
-
-                daftar_cse = df_user[
-
-                    (df_user["ATASAN"] == st.session_state.selected_bsm_fl)
-
-                    &
-
-                    (df_user["ROLE"].isin([
-                        "CSE",
-                        "RSE"
-                    ]))
-
-                ]["USER"].tolist()
-
-                if row["ATASAN"] not in daftar_cse:
-                    continue
-
-            elif st.session_state.selected_hos_fl:
-
-                daftar_bsm = df_user[
-                    df_user["ATASAN"]
-                    == st.session_state.selected_hos_fl
-                ]["USER"].tolist()
-
-                daftar_cse = df_user[
-
-                    (df_user["ATASAN"].isin(
-                        daftar_bsm
-                    ))
-
-                    &
-
-                    (df_user["ROLE"].isin([
-                        "CSE",
-                        "RSE"
-                    ]))
-
-                ]["USER"].tolist()
-
-                if row["ATASAN"] not in daftar_cse:
-                    continue
-
-        nama_fl = row["USER"]
-
-        temp = df[
-            df["Input By"] == nama_fl
+    if role in ["ADMIN", "HOR", "HOS", "BSM"] and st.session_state.selected_mc_fl:
+        df_fl_scope = df_fl_scope[
+            df_fl_scope["micro_cluster_name"] == st.session_state.selected_mc_fl
+        ]
+    elif role in ["ADMIN", "HOR", "HOS"] and st.session_state.selected_branch_fl and not st.session_state.selected_mc_fl:
+        df_fl_scope = df_fl_scope[
+            df_fl_scope["branch"] == st.session_state.selected_branch_fl
+        ]
+    elif role in ["ADMIN", "HOR"] and st.session_state.selected_region_fl and not st.session_state.selected_branch_fl:
+        df_fl_scope = df_fl_scope[
+            df_fl_scope["region_name"] == st.session_state.selected_region_fl
         ]
 
-        total_msisdn = len(temp)
+    summary_fl = df_fl_scope.copy()
 
-        total_bio = temp[
-            "Biometrik"
-        ].sum()
+    summary_fl["Nama"] = summary_fl["fl_id"].apply(get_real_name)
 
-        persen_bio = round(
-
-            (
-                total_bio / total_msisdn
-            ) * 100,
-
-            2
-
-        ) if total_msisdn > 0 else 0
-
-        rekap_fl.append({
-
-            "Frontliner":
-                nama_fl,
-
-            "Nama":
-                get_real_name(nama_fl), 
-
-
-            "Upline":
-                row["ATASAN"],
-
-            "Status":
-
-                "Aktif"
-
-                if total_msisdn > 0
-
-                else
-
-                "Belum Input",
-
-            "Outlet":
-                temp["ID Outlet"]
-                .nunique(),
-
-            "MSISDN":
-                total_msisdn,
-
-            "Biometrik":
-                total_bio,
-
-            "% Biometrik":
-                f"{persen_bio}%"
-
-        })
-
-    summary_fl = pd.DataFrame(
-        rekap_fl
+    summary_fl["Status"] = summary_fl["Eligible"].apply(
+        lambda e: "Eligible" if e else "Belum Capai Target"
     )
 
-    if brand != "Semua":
+    summary_fl["% Capaian"] = summary_fl.apply(
+        lambda r: f"{round(r['Biometrik'] / r['fl_target'] * 100, 2)}%" if r["fl_target"] > 0 else "0%",
+        axis=1
+    )
 
-        summary_fl = summary_fl[
-
-            summary_fl["Upline"]
-            .astype(str)
-            .str.contains(
-                brand,
-                case=False,
-                na=False
-            )
-
-        ]
+    summary_fl = summary_fl.rename(columns={
+        "organization_id": "Organization ID",
+        "fl_id": "Frontliner",
+        "brand": "Brand",
+        "region_name": "Region",
+        "sub_area_name": "Sub Area",
+        "branch": "Branch",
+        "micro_cluster_name": "Micro Cluster",
+        "fl_target": "Target",
+        "Biometrik": "Biometrik",
+    })[[
+        "Organization ID", "Frontliner", "Nama", "Brand", "Region",
+        "Sub Area", "Branch", "Micro Cluster",
+        "Target", "Biometrik", "Status", "% Capaian"
+    ]]
 
     with st.container(border=True):
 
-        buffer = BytesIO()
-
-        with pd.ExcelWriter(
-            buffer,
-            engine="openpyxl"
-        ) as writer:
-
-            summary_fl.to_excel(
-                writer,
-                index=False
-            )
-
-        st.download_button(
-
-            label=":material/download: Download Frontliner",
-
-            data=buffer.getvalue(),
-
-            file_name="rekap_frontliner.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-            key="download_frontliner"
-
+        download_button_df(
+            summary_fl,
+            ":material/download: Download Frontliner",
+            "rekap_frontliner.xlsx",
+            "download_frontliner"
         )
 
         show_grid(
-
             summary_fl,
-
             selectable=False,
-
-            key="frontliner",
-            col_align={
-                "Nama": "left"
-            },
-
-            total_outlet=(
-
-                df["ID Outlet"]
-
-                .dropna()
-
-                .astype(str)
-
-                .str.strip()
-
-                .nunique()
-
-            )
-
+            key="frontliner_leaf",
+            col_align={"Nama": "left"},
+            total_outlet=summary_fl["Frontliner"].nunique()
         )

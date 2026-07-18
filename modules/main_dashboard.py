@@ -1191,7 +1191,7 @@ def show():
     try:
         df_bio = df_for_bio.copy()
         df_bio["Biometrik"] = df_bio["Biometrik"].fillna(0).astype(int)
-        df_bio["ga_dt"] = pd.to_datetime(df_bio["ga_dt"], errors="coerce")
+        df_bio["ga_dt"] = pd.to_datetime(df_bio["ga_dt"], dayfirst=True, errors="coerce")
 
         biometrik_valid = df_bio[df_bio["Biometrik"] == 1]
 
@@ -1522,6 +1522,35 @@ def show():
 
     )
 
+    # ==========================================
+    # TOTAL SUBMIT MSISDN (per brand) -- dipakai untuk persentase Biometrik/Submit
+    # ==========================================
+
+    submit_im3 = len(
+        dff[dff["Brand"] == "IM3"]
+    )
+
+    submit_3id = len(
+        dff[dff["Brand"] == "3ID"]
+    )
+
+    submit_total = len(dff)
+
+    persen_bio_im3 = (
+        bio_im3 / submit_im3 * 100
+        if submit_im3 else 0
+    )
+
+    persen_bio_3id = (
+        bio_3id / submit_3id * 100
+        if submit_3id else 0
+    )
+
+    persen_bio_total = (
+        bio_total / submit_total * 100
+        if submit_total else 0
+    )
+
     team_im3 = all_personnel[
 
         all_personnel["BRAND"] == "IM3"
@@ -1557,6 +1586,29 @@ def show():
         if total_team else 0
 
     )
+
+    # ==========================================
+    # VALUE GABUNGAN: angka besar + persentase sejajar (span kecil)
+    # ==========================================
+
+    value_bio_im3 = (
+        f'{fmt(bio_im3)} '
+        f'<span style="font-size:13px;font-weight:600;color:#94A3B8;">'
+        f'({persen_bio_im3:.1f}%)</span>'
+    )
+
+    value_bio_3id = (
+        f'{fmt(bio_3id)} '
+        f'<span style="font-size:13px;font-weight:600;color:#94A3B8;">'
+        f'({persen_bio_3id:.1f}%)</span>'
+    )
+
+    value_bio_total = (
+        f'{fmt(bio_total)} '
+        f'<span style="font-size:13px;font-weight:600;color:#94A3B8;">'
+        f'({persen_bio_total:.1f}%)</span>'
+    )
+
     kpi_defs = [
 
         ("group", "Team Total", fmt(total_team), "-", "#3B82F6"),
@@ -1568,7 +1620,7 @@ def show():
         (
             f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
             "Biometrik IM3",
-            fmt(bio_im3),
+            value_bio_im3,
             f"Avg {avg_im3:.1f}/Personil",
             "#F59E0B"
         ),
@@ -1576,7 +1628,7 @@ def show():
         (
             f'<img src="data:image/png;base64,{tid_icon}" style="width:28px;height:28px;object-fit:contain;vertical-align:-4px;" />',
             "Biometrik 3ID",
-            fmt(bio_3id),
+            value_bio_3id,
             f"Avg {avg_3id:.1f}/Personil",
             "#EC1C4C"
         ),
@@ -1584,7 +1636,7 @@ def show():
         (
             "lock",
             "Biometrik Total",
-            fmt(bio_total),
+            value_bio_total,
             f"Avg {avg_total:.1f}/Personil",
             "#0F766E"
         ),
@@ -1654,8 +1706,8 @@ def show():
         "CSE/RSE": ["CSE", "RSE"],
         "RGE": ["RGE"],
         "DSE": ["DSE"],
-        "PROMOTOR": ["PROMOTOR"],
-        "New Promotor": ["NP"],
+        "DSE PROMOTOR": ["PROMOTOR"],
+        "Promotor": ["NP"],
         "GSE": ["GSE"],
         "GEMINI": ["GEMINI"],
     }
@@ -1969,8 +2021,8 @@ def show():
         "CSE/RSE": ["CSE", "RSE"],
         "RGE": ["RGE"],
         "DSE": ["DSE"],
-        "PROMOTOR": ["PROMOTOR"],
-        "New Promotor": ["NP"],
+        "DSE PROMOTOR": ["PROMOTOR"],
+        "Promotor": ["NP"],
         "GSE": ["GSE"],
         "GEMINI": ["GEMINI"],
     }
@@ -2632,8 +2684,8 @@ def show():
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
-        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
-        ("NP", PERSONNEL_GROUPS["NP"]),
+        ("GSE PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
+        ("PROMOTOR", PERSONNEL_GROUPS["NP"]),
     ]
 
     LB_PER_ROW = 3
@@ -3069,16 +3121,11 @@ def show():
             <style>
 
                 .mld-stat-chip {
-                    background: #F8FAFC;
-                    border: 1px solid #E2E8F0;
                     border-radius: 12px;
                     padding: 12px 14px;
                     height: 100%;
-                }
-
-                .mld-stat-chip.mld-stat-danger {
-                    background: #FEF2F2;
-                    border: 1px solid #FECACA;
+                    border: 1px solid #E2E8F0;
+                    background: #F8FAFC;
                 }
 
                 .mld-stat-chip .mld-stat-label {
@@ -3086,12 +3133,8 @@ def show():
                     font-weight: 600;
                     letter-spacing: .3px;
                     text-transform: uppercase;
-                    color: #64748B;
                     margin-bottom: 4px;
-                }
-
-                .mld-stat-chip.mld-stat-danger .mld-stat-label {
-                    color: #B91C1C;
+                    color: #64748B;
                 }
 
                 .mld-stat-chip .mld-stat-value {
@@ -3100,9 +3143,61 @@ def show():
                     color: #0F172A;
                 }
 
-                .mld-stat-chip.mld-stat-danger .mld-stat-value {
-                    color: #DC2626;
+                /* -- Slate (default/Jumlah) -- */
+                .mld-stat-chip.mld-stat-slate {
+                    background: #F8FAFC;
+                    border: 1px solid #E2E8F0;
                 }
+                .mld-stat-chip.mld-stat-slate .mld-stat-label { color: #64748B; }
+                .mld-stat-chip.mld-stat-slate .mld-stat-value { color: #0F172A; }
+
+                /* -- Blue (MSISDN) -- */
+                .mld-stat-chip.mld-stat-blue {
+                    background: #EFF6FF;
+                    border: 1px solid #BFDBFE;
+                }
+                .mld-stat-chip.mld-stat-blue .mld-stat-label { color: #1D4ED8; }
+                .mld-stat-chip.mld-stat-blue .mld-stat-value { color: #1D4ED8; }
+
+                /* -- Purple (Biometrik) -- */
+                .mld-stat-chip.mld-stat-purple {
+                    background: #F5F3FF;
+                    border: 1px solid #DDD6FE;
+                }
+                .mld-stat-chip.mld-stat-purple .mld-stat-label { color: #6D28D9; }
+                .mld-stat-chip.mld-stat-purple .mld-stat-value { color: #6D28D9; }
+
+                /* -- Green (% Bio / KPI utama) -- */
+                .mld-stat-chip.mld-stat-green {
+                    background: #ECFDF5;
+                    border: 1px solid #A7F3D0;
+                }
+                .mld-stat-chip.mld-stat-green .mld-stat-label { color: #047857; }
+                .mld-stat-chip.mld-stat-green .mld-stat-value { color: #047857; }
+
+                /* -- Amber (Belum Achiev / warning) -- */
+                .mld-stat-chip.mld-stat-amber {
+                    background: #FFFBEB;
+                    border: 1px solid #FDE68A;
+                }
+                .mld-stat-chip.mld-stat-amber .mld-stat-label { color: #B45309; }
+                .mld-stat-chip.mld-stat-amber .mld-stat-value { color: #B45309; }
+
+                /* -- Red (danger, tetap ada kalau dibutuhkan lagi) -- */
+                .mld-stat-chip.mld-stat-danger {
+                    background: #FEF2F2;
+                    border: 1px solid #FECACA;
+                }
+                .mld-stat-chip.mld-stat-danger .mld-stat-label { color: #B91C1C; }
+                .mld-stat-chip.mld-stat-danger .mld-stat-value { color: #DC2626; }
+
+                /* -- Orange (Jumlah) -- */
+                .mld-stat-chip.mld-stat-orange {
+                    background: #FFF7ED;
+                    border: 1px solid #FED7AA;
+                }
+                .mld-stat-chip.mld-stat-orange .mld-stat-label { color: #C2410C; }
+                .mld-stat-chip.mld-stat-orange .mld-stat-value { color: #C2410C; }
 
                 button[data-baseweb="tab"] {
                     border-radius: 10px 10px 0 0 !important;
@@ -3202,13 +3297,10 @@ def show():
                 & (user_data["Biometrik"] == True)
             ]
         )
-    def stat_chip(label, value, danger=False):
+    def stat_chip(label, value, color="slate"):
+        """color: slate, blue, purple, green, amber, danger"""
 
-        css_class = (
-            "mld-stat-chip mld-stat-danger"
-            if danger
-            else "mld-stat-chip"
-        )
+        css_class = f"mld-stat-chip mld-stat-{color}"
 
         st.markdown(
             f"""
@@ -3219,7 +3311,6 @@ def show():
             """,
             unsafe_allow_html=True
         )
-
     def build_rekap_rows(
         role_filter,
         id_col_name,
@@ -3345,42 +3436,26 @@ def show():
         chip_cols = st.columns(n_chip)
 
         with chip_cols[0]:
-            stat_chip("Jumlah", len(dfr))
+            stat_chip("Jumlah", len(dfr), color="orange")
 
         with chip_cols[1]:
-            stat_chip(
-                "MSISDN",
-                f"{total_msisdn:,}"
-            )
+            stat_chip("MSISDN", f"{total_msisdn:,}", color="blue")
 
         with chip_cols[2]:
-            stat_chip(
-                "Biometrik",
-                f"{total_bio:,}"
-            )
+            stat_chip("Biometrik", f"{total_bio:,}", color="purple")
 
         with chip_cols[3]:
-            stat_chip(
-                "Rata-rata % Bio",
-                f"{avg_persen}%"
-            )
+            stat_chip("Rata-rata % Bio", f"{avg_persen}%", color="green")
 
         if target_threshold is not None:
 
-            below_target = int(
-                (
-                    dfr["MSISDN"]
-                    < target_threshold
-                ).sum()
-            )
+            below_target = int((dfr["MSISDN"] < target_threshold).sum())
 
             with chip_cols[4]:
                 stat_chip(
                     f"Belum Capai Target (<{target_threshold} MSISDN)",
                     below_target,
-                    danger=(
-                        below_target > 0
-                    )
+                    color="amber" if below_target > 0 else "slate"
                 )
 
         st.markdown(
@@ -3455,11 +3530,13 @@ def show():
 # ------------------------------------------------
 # SECTION 2: INDIVIDUAL PERFORMANCE
 # (8 TAB: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP, GSE, GEMINI)
-# Kolom MSISDN/Avg Submit/Day tetap dari INPUT BY DIA SENDIRI.
-# Kolom D-1/D-2/D-3 = submission TURUNAN (dia + descendants) pada tanggal itu.
+# Sama seperti Section 1 (kolom Biometrik / % Bio / D-1/D-2/D-3
+# dari Tanggal submit + filter Biometrik == True), BEDANYA:
+# semua angka (termasuk D-1/D-2/D-3) HANYA dari INPUT BY user itu
+# sendiri -- TIDAK melibatkan downline.
 # ------------------------------------------------
 
-    TARGET_AVG_PER_DAY_MIN = 5
+    TARGET_BIO_PERSEN_MIN = 80  # target minimal % biometrik
 
     df_user["ROLE"] = df_user["ROLE"].astype(str).str.strip().str.upper()
     df_user["USER"] = df_user["USER"].astype(str).str.strip()
@@ -3614,43 +3691,49 @@ def show():
             )
 
         st.caption(
-            f"Berdasarkan input by masing-masing user • periode {n_days} hari • "
-            f"target minimal {TARGET_AVG_PER_DAY_MIN} submit/hari • "
-
+            f"Berdasarkan input by masing-masing user (tanpa downline) • periode {n_days} hari • "
+            f"target minimal {TARGET_BIO_PERSEN_MIN}% biometrik • "
         )
 
     def get_msisdn_bio_individual(user_list):
+        """Total MSISDN & biometrik valid, HANYA dari INPUT BY user itu sendiri
+        (user_list berisi 1 user saja, tanpa downline)."""
         user_data = dff[dff["Input By"].isin(user_list)]
-        total_msisdn = len(user_data)
-        total_bio = len(user_data[user_data["Biometrik"] == True])
-        persen_bio = (total_bio / total_msisdn * 100) if total_msisdn > 0 else 0
-        return total_msisdn, total_bio, persen_bio
-
-    def get_msisdn_by_date_team(user_list, target_date):
-        """Jumlah MSISDN submission pada 1 tanggal, untuk list user (dia + turunannya)."""
-        user_data = df[
-            df["Input By"].isin(user_list)
-        ].copy()
-
-        tanggal_only = pd.to_datetime(
-            user_data[DATE_COL]
-        ).dt.date
-
-        user_data = user_data[
-            tanggal_only == target_date
-        ]
 
         if selected_brand_filter != "Semua Brand":
             user_data = user_data[
                 user_data["Brand"] == selected_brand_filter
             ]
 
-        return len(user_data)
+        total_msisdn = len(user_data)
+        total_bio = len(user_data[user_data["Biometrik"] == True])
+        persen_bio = (total_bio / total_msisdn * 100) if total_msisdn > 0 else 0
+        return total_msisdn, total_bio, persen_bio
+
+    def get_bio_by_date_individual(user_list, target_date):
+        """Jumlah BIOMETRIK VALID pada 1 tanggal (Tanggal submit, sama seperti
+        Section 1), HANYA dari INPUT BY user itu sendiri -- tanpa downline."""
+        user_data = df[
+            df["Input By"].isin(user_list)
+        ].copy()
+
+        if selected_brand_filter != "Semua Brand":
+            user_data = user_data[
+                user_data["Brand"] == selected_brand_filter
+            ]
+
+        tanggal_only = pd.to_datetime(user_data["Tanggal"]).dt.date
+
+        return len(
+            user_data[
+                (tanggal_only == target_date)
+                & (user_data["Biometrik"] == True)
+            ]
+        )
 
     def build_target_rows(
         role_filter,
         id_col_name,
-        n_days,
         include_role_col=False,
         include_upline_col=True
     ):
@@ -3679,18 +3762,13 @@ def show():
             u_name = u_info["REAL_NAME"]
             u_role = u_info["ROLE"]
 
-            u_msisdn, u_bio, _ = get_msisdn_bio_individual([u])
+            # SEMUA angka -- termasuk D-1/D-2/D-3 -- hanya dari [u] sendiri,
+            # TIDAK melibatkan downline (beda dengan Section 1)
+            u_msisdn, u_bio, u_persen = get_msisdn_bio_individual([u])
 
-            avg_per_day = round(
-                u_msisdn / n_days if n_days > 0 else 0,
-                2
-            )
-
-            # D-1/D-2/D-3 = submission user itu SENDIRI (sama seperti kolom MSISDN),
-            # cuma bedanya di tanggal
-            d1_msisdn = get_msisdn_by_date_team([u], d1_date)
-            d2_msisdn = get_msisdn_by_date_team([u], d2_date)
-            d3_msisdn = get_msisdn_by_date_team([u], d3_date)
+            d1_bio = get_bio_by_date_individual([u], d1_date)
+            d2_bio = get_bio_by_date_individual([u], d2_date)
+            d3_bio = get_bio_by_date_individual([u], d3_date)
 
             row = {
                 id_col_name: u,
@@ -3714,10 +3792,11 @@ def show():
 
             row.update({
                 "MSISDN": u_msisdn,
-                "Avg Submit/Day": avg_per_day,
-                d1_label: d1_msisdn,
-                d2_label: d2_msisdn,
-                d3_label: d3_msisdn,
+                "Biometrik": u_bio,
+                "% Bio": round(u_persen, 1),
+                d1_label: d1_bio,
+                d2_label: d2_bio,
+                d3_label: d3_bio,
             })
 
             if include_role_col:
@@ -3727,7 +3806,7 @@ def show():
 
         return rows
 
-    def render_target_table(rows, id_col, target_threshold):
+    def render_target_table(rows, id_col):
         if not rows:
             st.info("Tidak ada data.")
             return
@@ -3735,35 +3814,31 @@ def show():
         dfr = pd.DataFrame(rows)
 
         total_msisdn = int(dfr["MSISDN"].sum())
-        below_target = int((dfr["Avg Submit/Day"] < target_threshold).sum())
+        total_bio = int(dfr["Biometrik"].sum())
 
         chip_cols = st.columns(4)
 
         with chip_cols[0]:
-            stat_chip("Jumlah", len(dfr))
+            stat_chip("Jumlah", len(dfr), color="orange")
         with chip_cols[1]:
-            stat_chip("MSISDN", f"{total_msisdn:,}")
+            stat_chip("MSISDN", f"{total_msisdn:,}", color="blue")
         with chip_cols[2]:
-            stat_chip(
-                "Rata-rata Submit/Hari",
-                f"{round(dfr['Avg Submit/Day'].mean(), 2)}"
-            )
+            stat_chip("Biometrik", f"{total_bio:,}", color="purple")
         with chip_cols[3]:
-            stat_chip(
-                f"Belum Achiev (<{target_threshold}/hari)",
-                below_target,
-                danger=(below_target > 0)
-            )
-
+            avg_persen = round(
+                total_bio / total_msisdn * 100, 1
+            ) if total_msisdn > 0 else 0
+            stat_chip("Rata-rata % Bio", f"{avg_persen}%", color="green")
         st.markdown("<br>", unsafe_allow_html=True)
 
-        dfr = dfr.sort_values("Avg Submit/Day", ascending=False)
+        dfr = dfr.sort_values("% Bio", ascending=False)
 
         column_config = {
             id_col: st.column_config.TextColumn(width=130),
             "Nama": st.column_config.TextColumn(width=190),
             "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
-            "Avg Submit/Day": st.column_config.NumberColumn(format="%.2f", width=130),
+            "Biometrik": st.column_config.NumberColumn(format="%d", width=110),
+            "% Bio": st.column_config.NumberColumn(format="%.1f%%", width=100),
             d3_label: st.column_config.NumberColumn(format="%d", width=100),
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
@@ -3775,15 +3850,8 @@ def show():
         if "Role" in dfr.columns:
             column_config["Role"] = st.column_config.TextColumn(width=80)
 
-        def highlight_below_target(row):
-            if row["Avg Submit/Day"] < target_threshold:
-                return ['background-color: #FEE2E2; color: #991B1B;'] * len(row)
-            return [''] * len(row)
-
-        styled = dfr.style.apply(highlight_below_target, axis=1)
-
         st.dataframe(
-            styled,
+            dfr,
             use_container_width=True,
             hide_index=True,
             column_config=column_config
@@ -3803,51 +3871,50 @@ def show():
         ":material/group: CSE/RSE",
         ":material/person: DSE",
         ":material/badge: RGE",
-        ":material/campaign: Promotor",
-        ":material/store: New Promotor",
+        ":material/campaign: DSE Promotor",
+        ":material/store: Promotor",
         ":material/store: GSE",
         ":material/star: GEMPI"
     ])
 
     with tab_bsm2:
         rows_bsm2 = build_target_rows(
-            "BSM", "BSM", n_days,
+            "BSM", "BSM",
             include_upline_col=False
         )
-        render_target_table(rows_bsm2, "BSM", TARGET_AVG_PER_DAY_MIN)
+        render_target_table(rows_bsm2, "BSM")
 
     with tab_cse2:
         rows_cse2 = build_target_rows(
             ["CSE", "RSE"],
             "CSE/RSE",
-            n_days,
             include_role_col=False,
             include_upline_col=False
         )
-        render_target_table(rows_cse2, "CSE/RSE", TARGET_AVG_PER_DAY_MIN)
+        render_target_table(rows_cse2, "CSE/RSE")
 
     with tab_dse2:
-        rows_dse2 = build_target_rows("DSE", "DSE", n_days)
-        render_target_table(rows_dse2, "DSE", TARGET_AVG_PER_DAY_MIN)
+        rows_dse2 = build_target_rows("DSE", "DSE")
+        render_target_table(rows_dse2, "DSE")
 
     with tab_rge2:
-        rows_rge2 = build_target_rows("RGE", "RGE", n_days)
-        render_target_table(rows_rge2, "RGE", TARGET_AVG_PER_DAY_MIN)
+        rows_rge2 = build_target_rows("RGE", "RGE")
+        render_target_table(rows_rge2, "RGE")
 
     with tab_promotor2:
-        rows_promotor2 = build_target_rows("PROMOTOR", "Promotor", n_days)
-        render_target_table(rows_promotor2, "Promotor", TARGET_AVG_PER_DAY_MIN)
+        rows_promotor2 = build_target_rows("PROMOTOR", "DSE Promotor")
+        render_target_table(rows_promotor2, "DSE Promotor")
 
     with tab_np2:
-        rows_np2 = build_target_rows("NP", "NP", n_days)
-        render_target_table(rows_np2, "New Promotor", TARGET_AVG_PER_DAY_MIN)
+        rows_np2 = build_target_rows("NP", "NP")
+        render_target_table(rows_np2, "Promotor")
 
     with tab_gse2:
-        rows_gse2 = build_target_rows("GSE", "GSE", n_days)
-        render_target_table(rows_gse2, "GSE", TARGET_AVG_PER_DAY_MIN)
+        rows_gse2 = build_target_rows("GSE", "GSE")
+        render_target_table(rows_gse2, "GSE")
 
     with tab_gemini2:
-        rows_gemini2 = build_target_rows("GEMINI", "GEMPI", n_days)
-        render_target_table(rows_gemini2, "GEMPI", TARGET_AVG_PER_DAY_MIN)
+        rows_gemini2 = build_target_rows("GEMINI", "GEMPI")
+        render_target_table(rows_gemini2, "GEMPI")
 
     st.divider()

@@ -1570,8 +1570,8 @@ def show():
         "CSE/RSE": ["CSE", "RSE"],
         "RGE": ["RGE"],
         "DSE": ["DSE"],
-        "PROMOTOR": ["PROMOTOR"],
-        "New Promotor": ["NP"],
+        "DSE PROMOTOR": ["PROMOTOR"],
+        "Promotor": ["NP"],
         "GSE": ["GSE"],
         "GEMPI": ["GEMINI"],
     }
@@ -2215,8 +2215,8 @@ def show():
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
-        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
-        ("New Promotor", PERSONNEL_GROUPS["NP"]),
+        ("DSE PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
+        ("Promotor", PERSONNEL_GROUPS["NP"]),
     ]
 
     # Layout 3 kolom per baris:
@@ -2690,16 +2690,11 @@ def show():
             <style>
 
                 .mld-stat-chip {
-                    background: #F8FAFC;
-                    border: 1px solid #E2E8F0;
                     border-radius: 12px;
                     padding: 12px 14px;
                     height: 100%;
-                }
-
-                .mld-stat-chip.mld-stat-danger {
-                    background: #FEF2F2;
-                    border: 1px solid #FECACA;
+                    border: 1px solid #E2E8F0;
+                    background: #F8FAFC;
                 }
 
                 .mld-stat-chip .mld-stat-label {
@@ -2707,12 +2702,8 @@ def show():
                     font-weight: 600;
                     letter-spacing: .3px;
                     text-transform: uppercase;
-                    color: #64748B;
                     margin-bottom: 4px;
-                }
-
-                .mld-stat-chip.mld-stat-danger .mld-stat-label {
-                    color: #B91C1C;
+                    color: #64748B;
                 }
 
                 .mld-stat-chip .mld-stat-value {
@@ -2721,9 +2712,61 @@ def show():
                     color: #0F172A;
                 }
 
-                .mld-stat-chip.mld-stat-danger .mld-stat-value {
-                    color: #DC2626;
+                /* -- Slate (default/Jumlah) -- */
+                .mld-stat-chip.mld-stat-slate {
+                    background: #F8FAFC;
+                    border: 1px solid #E2E8F0;
                 }
+                .mld-stat-chip.mld-stat-slate .mld-stat-label { color: #64748B; }
+                .mld-stat-chip.mld-stat-slate .mld-stat-value { color: #0F172A; }
+
+                /* -- Blue (MSISDN) -- */
+                .mld-stat-chip.mld-stat-blue {
+                    background: #EFF6FF;
+                    border: 1px solid #BFDBFE;
+                }
+                .mld-stat-chip.mld-stat-blue .mld-stat-label { color: #1D4ED8; }
+                .mld-stat-chip.mld-stat-blue .mld-stat-value { color: #1D4ED8; }
+
+                /* -- Purple -- */
+                .mld-stat-chip.mld-stat-purple {
+                    background: #F5F3FF;
+                    border: 1px solid #DDD6FE;
+                }
+                .mld-stat-chip.mld-stat-purple .mld-stat-label { color: #6D28D9; }
+                .mld-stat-chip.mld-stat-purple .mld-stat-value { color: #6D28D9; }
+
+                /* -- Green (KPI utama / rata-rata) -- */
+                .mld-stat-chip.mld-stat-green {
+                    background: #ECFDF5;
+                    border: 1px solid #A7F3D0;
+                }
+                .mld-stat-chip.mld-stat-green .mld-stat-label { color: #047857; }
+                .mld-stat-chip.mld-stat-green .mld-stat-value { color: #047857; }
+
+                /* -- Amber (warning / belum capai target) -- */
+                .mld-stat-chip.mld-stat-amber {
+                    background: #FFFBEB;
+                    border: 1px solid #FDE68A;
+                }
+                .mld-stat-chip.mld-stat-amber .mld-stat-label { color: #B45309; }
+                .mld-stat-chip.mld-stat-amber .mld-stat-value { color: #B45309; }
+
+                /* -- Red (danger) -- */
+                .mld-stat-chip.mld-stat-danger {
+                    background: #FEF2F2;
+                    border: 1px solid #FECACA;
+                }
+                .mld-stat-chip.mld-stat-danger .mld-stat-label { color: #B91C1C; }
+                .mld-stat-chip.mld-stat-danger .mld-stat-value { color: #DC2626; }
+
+                /* -- Orange (Jumlah) -- */
+                .mld-stat-chip.mld-stat-orange {
+                    background: #FFF7ED;
+                    border: 1px solid #FED7AA;
+                }
+                .mld-stat-chip.mld-stat-orange .mld-stat-label { color: #C2410C; }
+                .mld-stat-chip.mld-stat-orange .mld-stat-value { color: #C2410C; }
 
                 button[data-baseweb="tab"] {
                     border-radius: 10px 10px 0 0 !important;
@@ -2821,13 +2864,10 @@ def show():
             ]
         )
 
-    def stat_chip(label, value, danger=False):
+    def stat_chip(label, value, color="slate"):
+        """color: slate, blue, purple, green, amber, orange, danger"""
 
-        css_class = (
-            "mld-stat-chip mld-stat-danger"
-            if danger
-            else "mld-stat-chip"
-        )
+        css_class = f"mld-stat-chip mld-stat-{color}"
 
         st.markdown(
             f"""
@@ -2959,18 +2999,20 @@ def show():
         chip_cols = st.columns(n_chip)
 
         with chip_cols[0]:
-            stat_chip("Jumlah", len(dfr))
+            stat_chip("Jumlah", len(dfr), color="orange")
 
         with chip_cols[1]:
             stat_chip(
                 "MSISDN",
-                f"{total_msisdn:,}"
+                f"{total_msisdn:,}",
+                color="blue"
             )
 
         with chip_cols[2]:
             stat_chip(
                 "Avg MSISDN/Person%",
-                f"{avg_msisdn_person}"
+                f"{avg_msisdn_person}",
+                color="green"
             )
 
         if target_threshold is not None:
@@ -2986,9 +3028,7 @@ def show():
                 stat_chip(
                     f"Belum Capai Target (<{target_threshold} MSISDN)",
                     below_target,
-                    danger=(
-                        below_target > 0
-                    )
+                    color="amber" if below_target > 0 else "slate"
                 )
 
         st.markdown(
@@ -3345,19 +3385,20 @@ def show():
         chip_cols = st.columns(4)
 
         with chip_cols[0]:
-            stat_chip("Jumlah", len(dfr))
+            stat_chip("Jumlah", len(dfr), color="orange")
         with chip_cols[1]:
-            stat_chip("MSISDN", f"{total_msisdn:,}")
+            stat_chip("MSISDN", f"{total_msisdn:,}", color="blue")
         with chip_cols[2]:
             stat_chip(
                 "Rata-rata Submit/Hari",
-                f"{round(dfr['Avg Submit/Day'].mean(), 2)}"
+                f"{round(dfr['Avg Submit/Day'].mean(), 2)}",
+                color="green"
             )
         with chip_cols[3]:
             stat_chip(
                 f"Belum Achiev (<{target_threshold}/hari)",
                 below_target,
-                danger=(below_target > 0)
+                color="amber" if below_target > 0 else "slate"
             )
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -3408,8 +3449,8 @@ def show():
         ":material/group: CSE/RSE",
         ":material/person: DSE",
         ":material/badge: RGE",
-        ":material/campaign: Promotor",
-        ":material/store: New Promotor",
+        ":material/campaign: DSE Promotor",
+        ":material/store: Promotor",
         ":material/store: GSE",
         ":material/star: GEMPI"
     ])
@@ -3440,12 +3481,12 @@ def show():
         render_target_table(rows_rge2, "RGE", TARGET_AVG_PER_DAY_MIN)
 
     with tab_promotor2:
-        rows_promotor2 = build_target_rows("PROMOTOR", "Promotor", n_days)
-        render_target_table(rows_promotor2, "Promotor", TARGET_AVG_PER_DAY_MIN)
+        rows_promotor2 = build_target_rows("PROMOTOR", "DSE Promotor", n_days)
+        render_target_table(rows_promotor2, "DSE Promotor", TARGET_AVG_PER_DAY_MIN)
 
     with tab_np2:
-        rows_np2 = build_target_rows("NP", "NP", n_days)
-        render_target_table(rows_np2, "NP", TARGET_AVG_PER_DAY_MIN)
+        rows_np2 = build_target_rows("NP", "Promotor", n_days)
+        render_target_table(rows_np2, "Promotor", TARGET_AVG_PER_DAY_MIN)
 
     with tab_gse2:
         rows_gse2 = build_target_rows("GSE", "GSE", n_days)
