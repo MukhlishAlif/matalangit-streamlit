@@ -532,7 +532,7 @@ def show():
         <div class="dse-header">
             <div class="dse-title-row">
                 <img src="data:image/png;base64,{logo_b64}" class="dse-logo-img" />
-                <span class="dse-title-text">Dashboard NP</span>
+                <span class="dse-title-text">Dashboard Promotor</span>
             </div>
         </div>
         """,
@@ -1084,10 +1084,10 @@ def show():
         kpi_card("person_off", "Vacant", jumlah_vacant, "#E8A33D")
 
     with col3:
-        kpi_card("bolt", "NP Aktif", promotor_aktif, "#F0997B")
+        kpi_card("bolt", "Promotor Aktif", promotor_aktif, "#F0997B")
 
     with col4:
-        kpi_card("trending_up", "% NP Aktif", f"{persen_aktif}%", "#D4537E")
+        kpi_card("trending_up", "% Promotor Aktif", f"{persen_aktif}%", "#D4537E")
 
     with col5:
         kpi_card("smartphone", "MSISDN", jumlah_msisdn, "#993556")
@@ -1131,7 +1131,7 @@ def show():
 
         else:
 
-            section_title("Rekap NP", icon="list_alt")
+            section_title("Rekap Promotor", icon="list_alt")
 
     with col_reset:
 
@@ -1242,9 +1242,9 @@ def show():
 
                 "Promotor": total_promotor,
 
-                "NP Aktif": promotor_aktif,
+                "Promotor Aktif": promotor_aktif,
 
-                "% NP Aktif": f"{persen_aktif}%",
+                "% Promotor Aktif": f"{persen_aktif}%",
 
                 "MSISDN": total_msisdn,
 
@@ -1446,10 +1446,10 @@ def show():
                 "Promotor":
                     total_promotor,
 
-                "NP Aktif":
+                "Promotor Aktif":
                     promotor_aktif,
 
-                "% NP Aktif":
+                "% Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
@@ -1708,10 +1708,10 @@ def show():
                 "Promotor":
                     total_promotor,
 
-                "NP Aktif":
+                "Promotor Aktif":
                     promotor_aktif,
 
-                "% NP Aktif":
+                "% Promotor Aktif":
                     f"{persen_aktif}%",
 
                 "MSISDN":
