@@ -1036,7 +1036,13 @@ def show():
         children_map
     ) = load_user_hierarchy()
 
-    # ------------------------------------------------
+    active_users_set = set(
+        df_user[df_user["FLAG_ACTIVE"] == True]["USER"]
+        .astype(str)
+        .str.strip()
+    )
+
+# ------------------------------------------------
     # HEADER
     # ------------------------------------------------
     current_user = st.session_state.get("outlet_user", "-")
@@ -1367,18 +1373,26 @@ def show():
     # FILTER PERSONNEL
     # ==========================================
     if selected_group != "Semua Personnel":
+        dff = dff[dff["Role"].isin(PERSONNEL_GROUPS[selected_group])]
+    
+    # ==========================================
+    # FILTER: HANYA SUBMISSION DARI USER AKTIF.
+    # User non-aktif tidak boleh muncul/dihitung di manapun
+    # (dashboard maupun leaderboard) -- cukup dihitung di Vacant.
+    # ==========================================
 
-        dff = dff[
+    dff = dff[
+        dff["Input By"]
+        .astype(str)
+        .str.strip()
+        .isin(active_users_set)
+    ]
 
-            dff["Role"].isin(
 
-                PERSONNEL_GROUPS[
-                    selected_group
-                ]
-
-            )
-
-        ]
+    n_days = max(
+        dff["Tanggal"].dt.date.nunique(),
+        1
+    )
 
     st.divider()
     # =====================================================
@@ -1459,86 +1473,6 @@ def show():
         all_personnel_all[
             all_personnel_all["FLAG_ACTIVE"] == False
         ]["USER"].nunique()
-    )
-
-    # ==========================================
-    # HELPER: FILTER PERSONNEL BY HOS (tembus BSM -> Promotor/GEMINI)
-    # ==========================================
-
-    def filter_personnel_by_hos(df_personnel, df_user_ref, hos_name):
-
-        if hos_name == "Semua HoS":
-            return df_personnel
-
-        daftar_bsm_under_hos = df_user_ref[
-
-            (df_user_ref["ATASAN"] == hos_name)
-
-            &
-
-            (df_user_ref["ROLE"] == "BSM")
-
-        ]["USER"].tolist()
-
-        mask = (
-
-            (df_personnel["ATASAN"] == hos_name)
-
-            |
-
-            (df_personnel["ATASAN"].isin(daftar_bsm_under_hos))
-
-        )
-
-        return df_personnel[mask]
-
-    # ==========================================
-    # FILTER HOS
-    # ==========================================
-
-    if selected_hos != "Semua HoS":
-
-        all_personnel = filter_personnel_by_hos(
-            all_personnel, df_user, selected_hos
-        )
-
-        active_personnel = filter_personnel_by_hos(
-            active_personnel, df_user, selected_hos
-        )
-
-    # ==========================================
-    # JUMLAH VACANT
-    # (dihitung SETELAH semua filter - Brand, Personnel Group, HoS -
-    #  diterapkan ke all_personnel, supaya total vacant konsisten
-    #  dengan Team Total/Aktif di KPI card)
-    # ==========================================
-
-    real_name_clean = (
-
-        all_personnel["REAL_NAME"]
-        .astype(str)
-        .str.strip()
-        .str.lower()
-
-    )
-
-    vacant_labels = [
-
-        "",
-        "nan",
-        "none",
-        "null",
-        "vacant",
-        "-"
-
-    ]
-
-    jumlah_vacant = int(
-
-        real_name_clean
-        .isin(vacant_labels)
-        .sum()
-
     )
 
     # ==========================================
