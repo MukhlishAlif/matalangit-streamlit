@@ -203,13 +203,14 @@ def _outlet_row_tuple(r, bio_map=None):
 def _user_row_dict(r):
 
     role_raw = r.get("role") or ""
+    status_raw = r.get("status")
 
     return {
         "id": r.get("id"),
         "user": r.get("user") or r.get("username"),
         "role": role_raw.upper(),
         "atasan": r.get("atasan"),
-        "status": r.get("status") or "AKTIF",
+        "status": status_raw,
         "created_at": r.get("created_at"),
         "brand": r.get("brand"),
         "region": r.get("region"),
@@ -217,8 +218,10 @@ def _user_row_dict(r):
         "branch": r.get("branch"),
         "micro_cluster": r.get("micro_cluster"),
         "real_name": r.get("real_name") or r.get("full_name"),
+        # langsung ambil dari kolom status apa adanya, tanpa normalisasi:
+        # aktif hanya kalau nilainya persis "Aktif" (case-insensitive)
+        "flag_active": str(status_raw).strip().upper() == "AKTIF",
     }
-
 
 # =====================================================================================
 # RAW FETCH: GA BIOMETRIK (ga_dt) & FL LIST
@@ -372,7 +375,8 @@ def load_user_hierarchy():
 
     default_cols = [
         "id", "user", "role", "atasan", "status", "created_at",
-        "brand", "region", "area", "branch", "micro_cluster", "real_name"
+        "brand", "region", "area", "branch", "micro_cluster", "real_name",
+        "flag_active"
     ]
 
     df = pd.DataFrame(records, columns=default_cols)
@@ -387,6 +391,16 @@ def load_user_hierarchy():
     df["ROLE"] = df["ROLE"].fillna("")
     df["STATUS"] = df["STATUS"].fillna("AKTIF")
 
+    # ==========================================
+    # FLAG_ACTIVE: true = aktif, false = non-aktif (dihitung Vacant,
+    # tidak boleh muncul sebagai team/bawahan di manapun)
+    # ==========================================
+
+    if "FLAG_ACTIVE" not in df.columns:
+        df["FLAG_ACTIVE"] = True
+
+    df["FLAG_ACTIVE"] = df["FLAG_ACTIVE"].fillna(True).astype(bool)
+
     df["BRAND"] = ""
 
     df.loc[
@@ -398,6 +412,12 @@ def load_user_hierarchy():
         df["ATASAN"].astype(str).str.lower().str.contains("_3id", na=False),
         "BRAND"
     ] = "3ID"
+
+    # role_map/atasan_map/brand_map/children_map TETAP dibangun dari SEMUA user
+    # (termasuk non-aktif) -- supaya rantai atasan (upline) & susur hirarki
+    # tidak putus kalau kebetulan ada 1 orang di tengah rantai yang non-aktif.
+    # Filter "non-aktif tidak boleh dihitung/ditampilkan" dilakukan di
+    # pemanggil (dashboard), BUKAN di sini.
 
     role_map = df.set_index("USER")["ROLE"].to_dict()
     atasan_map = df.set_index("USER")["ATASAN"].to_dict()
@@ -534,6 +554,8 @@ def tampil_user():
             "role": d["role"],
             "atasan": d["atasan"],
             "real_name": d["real_name"],
+            "status": d["status"],
+            "flag_active": d["flag_active"],   # <-- BARU, hasil dari _normalize_status_aktif(status)
         }
         for d in (_user_row_dict(r) for r in raw_rows)
     ]

@@ -881,6 +881,16 @@ def get_descendants(root, children_map, max_depth=20):
 
     return hasil
 
+def get_active_descendants(root, children_map, active_users_set, max_depth=20):
+    """
+    Sama seperti get_descendants, tapi hasil akhirnya disaring supaya HANYA
+    berisi user yang FLAG_ACTIVE == True. Dipakai di semua tempat yang
+    menghitung/menampilkan "downline" -- user non-aktif tidak boleh ikut
+    dihitung sebagai bawahan di manapun.
+    """
+    downline = get_descendants(root, children_map, max_depth=max_depth)
+    return [u for u in downline if u in active_users_set]
+
 
 def ancestor_lookup(u, target_roles, role_map, atasan_map, max_depth=15):
 
@@ -1035,6 +1045,12 @@ def show():
         brand_map,
         children_map
     ) = load_user_hierarchy()
+
+    active_users_set = set(
+        df_user[df_user["FLAG_ACTIVE"] == True]["USER"]
+        .astype(str)
+        .str.strip()
+    )
 
     # ------------------------------------------------
     # HEADER
@@ -1354,50 +1370,54 @@ def show():
 
         ]
 
+    # ==========================================
+    # FILTER: HANYA SUBMISSION DARI USER AKTIF.
+    # User non-aktif tidak boleh muncul/dihitung di manapun
+    # (dashboard maupun leaderboard) -- cukup dihitung di Vacant.
+    # ==========================================
+
+    dff = dff[
+        dff["Input By"]
+        .astype(str)
+        .str.strip()
+        .isin(active_users_set)
+    ]
+
     st.divider()
 
     # =====================================================
     # PERSONNEL
     # =====================================================
 
-    all_personnel = df_user[
+    # Semua personel dengan role terkait, TERMASUK non-aktif -- HANYA
+    # dipakai untuk hitung Vacant.
+    all_personnel_raw = df_user[
         df_user["ROLE"].isin(PERSONNEL_ROLES)
     ]
 
-    # ==========================================
-    # active_personnel = HANYA user dengan FLAG_ACTIVE True
-    # (dipakai di leaderboard/individual/dsb -- user non-aktif
-    # TIDAK boleh muncul, cukup dihitung sebagai vacant)
-    # ==========================================
-
-    active_personnel = df_user[
-        (df_user["ROLE"].isin(PERSONNEL_ROLES))
-        &
-        (df_user["FLAG_ACTIVE"] == True)
-    ]
-
     if selected_brand != "Semua Brand":
-
-        all_personnel = all_personnel[
-            all_personnel["BRAND"] == selected_brand
-        ]
-
-        active_personnel = active_personnel[
-            active_personnel["BRAND"] == selected_brand
+        all_personnel_raw = all_personnel_raw[
+            all_personnel_raw["BRAND"] == selected_brand
         ]
 
     if selected_group != "Semua Personnel":
-
-        all_personnel = all_personnel[
-            all_personnel["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
+        all_personnel_raw = all_personnel_raw[
+            all_personnel_raw["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
         ]
 
-        active_personnel = active_personnel[
-            active_personnel["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
-        ]
+    # Personel AKTIF saja -- dipakai untuk Team Total, dan semua
+    # tampilan/hitungan lain di dashboard & leaderboard.
+    all_personnel = all_personnel_raw[
+        all_personnel_raw["FLAG_ACTIVE"] == True
+    ]
+
+    active_personnel = all_personnel[
+        all_personnel["STATUS"].astype(str).str.upper() == "AKTIF"
+    ]
 
     # ==========================================
     # Hanya personel aktif yang submit pada periode terpilih
+    # (dff sudah difilter user aktif di atas)
     # ==========================================
 
     submitted_users = (
@@ -1427,24 +1447,25 @@ def show():
     submit_total = len(dff)
 
     # ==========================================
-    # TOTAL VACANT -- by FLAG_ACTIVE (bukan lagi cek REAL_NAME kosong)
+    # TOTAL VACANT = user non-aktif (FLAG_ACTIVE == False)
     # ==========================================
 
-    total_vacant = all_personnel[
-        all_personnel["FLAG_ACTIVE"] == False
+    total_vacant = all_personnel_raw[
+        all_personnel_raw["FLAG_ACTIVE"] == False
     ]["USER"].nunique()
 
     # ==========================================
     # TEAM PER BRAND
     # ==========================================
 
-    team_im3 = active_personnel[
-        active_personnel["BRAND"] == "IM3"
+    team_im3 = all_personnel[
+        all_personnel["BRAND"] == "IM3"
     ]["USER"].nunique()
 
-    team_3id = active_personnel[
-        active_personnel["BRAND"] == "3ID"
+    team_3id = all_personnel[
+        all_personnel["BRAND"] == "3ID"
     ]["USER"].nunique()
+
     # ==========================================
     # AVG SUBMIT / PERSONEL
     # ==========================================
@@ -1574,8 +1595,8 @@ def show():
         "CSE/RSE": ["CSE", "RSE"],
         "RGE": ["RGE"],
         "DSE": ["DSE"],
-        "PROMOTOR": ["PROMOTOR"],
-        "New Promotor": ["NP"],
+        "DSE PROMOTOR": ["PROMOTOR"],
+        "Promotor": ["NP"],
         "GSE": ["GSE"],
         "GEMPI": ["GEMINI"],
     }
@@ -1586,15 +1607,19 @@ def show():
 
         # Total personel aktif
         total_role = df_user[
+
             (df_user["ROLE"].isin(roles))
             &
             (df_user["FLAG_ACTIVE"] == True)
+            &
+            (df_user["STATUS"].astype(str).str.upper() == "AKTIF")
             &
             (
                 (selected_brand == "Semua Brand")
                 |
                 (df_user["BRAND"] == selected_brand)
             )
+
         ]["USER"].nunique()
 
         role_data = dff[
@@ -1914,7 +1939,7 @@ def show():
 
             for hos_user in hos_list:
 
-                downline = get_descendants(hos_user, children_map)
+                downline = get_active_descendants(hos_user, children_map, active_users_set)
 
                 hos_df = dff[dff["Input By"].isin(downline)]
 
@@ -2217,8 +2242,8 @@ def show():
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
         ("DSE", PERSONNEL_GROUPS["DSE"]),
         ("RGE", PERSONNEL_GROUPS["RGE"]),
-        ("PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
-        ("New Promotor", PERSONNEL_GROUPS["NP"]),
+        ("DSE PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
+        ("Promotor", PERSONNEL_GROUPS["NP"]),
     ]
 
     # Layout 3 kolom per baris:
@@ -2248,6 +2273,7 @@ def show():
                         columns={"USER": "Input By", "BRANCH": "Branch"}
                     )
 
+                    # Kalau brand/branch difilter di halaman ini, terapkan juga ke base_users
                     if selected_brand != "Semua Brand":
                         base_users = df_user[
                             (df_user["ROLE"].isin(roles))
@@ -2693,16 +2719,11 @@ def show():
             <style>
 
                 .mld-stat-chip {
-                    background: #F8FAFC;
-                    border: 1px solid #E2E8F0;
                     border-radius: 12px;
                     padding: 12px 14px;
                     height: 100%;
-                }
-
-                .mld-stat-chip.mld-stat-danger {
-                    background: #FEF2F2;
-                    border: 1px solid #FECACA;
+                    border: 1px solid #E2E8F0;
+                    background: #F8FAFC;
                 }
 
                 .mld-stat-chip .mld-stat-label {
@@ -2710,12 +2731,8 @@ def show():
                     font-weight: 600;
                     letter-spacing: .3px;
                     text-transform: uppercase;
-                    color: #64748B;
                     margin-bottom: 4px;
-                }
-
-                .mld-stat-chip.mld-stat-danger .mld-stat-label {
-                    color: #B91C1C;
+                    color: #64748B;
                 }
 
                 .mld-stat-chip .mld-stat-value {
@@ -2724,9 +2741,61 @@ def show():
                     color: #0F172A;
                 }
 
-                .mld-stat-chip.mld-stat-danger .mld-stat-value {
-                    color: #DC2626;
+                /* -- Slate (default/Jumlah) -- */
+                .mld-stat-chip.mld-stat-slate {
+                    background: #F8FAFC;
+                    border: 1px solid #E2E8F0;
                 }
+                .mld-stat-chip.mld-stat-slate .mld-stat-label { color: #64748B; }
+                .mld-stat-chip.mld-stat-slate .mld-stat-value { color: #0F172A; }
+
+                /* -- Blue (MSISDN) -- */
+                .mld-stat-chip.mld-stat-blue {
+                    background: #EFF6FF;
+                    border: 1px solid #BFDBFE;
+                }
+                .mld-stat-chip.mld-stat-blue .mld-stat-label { color: #1D4ED8; }
+                .mld-stat-chip.mld-stat-blue .mld-stat-value { color: #1D4ED8; }
+
+                /* -- Purple -- */
+                .mld-stat-chip.mld-stat-purple {
+                    background: #F5F3FF;
+                    border: 1px solid #DDD6FE;
+                }
+                .mld-stat-chip.mld-stat-purple .mld-stat-label { color: #6D28D9; }
+                .mld-stat-chip.mld-stat-purple .mld-stat-value { color: #6D28D9; }
+
+                /* -- Green (KPI utama / rata-rata) -- */
+                .mld-stat-chip.mld-stat-green {
+                    background: #ECFDF5;
+                    border: 1px solid #A7F3D0;
+                }
+                .mld-stat-chip.mld-stat-green .mld-stat-label { color: #047857; }
+                .mld-stat-chip.mld-stat-green .mld-stat-value { color: #047857; }
+
+                /* -- Amber (warning / belum capai target) -- */
+                .mld-stat-chip.mld-stat-amber {
+                    background: #FFFBEB;
+                    border: 1px solid #FDE68A;
+                }
+                .mld-stat-chip.mld-stat-amber .mld-stat-label { color: #B45309; }
+                .mld-stat-chip.mld-stat-amber .mld-stat-value { color: #B45309; }
+
+                /* -- Red (danger) -- */
+                .mld-stat-chip.mld-stat-danger {
+                    background: #FEF2F2;
+                    border: 1px solid #FECACA;
+                }
+                .mld-stat-chip.mld-stat-danger .mld-stat-label { color: #B91C1C; }
+                .mld-stat-chip.mld-stat-danger .mld-stat-value { color: #DC2626; }
+
+                /* -- Orange (Jumlah) -- */
+                .mld-stat-chip.mld-stat-orange {
+                    background: #FFF7ED;
+                    border: 1px solid #FED7AA;
+                }
+                .mld-stat-chip.mld-stat-orange .mld-stat-label { color: #C2410C; }
+                .mld-stat-chip.mld-stat-orange .mld-stat-value { color: #C2410C; }
 
                 button[data-baseweb="tab"] {
                     border-radius: 10px 10px 0 0 !important;
@@ -2824,13 +2893,10 @@ def show():
             ]
         )
 
-    def stat_chip(label, value, danger=False):
+    def stat_chip(label, value, color="slate"):
+        """color: slate, blue, purple, green, amber, orange, danger"""
 
-        css_class = (
-            "mld-stat-chip mld-stat-danger"
-            if danger
-            else "mld-stat-chip"
-        )
+        css_class = f"mld-stat-chip mld-stat-{color}"
 
         st.markdown(
             f"""
@@ -2867,7 +2933,11 @@ def show():
             all_users = df_user[
                 (df_user["ROLE"].isin(role_list))
                 & (df_user["FLAG_ACTIVE"] == True)
-                & (df_user["BRAND"] == selected_brand_filter)
+                &
+                (
+                    df_user["BRAND"]
+                    == selected_brand_filter
+                )
             ]["USER"].unique().tolist()
 
         for u in all_users:
@@ -2882,9 +2952,10 @@ def show():
             downline = [u] + (
                 []
                 if leaf
-                else get_descendants(
+                else get_active_descendants(
                     u,
-                    children_map
+                    children_map,
+                    active_users_set
                 )
             )
 
@@ -2960,18 +3031,20 @@ def show():
         chip_cols = st.columns(n_chip)
 
         with chip_cols[0]:
-            stat_chip("Jumlah", len(dfr))
+            stat_chip("Jumlah", len(dfr), color="orange")
 
         with chip_cols[1]:
             stat_chip(
                 "MSISDN",
-                f"{total_msisdn:,}"
+                f"{total_msisdn:,}",
+                color="blue"
             )
 
         with chip_cols[2]:
             stat_chip(
                 "Avg MSISDN/Person%",
-                f"{avg_msisdn_person}"
+                f"{avg_msisdn_person}",
+                color="green"
             )
 
         if target_threshold is not None:
@@ -2987,9 +3060,7 @@ def show():
                 stat_chip(
                     f"Belum Capai Target (<{target_threshold} MSISDN)",
                     below_target,
-                    danger=(
-                        below_target > 0
-                    )
+                    color="amber" if below_target > 0 else "slate"
                 )
 
         st.markdown(
@@ -3145,7 +3216,8 @@ def show():
             )
 
         hos_candidates = df_user[
-            (df_user["ROLE"] == "HOS") & (df_user["FLAG_ACTIVE"] == True)
+            (df_user["ROLE"] == "HOS")
+            & (df_user["FLAG_ACTIVE"] == True)
         ]
         if selected_brand_filter != "Semua Brand":
             hos_candidates = hos_candidates[
@@ -3164,7 +3236,8 @@ def show():
             )
 
         bsm_candidates = df_user[
-            (df_user["ROLE"] == "BSM") & (df_user["FLAG_ACTIVE"] == True)
+            (df_user["ROLE"] == "BSM")
+            & (df_user["FLAG_ACTIVE"] == True)
         ]
 
         if selected_brand_filter != "Semua Brand":
@@ -3189,7 +3262,8 @@ def show():
             )
 
         cse_candidates = df_user[
-            (df_user["ROLE"].isin(["CSE", "RSE"])) & (df_user["FLAG_ACTIVE"] == True)
+            (df_user["ROLE"].isin(["CSE", "RSE"]))
+            & (df_user["FLAG_ACTIVE"] == True)
         ]
 
         if selected_brand_filter != "Semua Brand":
@@ -3269,12 +3343,14 @@ def show():
         role_list = role_filter if isinstance(role_filter, list) else [role_filter]
 
         all_users = df_user[
-            df_user["ROLE"].isin(role_list)
+            (df_user["ROLE"].isin(role_list))
+            & (df_user["FLAG_ACTIVE"] == True)
         ]["USER"].unique().tolist()
 
         if selected_brand_filter != "Semua Brand":
             all_users = df_user[
                 (df_user["ROLE"].isin(role_list))
+                & (df_user["FLAG_ACTIVE"] == True)
                 & (df_user["BRAND"] == selected_brand_filter)
             ]["USER"].unique().tolist()
 
@@ -3350,19 +3426,20 @@ def show():
         chip_cols = st.columns(4)
 
         with chip_cols[0]:
-            stat_chip("Jumlah", len(dfr))
+            stat_chip("Jumlah", len(dfr), color="orange")
         with chip_cols[1]:
-            stat_chip("MSISDN", f"{total_msisdn:,}")
+            stat_chip("MSISDN", f"{total_msisdn:,}", color="blue")
         with chip_cols[2]:
             stat_chip(
                 "Rata-rata Submit/Hari",
-                f"{round(dfr['Avg Submit/Day'].mean(), 2)}"
+                f"{round(dfr['Avg Submit/Day'].mean(), 2)}",
+                color="green"
             )
         with chip_cols[3]:
             stat_chip(
                 f"Belum Achiev (<{target_threshold}/hari)",
                 below_target,
-                danger=(below_target > 0)
+                color="amber" if below_target > 0 else "slate"
             )
 
         st.markdown("<br>", unsafe_allow_html=True)
@@ -3413,8 +3490,8 @@ def show():
         ":material/group: CSE/RSE",
         ":material/person: DSE",
         ":material/badge: RGE",
-        ":material/campaign: Promotor",
-        ":material/store: New Promotor",
+        ":material/campaign: DSE Promotor",
+        ":material/store: Promotor",
         ":material/store: GSE",
         ":material/star: GEMPI"
     ])
@@ -3445,12 +3522,12 @@ def show():
         render_target_table(rows_rge2, "RGE", TARGET_AVG_PER_DAY_MIN)
 
     with tab_promotor2:
-        rows_promotor2 = build_target_rows("PROMOTOR", "Promotor", n_days)
-        render_target_table(rows_promotor2, "Promotor", TARGET_AVG_PER_DAY_MIN)
+        rows_promotor2 = build_target_rows("PROMOTOR", "DSE Promotor", n_days)
+        render_target_table(rows_promotor2, "DSE Promotor", TARGET_AVG_PER_DAY_MIN)
 
     with tab_np2:
-        rows_np2 = build_target_rows("NP", "NP", n_days)
-        render_target_table(rows_np2, "NP", TARGET_AVG_PER_DAY_MIN)
+        rows_np2 = build_target_rows("NP", "Promotor", n_days)
+        render_target_table(rows_np2, "Promotor", TARGET_AVG_PER_DAY_MIN)
 
     with tab_gse2:
         rows_gse2 = build_target_rows("GSE", "GSE", n_days)
