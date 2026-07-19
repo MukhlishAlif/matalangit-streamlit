@@ -879,6 +879,14 @@ def get_descendants(root, children_map, max_depth=20):
 
     return hasil
 
+def get_active_descendants(root, children_map, active_users_set, max_depth=20):
+    """
+    Sama seperti get_descendants, tapi hasil akhirnya disaring supaya HANYA
+    berisi user yang FLAG_ACTIVE == True. User non-aktif tidak boleh ikut
+    dihitung sebagai bawahan di manapun.
+    """
+    downline = get_descendants(root, children_map, max_depth=max_depth)
+    return [u for u in downline if u in active_users_set]
 
 def ancestor_lookup(u, target_roles, role_map, atasan_map, max_depth=15):
 
@@ -1028,7 +1036,7 @@ def show():
         children_map
     ) = load_user_hierarchy()
 
-# ------------------------------------------------
+    # ------------------------------------------------
     # HEADER
     # ------------------------------------------------
     current_user = st.session_state.get("outlet_user", "-")
@@ -1289,7 +1297,10 @@ def show():
 
     with f3:
         hos_list = sorted(
-            df_user[df_user["ROLE"] == "HOS"]["USER"].dropna().unique().tolist()
+            df_user[
+                (df_user["ROLE"] == "HOS")
+                & (df_user["FLAG_ACTIVE"] == True)
+            ]["USER"].dropna().unique().tolist()
         )
 
         selected_hos = st.selectbox(
@@ -1356,47 +1367,99 @@ def show():
     # FILTER PERSONNEL
     # ==========================================
     if selected_group != "Semua Personnel":
-        dff = dff[dff["Role"].isin(PERSONNEL_GROUPS[selected_group])]
 
-    n_days = max(
-        dff["Tanggal"].dt.date.nunique(),
-        1
-    )
+        dff = dff[
+
+            dff["Role"].isin(
+
+                PERSONNEL_GROUPS[
+                    selected_group
+                ]
+
+            )
+
+        ]
 
     st.divider()
     # =====================================================
     # PERSONNEL
     # =====================================================
 
-    all_personnel = df_user[
+    all_personnel_all = df_user[
         df_user["ROLE"].isin(PERSONNEL_ROLES)
     ]
 
-    active_personnel = df_user[
-        (df_user["ROLE"].isin(PERSONNEL_ROLES))
-        &
-        (df_user["STATUS"].astype(str).str.upper() == "AKTIF")
-    ]
-
     if selected_brand != "Semua Brand":
-
-        all_personnel = all_personnel[
-            all_personnel["BRAND"] == selected_brand
-        ]
-
-        active_personnel = active_personnel[
-            active_personnel["BRAND"] == selected_brand
+        all_personnel_all = all_personnel_all[
+            all_personnel_all["BRAND"] == selected_brand
         ]
 
     if selected_group != "Semua Personnel":
-
-        all_personnel = all_personnel[
-            all_personnel["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
+        all_personnel_all = all_personnel_all[
+            all_personnel_all["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
         ]
 
-        active_personnel = active_personnel[
-            active_personnel["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
-        ]
+    # Personel AKTIF saja (FLAG_ACTIVE == True) -- dipakai untuk semua
+    # tampilan/hitungan di dashboard & leaderboard, KECUALI Vacant.
+    all_personnel = all_personnel_all[
+        all_personnel_all["FLAG_ACTIVE"] == True
+    ]
+
+    active_personnel = all_personnel[
+        all_personnel["STATUS"].astype(str).str.upper() == "AKTIF"
+    ]
+
+    # ==========================================
+    # HELPER: FILTER PERSONNEL BY HOS (tembus BSM -> Promotor/GEMINI)
+    # ==========================================
+
+    def filter_personnel_by_hos(df_personnel, df_user_ref, hos_name):
+
+        if hos_name == "Semua HoS":
+            return df_personnel
+
+        daftar_bsm_under_hos = df_user_ref[
+            (df_user_ref["ATASAN"] == hos_name)
+            &
+            (df_user_ref["ROLE"] == "BSM")
+        ]["USER"].tolist()
+
+        mask = (
+            (df_personnel["ATASAN"] == hos_name)
+            |
+            (df_personnel["ATASAN"].isin(daftar_bsm_under_hos))
+        )
+
+        return df_personnel[mask]
+
+    # ==========================================
+    # FILTER HOS
+    # ==========================================
+
+    if selected_hos != "Semua HoS":
+
+        all_personnel_all = filter_personnel_by_hos(
+            all_personnel_all, df_user, selected_hos
+        )
+
+        all_personnel = filter_personnel_by_hos(
+            all_personnel, df_user, selected_hos
+        )
+
+        active_personnel = filter_personnel_by_hos(
+            active_personnel, df_user, selected_hos
+        )
+
+    # ==========================================
+    # JUMLAH VACANT = user non-aktif (FLAG_ACTIVE == False),
+    # tetap ikut filter Brand / Personnel / HoS yang sedang aktif.
+    # ==========================================
+
+    jumlah_vacant = int(
+        all_personnel_all[
+            all_personnel_all["FLAG_ACTIVE"] == False
+        ]["USER"].nunique()
+    )
 
     # ==========================================
     # HELPER: FILTER PERSONNEL BY HOS (tembus BSM -> Promotor/GEMINI)
@@ -2378,7 +2441,7 @@ def show():
 
             for hos_user in hos_list:
 
-                downline = get_descendants(hos_user, children_map)
+                downline = get_active_descendants(hos_user, children_map, active_users_set)   # <-- diganti
 
                 hos_df = dff[
                     (dff["Input By"].isin(downline))
@@ -2705,7 +2768,8 @@ def show():
                     # ==========================================
 
                     base_users = df_user[
-                        df_user["ROLE"].isin(roles)
+                        (df_user["ROLE"].isin(roles))
+                        & (df_user["FLAG_ACTIVE"] == True)
                     ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
                         columns={"USER": "Input By", "BRANCH": "Branch"}
                     )
@@ -2713,6 +2777,7 @@ def show():
                     if selected_brand != "Semua Brand":
                         base_users = df_user[
                             (df_user["ROLE"].isin(roles))
+                            & (df_user["FLAG_ACTIVE"] == True)
                             & (df_user["BRAND"] == selected_brand)
                         ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
                             columns={"USER": "Input By", "BRANCH": "Branch"}
@@ -3338,18 +3403,15 @@ def show():
         )
 
         all_users = df_user[
-            df_user["ROLE"].isin(role_list)
+            (df_user["ROLE"].isin(role_list))
+            & (df_user["FLAG_ACTIVE"] == True)
         ]["USER"].unique().tolist()
 
         if selected_brand_filter != "Semua Brand":
-
             all_users = df_user[
                 (df_user["ROLE"].isin(role_list))
-                &
-                (
-                    df_user["BRAND"]
-                    == selected_brand_filter
-                )
+                & (df_user["FLAG_ACTIVE"] == True)
+                & (df_user["BRAND"] == selected_brand_filter)
             ]["USER"].unique().tolist()
 
         for u in all_users:
@@ -3364,10 +3426,7 @@ def show():
             downline = [u] + (
                 []
                 if leaf
-                else get_descendants(
-                    u,
-                    children_map
-                )
+                else get_active_descendants(u, children_map, active_users_set)   # <-- diganti
             )
 
             u_msisdn, u_bio, u_persen = (
@@ -3633,7 +3692,10 @@ def show():
                 key="ip_filter_brand"
             )
 
-        hos_candidates = df_user[df_user["ROLE"] == "HOS"]
+        hos_candidates = df_user[
+            (df_user["ROLE"] == "HOS")
+            & (df_user["FLAG_ACTIVE"] == True)
+        ]
         if selected_brand_filter != "Semua Brand":
             hos_candidates = hos_candidates[
                 hos_candidates["BRAND"] == selected_brand_filter
@@ -3650,7 +3712,10 @@ def show():
                 key="ip_filter_hos"
             )
 
-        bsm_candidates = df_user[df_user["ROLE"] == "BSM"]
+        bsm_candidates = df_user[
+            (df_user["ROLE"] == "BSM")
+            & (df_user["FLAG_ACTIVE"] == True)
+        ]
 
         if selected_brand_filter != "Semua Brand":
             bsm_candidates = bsm_candidates[
@@ -3674,7 +3739,8 @@ def show():
             )
 
         cse_candidates = df_user[
-            df_user["ROLE"].isin(["CSE", "RSE"])
+            (df_user["ROLE"].isin(["CSE", "RSE"]))
+            & (df_user["FLAG_ACTIVE"] == True)
         ]
 
         if selected_brand_filter != "Semua Brand":

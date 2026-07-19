@@ -510,6 +510,33 @@ def show():
         df_user.columns.str.upper()
     )
 
+    # =====================================================
+    # FLAG_ACTIVE: True = Aktif (tampil di rekap & KPI),
+    # False = Non Aktif (HANYA dihitung di KPI Vacant)
+    #
+    # Fallback ke True kalau kolom belum tersedia dari
+    # tampil_user() (mis. database.py belum ter-update /
+    # cache lama), supaya dashboard tidak crash.
+    # =====================================================
+
+    df_user["FLAG_ACTIVE"] = (
+        df_user["STATUS"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        == "AKTIF"
+    )
+
+    active_users_set = set(
+
+        df_user[
+            df_user["FLAG_ACTIVE"] == True
+        ]["USER"]
+        .astype(str)
+        .str.strip()
+
+    )
+
     # ======================================================
     # USER -> REAL NAME
     # ======================================================
@@ -872,6 +899,8 @@ def show():
             (df_user["ATASAN"] == user)
             &
             (df_user["ROLE"] == "BSM")
+            &
+            (df_user["FLAG_ACTIVE"] == True)
 
         ]["USER"].tolist()
 
@@ -880,6 +909,22 @@ def show():
         ]
 
     # role == "ADMIN" -> tidak difilter, lihat semua
+
+    # ======================================================
+    # FILTER: HANYA SUBMISSION DARI USER AKTIF.
+    # User non-aktif tidak boleh muncul/dihitung di manapun
+    # (dashboard maupun rekap) -- cukup dihitung di Vacant.
+    # Jaring pengaman tambahan, meniru pola di Leaderboard,
+    # supaya konsisten walau ada penambahan role/cabang baru
+    # di FILTER ROLE di atas yang lupa memfilter FLAG_ACTIVE.
+    # ======================================================
+
+    df = df[
+        df["Input By"]
+        .astype(str)
+        .str.strip()
+        .isin(active_users_set)
+    ]
 
     # ======================================================
     # BRAND MAP
@@ -909,7 +954,11 @@ def show():
 
     daftar_bsm_role = df_user[
 
-        df_user["ROLE"] == "BSM"
+        (df_user["ROLE"] == "BSM")
+
+        &
+
+        (df_user["FLAG_ACTIVE"] == True)
 
     ]["USER"].tolist()
 
@@ -951,7 +1000,15 @@ def show():
 
             (df_user["ROLE"] == "BSM")
 
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
+
         ]["USER"].tolist()
+
+        total_user = len(
+            daftar_user
+        )
 
         total_user = len(
             daftar_user
@@ -983,44 +1040,43 @@ def show():
 
 
     # =====================================================
-    # JUMLAH VACANT (NaN / None / kosong / teks "vacant")
+    # JUMLAH VACANT = BSM/HOS dalam scope yang STATUS-nya
+    # Non Aktif (FLAG_ACTIVE == False)
+    #
+    # daftar_user di atas HANYA berisi user AKTIF (sudah
+    # difilter FLAG_ACTIVE == True), jadi scope penuh untuk
+    # hitung vacant harus diambil ulang TANPA filter aktif.
     # =====================================================
 
-    user_master = df_user[
+    if role == "BSM":
 
-        df_user["USER"]
-        .isin(daftar_user)
+        daftar_user_all = [user]
 
-    ]
+    elif role == "HOS":
 
-    real_name_clean = (
+        daftar_user_all = df_user[
 
-        user_master["REAL_NAME"]
-        .astype(str)
-        .str.strip()
-        .str.lower()
+            (df_user["ATASAN"] == user)
 
-    )
+            &
 
-    vacant_labels = [
+            (df_user["ROLE"] == "BSM")
 
-        "",
-        "nan",
-        "none",
-        "null",
-        "vacant",
-        "-"
+        ]["USER"].tolist()
 
-    ]
+    else:
 
-    is_vacant = real_name_clean.isin(
-        vacant_labels
-    )
+        daftar_user_all = df_user[
+
+            df_user["ROLE"] == "BSM"
+
+        ]["USER"].tolist()
 
     jumlah_vacant = (
 
-        user_master[is_vacant]["USER"]
-        .nunique()
+        len(daftar_user_all)
+        -
+        len(daftar_user)
 
     )
 
@@ -1163,11 +1219,16 @@ def show():
 
             (df_user["ROLE"] == "BSM")
 
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
+
         ]
 
         for _, row in daftar_bsm.iterrows():
 
             nama_bsm = row["USER"]
+
 
             temp = df[
 
@@ -1315,7 +1376,13 @@ def show():
         rekap_hos = []
 
         hos_list = df_user[
-            df_user["ROLE"] == "HOS"
+
+            (df_user["ROLE"] == "HOS")
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
+
         ]
 
         for _, row in hos_list.iterrows():
@@ -1330,14 +1397,28 @@ def show():
 
                 (df_user["ROLE"] == "BSM")
 
+                &
+
+                (df_user["FLAG_ACTIVE"] == True)
+
             ]["USER"].tolist()
 
-            temp = df[
-                df["Input By"]
-                .isin(daftar_bsm)
-            ]
-
             total_bsm = len(daftar_bsm)
+
+            # =========================================
+            # PENTING: "temp" harus dihitung dari data
+            # submission SEMUA BSM di bawah HOS ini
+            # (sebelumnya variabel "temp" tidak pernah
+            # didefinisikan di sini -> NameError / bug).
+            # =========================================
+
+            temp = df[
+
+                df["Input By"].isin(
+                    daftar_bsm
+                )
+
+            ]
 
             total_aktif = temp["Input By"].nunique()
 
@@ -1480,7 +1561,13 @@ def show():
         rekap_bsm = []
 
         bsm_list = df_user[
-            df_user["ROLE"] == "BSM"
+
+            (df_user["ROLE"] == "BSM")
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
+
         ]
 
         for _, row in bsm_list.iterrows():

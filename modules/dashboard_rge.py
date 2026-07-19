@@ -111,51 +111,6 @@ def show_grid(
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
-# ==========================================================
-# GRID TABLE
-# ==========================================================
-
-from st_aggrid import (
-    AgGrid,
-    GridOptionsBuilder,
-    GridUpdateMode
-)
-
-def show_grid(
-    df,
-    selectable=False,
-    key=None,
-    col_align=None      # <-- BARU: dict {"Nama Kolom": "left" / "center" / "right"}
-):
-
-    if df.empty:
-
-        st.info("Tidak ada data.")
-        return None
-
-    if col_align is None:
-
-        col_align = {}
-
-    st.markdown(
-        """
-        <style>
-
-        .ag-theme-balham .ag-pinned-bottom {
-
-            font-weight:700 !important;
-            min-height:42px !important;
-            line-height:42px !important;
-
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    gb = GridOptionsBuilder.from_dataframe(df)
-
     # =====================================================
     # DEFAULT COLUMN
     # =====================================================
@@ -727,6 +682,34 @@ def show():
         df_user.columns.str.upper()
     )
 
+    # =====================================================
+    # FLAG_ACTIVE: True = Aktif (tampil di rekap & dashboard),
+    # False = Non Aktif (HANYA dihitung di KPI Vacant)
+    # NOTE: tampil_user() sekarang mengembalikan juga kolom
+    # "status" dan "flag_active" (sama seperti dashboard DSE
+    # Promotor), sehingga user non-aktif bisa dibedakan dari
+    # user aktif.
+    # =====================================================
+
+    df_user["FLAG_ACTIVE"] = (
+        df_user["STATUS"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        == "AKTIF"
+    )
+
+
+    active_users_set = set(
+
+        df_user[
+            df_user["FLAG_ACTIVE"] == True
+        ]["USER"]
+        .astype(str)
+        .str.strip()
+
+    )
+
     # ======================================================
     # USER -> REAL NAME
     # ======================================================
@@ -756,7 +739,7 @@ def show():
             or str(nama).strip().lower() == "vacant"
         ):
 
-            return nama
+            return username
 
         return nama
 
@@ -844,6 +827,8 @@ def show():
 
     # ======================================================
     # FILTER ROLE
+    # Hanya RGE dengan FLAG_ACTIVE == True yang dimasukkan
+    # ke dalam scope perhitungan dashboard.
     # ======================================================
 
     if role in [
@@ -860,7 +845,11 @@ def show():
 
         bawahan = df_user[
 
-            df_user["ATASAN"] == user
+            (df_user["ATASAN"] == user)
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
 
         ]["USER"].tolist()
 
@@ -878,8 +867,12 @@ def show():
 
         bawahan = df_user[
 
-            df_user["ATASAN"]
-            .isin(daftar_bsm)
+            (df_user["ATASAN"]
+            .isin(daftar_bsm))
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
 
         ]["USER"].tolist()
 
@@ -887,6 +880,20 @@ def show():
             df["Input By"].isin(bawahan)
         ]
 
+    # ======================================================
+    # FILTER: HANYA SUBMISSION DARI USER AKTIF.
+    # Jaring pengaman tambahan (sama seperti di dashboard
+    # DSE Promotor) supaya user non-aktif tidak pernah
+    # muncul/terhitung di manapun selain KPI Vacant, walau
+    # ada role/cabang baru yang lupa difilter di atas.
+    # ======================================================
+
+    df = df[
+        df["Input By"]
+        .astype(str)
+        .str.strip()
+        .isin(active_users_set)
+    ]
 
     # ======================================================
     # BRAND MAP
@@ -934,6 +941,10 @@ def show():
 
     # =====================================================
     # KPI ROLE AWARE
+    # daftar_user_scope = SEMUA RGE dalam scope (termasuk
+    # non-aktif) -- dipakai HANYA untuk hitung Vacant.
+    # daftar_user       = RGE AKTIF saja -- dipakai untuk
+    # total_user & user_aktif (KPI selain Vacant).
     # =====================================================
 
     if role in [
@@ -942,13 +953,20 @@ def show():
 
     ]:
 
-        total_user = 1
+        daftar_user_scope = [user]
+
+        daftar_user = [
+            u for u in daftar_user_scope
+            if str(u).strip() in active_users_set
+        ]
+
+        total_user = len(daftar_user)
 
         user_aktif = (
 
             1
 
-            if len(df_cse) > 0
+            if len(df_cse) > 0 and total_user > 0
 
             else 0
 
@@ -956,7 +974,7 @@ def show():
 
     elif role == "BSM":
 
-        daftar_user = df_user[
+        daftar_user_scope = df_user[
 
             (df_user["ATASAN"] == user)
 
@@ -969,6 +987,11 @@ def show():
             ]))
 
         ]["USER"].tolist()
+
+        daftar_user = [
+            u for u in daftar_user_scope
+            if str(u).strip() in active_users_set
+        ]
 
         total_user = len(
             daftar_user
@@ -994,7 +1017,7 @@ def show():
 
         ]["USER"].tolist()
 
-        daftar_user = df_user[
+        daftar_user_scope = df_user[
 
             (df_user["ATASAN"].isin(
                 daftar_bsm
@@ -1010,6 +1033,11 @@ def show():
 
         ]["USER"].tolist()
 
+        daftar_user = [
+            u for u in daftar_user_scope
+            if str(u).strip() in active_users_set
+        ]
+
         total_user = len(
             daftar_user
         )
@@ -1024,7 +1052,7 @@ def show():
 
     else:
 
-        daftar_user = df_user[
+        daftar_user_scope = df_user[
 
             df_user["ROLE"].isin([
 
@@ -1033,6 +1061,11 @@ def show():
             ])
 
         ]["USER"].tolist()
+
+        daftar_user = [
+            u for u in daftar_user_scope
+            if str(u).strip() in active_users_set
+        ]
 
         total_user = len(
             daftar_user
@@ -1048,35 +1081,25 @@ def show():
 
 
     # =====================================================
-    # JUMLAH VACANT
+    # JUMLAH VACANT = RGE dalam scope yang STATUS-nya
+    # Non Aktif -> FLAG_ACTIVE == False
     # =====================================================
 
     user_master = (
         df_user[
-            df_user["ROLE"] == "RGE"
+            df_user["USER"].isin(daftar_user_scope)
         ]
         .drop_duplicates(subset="USER")
     )
 
-    real_name_clean = (
-        user_master["REAL_NAME"]
-        .astype(str)
-        .str.strip()
-        .str.lower()
-    )
+    jumlah_vacant = int(
 
-    vacant_labels = [
-        "",
-        "nan",
-        "none",
-        "null",
-        "vacant",
-        "-"
-    ]
+        user_master[
 
-    jumlah_vacant = (
-        real_name_clean.isin(vacant_labels)
-        .sum()
+            user_master["FLAG_ACTIVE"] == False
+
+        ]["USER"].nunique()
+
     )
 
     # =====================================================
@@ -1214,6 +1237,10 @@ def show():
                 "RGE"
 
             ]))
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
 
         ]
 
@@ -1395,6 +1422,10 @@ def show():
 
                 ]))
 
+                &
+
+                (df_user["FLAG_ACTIVE"] == True)
+
             ]["USER"].tolist()
 
             temp = df[
@@ -1547,6 +1578,8 @@ def show():
                 (df_user["ROLE"].isin([
                     "RGE"
                 ]))
+                &
+                (df_user["FLAG_ACTIVE"] == True)
             ]
 
             for _, row in bawahan.iterrows():
@@ -1697,7 +1730,13 @@ def show():
         rekap_hos = []
 
         hos_list = df_user[
-            df_user["ROLE"] == "HOS"
+
+            (df_user["ROLE"] == "HOS")
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
+
         ]
 
         for _, row in hos_list.iterrows():
@@ -1720,6 +1759,10 @@ def show():
                     "RGE"
 
                 ]))
+
+                &
+
+                (df_user["FLAG_ACTIVE"] == True)
 
             ]["USER"].tolist()
 
@@ -1767,7 +1810,7 @@ def show():
                     total_cse,
 
                 "RGE Aktif":
-                    total_cse,
+                    total_aktif,
 
                 "% RGE Aktif":
                     f"{persen_aktif}%",
@@ -1866,7 +1909,13 @@ def show():
         rekap_bsm = []
 
         bsm_list = df_user[
-            df_user["ROLE"] == "BSM"
+
+            (df_user["ROLE"] == "BSM")
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
+
         ]
 
         for _, row in bsm_list.iterrows():
@@ -1889,6 +1938,10 @@ def show():
                     "RGE"
 
                 ]))
+
+                &
+
+                (df_user["FLAG_ACTIVE"] == True)
 
             ]["USER"].tolist()
 
@@ -2036,11 +2089,15 @@ def show():
 
         cse_list = df_user[
 
-            df_user["ROLE"].isin([
+            (df_user["ROLE"].isin([
 
                 "RGE"
 
-            ])
+            ]))
+
+            &
+
+            (df_user["FLAG_ACTIVE"] == True)
 
         ]
 
