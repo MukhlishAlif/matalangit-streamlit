@@ -167,14 +167,27 @@ st.markdown(
         gap: 4px;
     }
 
-    /* Setiap opsi menu jadi kartu kecil */
+    /* Setiap opsi menu jadi kartu kecil -- width DIPAKSA 100% supaya
+       border kanan semua item SEJAJAR/rata, tidak mengikuti panjang
+       teks masing-masing (mis. "Dashboard BSM" vs
+       "Dashboard DSE Promotor"). */
     [data-testid="stSidebar"] .stRadio [role="radiogroup"] > label {
         background: #fff;
         border: 1px solid rgba(0,0,0,0.06);
         border-radius: 10px;
         padding: 8px 12px;
         margin-bottom: 2px;
+        width: 100% !important;
+        box-sizing: border-box;
+        display: flex !important;
+        align-items: center !important;
         transition: all 0.15s ease;
+    }
+
+    /* Parent radiogroup -- pastikan setiap <label> ikut lebar penuh
+       kolom sidebar, bukan lebar konten teksnya sendiri. */
+    [data-testid="stSidebar"] .stRadio [role="radiogroup"] {
+        width: 100% !important;
     }
 
     [data-testid="stSidebar"] .stRadio [role="radiogroup"] > label:hover {
@@ -896,7 +909,7 @@ def _render_summary_rows(role, user):
 
 if _dialog_decorator is not None:
 
-    @_dialog_decorator("Tim Belum Submit")
+    @_dialog_decorator("DAILY QUEST")
     def _show_submit_summary_popup(role, user):
 
         _render_summary_rows(role, user)

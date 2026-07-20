@@ -11,13 +11,311 @@ from database import (
     get_downline
 )
 
+# ==========================================================
+# CSS
+# ==========================================================
+
+def _inject_css():
+
+    st.markdown(
+        """
+        <style>
+
+        .rekap-row{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            background:white;
+            border-radius:12px;
+            padding:10px 14px;
+            box-shadow:0px 2px 8px rgba(0,0,0,.05);
+            margin-bottom:8px;
+        }
+
+        .rekap-left{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            min-width:0;
+        }
+
+        .rekap-icon{
+            flex-shrink:0;
+            width:32px;
+            height:32px;
+            border-radius:9px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#F1F5F9;
+            color:#334155;
+        }
+
+        .rekap-name{
+            font-weight:700;
+            font-size:14px;
+            color:#111827;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }
+
+        .rekap-stats{
+            flex-shrink:0;
+            display:flex;
+            gap:16px;
+        }
+
+        .rekap-stat{
+            text-align:center;
+        }
+
+        .rekap-stat-val{
+            font-size:14px;
+            font-weight:800;
+            color:#111827;
+            line-height:1.1;
+        }
+
+        .rekap-stat-label{
+            font-size:9px;
+            color:#9CA3AF;
+            font-weight:700;
+            text-transform:uppercase;
+        }
+
+        .mat-icon{
+            font-variation-settings:'FILL' 1;
+            vertical-align:middle;
+            line-height:1;
+        }
+
+        </style>
+        <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def _mat_icon(name, size=16, color=None, valign=-3):
+
+    style = f"font-size:{size}px;vertical-align:{valign}px;"
+
+    if color:
+        style += f"color:{color};"
+
+    return f'<span class="material-symbols-outlined mat-icon" style="{style}">{name}</span>'
+
+
+def _render_rekap(df, title, icon, nama_role):
+    """
+    Rekap ringkas 1 baris per role: icon + nama di kiri, jumlah
+    Data / Valid / Unvalid di kanan. Detail (termasuk hapus data)
+    ada di dalam expander.
+    """
+
+    n_data = len(df)
+    n_valid = int((df["Biometrik H-1"] == "Valid").sum()) if not df.empty else 0
+    n_unvalid = n_data - n_valid
+
+    row_html = (
+        '<div class="rekap-row">'
+        '<div class="rekap-left">'
+        f'<div class="rekap-icon">{_mat_icon(icon, size=16)}</div>'
+        f'<div class="rekap-name">{title}</div>'
+        '</div>'
+        '<div class="rekap-stats">'
+        f'<div class="rekap-stat"><div class="rekap-stat-val">{n_data}</div><div class="rekap-stat-label">Data</div></div>'
+        f'<div class="rekap-stat"><div class="rekap-stat-val">{n_valid}</div><div class="rekap-stat-label">Valid</div></div>'
+        f'<div class="rekap-stat"><div class="rekap-stat-val">{n_unvalid}</div><div class="rekap-stat-label">Unvalid</div></div>'
+        '</div>'
+        '</div>'
+    )
+
+    st.markdown(row_html, unsafe_allow_html=True)
+
+    with st.expander(f"Lihat detail {title}"):
+
+        # ===========================
+        # DOWNLOAD
+        # ===========================
+
+        buffer = BytesIO()
+
+        with pd.ExcelWriter(
+            buffer,
+            engine="openpyxl"
+        ) as writer:
+
+            df.drop(
+                columns=["ID", "ROLE"],
+                errors="ignore"
+            ).to_excel(
+                writer,
+                index=False
+            )
+
+        st.download_button(
+
+            f"Download {title}",
+
+            buffer.getvalue(),
+
+            file_name=f"{nama_role}.xlsx",
+
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+            key=f"download_{nama_role}"
+
+        )
+
+        if df.empty:
+
+            st.info("Tidak ada data.")
+
+            return
+
+        # ===========================
+        # TABEL
+        # ===========================
+
+        tampil = df.copy()
+
+        tampil["Hapus"] = False
+
+        edited = st.data_editor(
+            tampil,
+            use_container_width=True,
+            hide_index=True,
+            disabled=[
+                "ID",
+                "Nama Outlet",
+                "ID Outlet",
+                "MSISDN",
+                "Input By",
+                "Upline",
+                "Tanggal",
+                "Tanggal Biometrik",
+                "ROLE",
+                "Biometrik H-1"
+            ],
+            column_config={
+
+                "ID": st.column_config.NumberColumn(
+                    "ID",
+                    width="small"
+                ),
+
+                "Hapus": st.column_config.CheckboxColumn(
+                    "Hapus"
+                )
+
+            },
+            column_order=[
+                "Hapus",
+                "Nama Outlet",
+                "ID Outlet",
+                "MSISDN",
+                "Input By",
+                "Upline",
+                "Tanggal",
+                "Tanggal Biometrik",
+                "Biometrik H-1",
+                "ROLE",
+                "ID"
+            ],
+            key=f"editor_{nama_role}"
+        )
+        # ===========================
+        # DELETE
+        # ===========================
+
+        hapus = edited[
+            edited["Hapus"]
+        ]
+
+        if not hapus.empty:
+
+            st.warning(
+                f"{len(hapus)} data dipilih untuk dihapus."
+            )
+
+            if st.button(
+                "Hapus Data",
+                type="primary",
+                key=f"hapus_btn_{nama_role}"
+            ):
+
+                deleted = 0
+                gagal = 0
+
+                progress = st.progress(0)
+
+                for i, id_data in enumerate(hapus["ID"]):
+
+                    try:
+
+                        hasil = hapus_data(
+                            int(id_data)
+                        )
+
+                        if hasil > 0:
+
+                            deleted += 1
+
+                        else:
+
+                            gagal += 1
+
+                    except Exception as e:
+
+                        gagal += 1
+
+                        st.error(
+                            f"ID {id_data} gagal dihapus: {e}"
+                        )
+
+                    progress.progress(
+                        (i + 1) / len(hapus)
+                    )
+
+                progress.empty()
+
+                if deleted > 0:
+
+                    st.success(
+                        f"Berhasil menghapus {deleted} data."
+                    )
+
+                    st.toast(
+                        f"{deleted} data berhasil dihapus."
+                    )
+
+                    st.cache_data.clear()
+
+                    st.rerun()
+
+                if gagal > 0:
+
+                    st.error(
+                        f"{gagal} data gagal dihapus."
+                    )
+
+
 # ===========================
 # HALAMAN DATA OUTLET
 # ===========================
 
 def show():
 
-    st.title("📋 Data MSISDN")
+    _inject_css()
+
+    st.title("Data MSISDN")
+
+    if st.session_state.get("outlet_sync_error"):
+        st.warning(st.session_state["outlet_sync_error"])
 
     # ===========================
     # FILTER TANGGAL
@@ -25,7 +323,7 @@ def show():
 
     tanggal = st.date_input(
 
-        "📅 Filter Tanggal",
+        "Filter Tanggal",
 
         value=(),
 
@@ -123,7 +421,6 @@ def show():
         errors="coerce"
     ).dt.date
 
-
     users = tampil_user()
 
     users = pd.DataFrame(
@@ -140,7 +437,6 @@ def show():
         users.columns.str.upper()
     )
 
-
     # ===========================
     # SESSION
     # ===========================
@@ -149,7 +445,7 @@ def show():
     user = st.session_state.outlet_user
 
     # ===========================
-    # FILTER USER
+    # FILTER USER (untuk dropdown)
     # ===========================
 
     if role == "ADMIN":
@@ -180,7 +476,7 @@ def show():
         ]
 
     # ===========================
-    # FILTER
+    # FILTER (SEARCH + INPUT BY)
     # ===========================
 
     col1, col2 = st.columns(2)
@@ -188,19 +484,15 @@ def show():
     with col1:
 
         keyword = st.text_input(
-            "🔍 Cari Outlet / ID Outlet / MSISDN / User"
+            "Cari Outlet / ID Outlet / MSISDN / User"
         )
 
     with col2:
 
         pilih_user = st.selectbox(
-            "👤 Input By",
+            "Input By",
             list_user
         )
-
-    # ===========================
-    # SEARCH
-    # ===========================
 
     if keyword:
 
@@ -215,425 +507,11 @@ def show():
             .any(axis=1)
         ]
 
-    # ===========================
-    # FILTER USER
-    # ===========================
-
     if pilih_user != "Semua":
 
         df = df[
             df["Input By"] == pilih_user
         ]
-     # ===========================
-    # SUMMARY KPI (ROLE AWARE)
-    # ===========================
-
-    total_data = len(df)
-
-    total_outlet = df["ID Outlet"].nunique()
-    total_msisdn = df["MSISDN"].nunique()
-
-    # ===========================
-    # USER AKTIF (ROLE AWARE)
-    # ===========================
-
-    if role == "ADMIN":
-
-        # =======================
-        # TOTAL USER
-        # =======================
-
-        total_cse = len(
-
-            users[
-
-                users["ROLE"].isin([
-
-                    "BSM", 
-                    "CSE",
-                    "RSE"
-
-                ])
-
-            ]
-
-        )
-
-        total_dse = len(
-
-            users[
-
-                users["ROLE"].isin([
-
-                    "DSE",
-                    "PROMOTOR",
-                    "GSE",
-                    "RGE",
-                    "FRONTLINER",
-                    "GEMINI"
-
-                ])
-
-            ]
-
-        )
-
-        total_user_all = (
-
-            total_cse
-
-            +
-
-            total_dse
-
-        )
-
-        # =======================
-        # USER AKTIF
-        # =======================
-
-        aktif_cse = df[
-
-            df["Input By"].isin(
-
-                users[
-
-                    users["ROLE"].isin([
-
-                        "BSM",
-                        "CSE",
-                        "RSE"
-
-                    ])
-
-                ]["USER"].tolist()
-
-            )
-
-        ]["Input By"].nunique()
-
-        aktif_dse = df[
-
-            df["Input By"].isin(
-
-                users[
-
-                    users["ROLE"].isin([
-
-                        "DSE",
-                        "PROMOTOR",
-                        "GSE",
-                        "RGE",
-                        "FRONTLINER",
-                        "GEMINI"
-
-                    ])
-
-                ]["USER"].tolist()
-
-            )
-
-        ]["Input By"].nunique()
-
-        total_user = (
-
-            aktif_cse
-
-            +
-
-            aktif_dse
-
-        )
-
-    elif role == "HOS":
-
-        # =======================
-        # GET BSM
-        # =======================
-
-        daftar_bsm = users[
-
-            (users["ATASAN"] == user)
-
-            &
-
-            (users["ROLE"] == "BSM")
-
-        ]["USER"].tolist()
-
-        # =======================
-        # GET CSE/RSE
-        # =======================
-
-        daftar_cse = users[
-
-            (users["ATASAN"].isin(
-                daftar_bsm
-            ))
-
-            &
-
-            (users["ROLE"].isin([
-
-                "CSE",
-                "RSE"
-
-            ]))
-
-        ]["USER"].tolist()
-
-        # =======================
-        # GET DSE/PM/FL
-        # =======================
-
-        daftar_dse = users[
-
-            (users["ATASAN"].isin(
-                daftar_cse
-            ))
-
-            &
-
-            (users["ROLE"].isin([
-
-                "DSE",
-                "PROMOTOR",
-                "GSE",
-                "RGE",
-                "FRONTLINER",
-                "GEMINI"
-
-            ]))
-
-        ]["USER"].tolist()
-
-        total_user_all = (
-
-            len(daftar_cse)
-
-            +
-
-            len(daftar_dse)
-
-        )
-
-        aktif_cse = df[
-
-            df["Input By"].isin(
-                daftar_cse
-            )
-
-        ]["Input By"].nunique()
-
-        aktif_dse = df[
-
-            df["Input By"].isin(
-                daftar_dse
-            )
-
-        ]["Input By"].nunique()
-
-        total_user = (
-
-            aktif_cse
-
-            +
-
-            aktif_dse
-
-        )
-
-    elif role == "BSM":
-
-        # =======================
-        # GET CSE/RSE
-        # =======================
-
-        daftar_cse = users[
-
-            (users["ATASAN"] == user)
-
-            &
-
-            (users["ROLE"].isin([
-
-                "BSM",
-                "CSE",
-                "RSE"
-
-            ]))
-
-        ]["USER"].tolist()
-
-        # =======================
-        # GET DSE/PM/FL
-        # =======================
-
-        daftar_dse = users[
-
-            (users["ATASAN"].isin(
-                daftar_cse
-            ))
-
-            &
-
-            (users["ROLE"].isin([
-
-                "DSE",
-                "PROMOTOR",
-                "GSE",
-                "RGE",
-                "FRONTLINER",
-                "GEMINI"
-
-            ]))
-
-        ]["USER"].tolist()
-
-        total_user_all = (
-
-            len(daftar_cse)
-
-            +
-
-            len(daftar_dse)
-
-        )
-
-        aktif_cse = df[
-
-            df["Input By"].isin(
-                daftar_cse
-            )
-
-        ]["Input By"].nunique()
-
-        aktif_dse = df[
-
-            df["Input By"].isin(
-                daftar_dse
-            )
-
-        ]["Input By"].nunique()
-
-        total_user = (
-
-            aktif_cse
-
-            +
-
-            aktif_dse
-
-        )
-
-    elif role in [
-
-        "CSE",
-        "RSE"
-
-    ]:
-
-        # =======================
-        # GET DSE/PM/FL
-        # =======================
-
-        daftar_dse = users[
-
-            (users["ATASAN"] == user)
-
-            &
-
-            (users["ROLE"].isin([
-
-                "DSE",
-                "PROMOTOR",
-                "GSE",
-                "RGE",
-                "FRONTLINER",
-                "GEMINI"
-
-            ]))
-
-        ]["USER"].tolist()
-
-        total_user_all = (
-
-            1
-
-            +
-
-            len(daftar_dse)
-
-        )
-
-        # =======================
-        # CSE ITU SENDIRI AKTIF
-        # =======================
-
-        aktif_cse = 1 if len(df) > 0 else 0
-
-        aktif_dse = df[
-
-            df["Input By"].isin(
-                daftar_dse
-            )
-
-        ]["Input By"].nunique()
-
-        total_user = (
-
-            aktif_cse
-
-            +
-
-            aktif_dse
-
-        )
-
-    else:
-
-        total_user_all = 1
-        total_user = 1 if len(df) > 0 else 0
-
-    # ===========================
-    # KPI LAIN
-    # ===========================
-
-    total_data = len(df)
-
-    total_outlet = df["ID Outlet"].nunique()
-
-    total_msisdn = df["MSISDN"].nunique()
-
-    total_biometrik = (
-
-        df["Biometrik H-1"] == "Valid"
-
-    ).sum()
-
-    # ===========================
-    # PERSENTASE
-    # ===========================
-
-    persen_user_aktif = round(
-
-        (
-            total_user / total_user_all
-        ) * 100,
-
-        2
-
-    ) if total_user_all > 0 else 0
-
-    persen_biometrik = round(
-
-        (
-            total_biometrik / total_data
-        ) * 100,
-
-        2
-
-    ) if total_data > 0 else 0
 
     st.divider()
 
@@ -644,236 +522,74 @@ def show():
     role_map = (
         users
         .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"].astype(str).str.strip().str.upper()
+        )
         .set_index("USER")["ROLE"]
         .to_dict()
     )
 
-    df["ROLE"] = df["Input By"].map(
-        role_map
+    df["ROLE"] = (
+        df["Input By"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .map(role_map)
+        .fillna("")
     )
 
     # ===========================
-    # SPLIT ROLE
+    # UPLINE MAP
     # ===========================
 
-    role_data = {
+    atasan_map = (
+        users
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"].astype(str).str.strip().str.upper()
+        )
+        .set_index("USER")["ATASAN"]
+        .to_dict()
+    )
 
-        "CSE_RSE": df[
-            df["ROLE"].isin(
-                ["CSE", "RSE"]
-            )
-        ],
+    df["Upline"] = (
+        df["Input By"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .map(atasan_map)
+        .fillna("")
+    )
 
-        "BSM": df[
-            df["ROLE"] == "BSM"
-        ],
-
-        "DSE": df[
-            df["ROLE"] == "DSE"
-        ],
-
-        "FRONTLINER": df[
-            df["ROLE"] == "FRONTLINER"
-        ],
-
-        "PROMOTOR": df[
-            df["ROLE"] == "PROMOTOR"
-        ],
-
-        "GSE": df[
-            df["ROLE"] == "GSE"
-        ],
-
-        "GEMINI": df[
-            df["ROLE"] == "GEMINI"
-        ],
-
-        "RGE": df[
-            df["ROLE"] == "RGE"
-        ]
-
-
-    }
+    df["ROLE"] = (
+        df["Input By"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .map(role_map)
+        .fillna("")
+    )
 
     # ===========================
-    # LOOP TABEL
+    # REKAP PER ROLE (9 ROLE)
     # ===========================
 
-    for nama_role, temp_df in role_data.items():
+    REKAP_DEFS = [
+        ("Rekap CSE/RSE",      ["CSE", "RSE"],  "groups"),
+        ("Rekap BSM",          ["BSM"],         "supervisor_account"),
+        ("Rekap DSE",          ["DSE"],         "badge"),
+        ("Rekap DSE Promotor", ["PROMOTOR"],    "campaign"),
+        ("Rekap Promotor",     ["NP"],          "sell"),
+        ("Rekap GEMPI",        ["GEMINI"],      "star"),
+        ("Rekap GSE",          ["GSE"],         "store"),
+        ("Rekap RGE",          ["RGE"],         "military_tech"),
+        ("Rekap Frontliner",   ["FRONTLINER"],  "storefront"),
+    ]
 
-        st.subheader(
-            f"📋 Data {nama_role}"
-        )
+    for title, roles, icon in REKAP_DEFS:
 
-        # ===========================
-        # DOWNLOAD
-        # ===========================
+        nama_role = "_".join(roles)
 
-        buffer = BytesIO()
+        df_role = df[df["ROLE"].isin(roles)].copy()
 
-        with pd.ExcelWriter(
-            buffer,
-            engine="openpyxl"
-        ) as writer:
-
-            temp_df.drop(
-                columns=["ID", "ROLE"],
-                errors="ignore"
-            ).to_excel(
-                writer,
-                index=False
-            )
-
-        st.download_button(
-
-            f"📥 Download {nama_role}",
-
-            buffer.getvalue(),
-
-            file_name=f"{nama_role}.xlsx",
-
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-            key=f"download_{nama_role}"
-
-        )
-
-
-        # ===========================
-        # JIKA TIDAK ADA DATA
-        # ===========================
-
-        if temp_df.empty:
-
-            st.info(
-                "Tidak ada data."
-            )
-
-            st.divider()
-
-            continue
-
-        # ===========================
-        # TABEL
-        # ===========================
-
-        tampil = temp_df.copy()
-
-        tampil["Hapus"] = False
-
-        edited = st.data_editor(
-            tampil,
-            use_container_width=True,
-            hide_index=True,
-            disabled=[
-                "ID",
-                "Nama Outlet",
-                "ID Outlet",
-                "MSISDN",
-                "Input By",
-                "Tanggal",
-                "Tanggal Biometrik",
-                "ROLE",
-                "Biometrik H-1"
-            ],
-            column_config={
-
-                "ID": st.column_config.NumberColumn(
-                    "ID",
-                    width="small"
-                ),
-
-                "Hapus": st.column_config.CheckboxColumn(
-                    "Hapus"
-                )
-
-            },
-            column_order=[
-                "Hapus",
-                "Nama Outlet",
-                "ID Outlet",
-                "MSISDN",
-                "Input By",
-                "Tanggal",
-                "Tanggal Biometrik",
-                "Biometrik H-1",
-                "ROLE",
-                "ID"
-            ],
-            key=f"editor_{nama_role}"
-        )
-        st.divider()
-        # ===========================
-        # DELETE
-        # ===========================
-
-        hapus = edited[
-            edited["Hapus"]
-        ]
-
-        if not hapus.empty:
-
-            st.warning(
-                f"⚠️ {len(hapus)} data dipilih untuk dihapus."
-            )
-
-            if st.button(
-                "🗑️ HAPUS DATA",
-                type="primary",
-                key=f"hapus_btn_{nama_role}"
-            ):
-
-                deleted = 0
-                gagal = 0
-
-                progress = st.progress(0)
-
-                for i, id_data in enumerate(hapus["ID"]):
-
-                    try:
-
-                        hasil = hapus_data(
-                            int(id_data)
-                        )
-
-                        if hasil > 0:
-
-                            deleted += 1
-
-                        else:
-
-                            gagal += 1
-
-                    except Exception as e:
-
-                        gagal += 1
-
-                        st.error(
-                            f"ID {id_data} gagal dihapus: {e}"
-                        )
-
-                    progress.progress(
-                        (i + 1) / len(hapus)
-                    )
-
-                progress.empty()
-
-                if deleted > 0:
-
-                    st.success(
-                        f"✅ Berhasil menghapus {deleted} data."
-                    )
-
-                    st.toast(
-                        f"🗑️ {deleted} data berhasil dihapus!"
-                    )
-
-                    st.cache_data.clear()
-
-                    st.rerun()
-
-                if gagal > 0:
-
-                    st.error(
-                        f"❌ {gagal} data gagal dihapus."
-                    )
+        _render_rekap(df_role, title, icon, nama_role)

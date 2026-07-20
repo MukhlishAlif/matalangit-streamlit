@@ -1,4 +1,3 @@
-
 import streamlit as st
 from database import login
 from html import escape
@@ -18,6 +17,15 @@ def mat_icon(name, size=20, valign=-2):
 st.markdown("""
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 """, unsafe_allow_html=True)
+
+
+# =====================================
+# ROLE YANG PUNYA POPUP RINGKASAN
+# "TIM BELUM SUBMIT" (harus SAMA dengan
+# POPUP_SUMMARY_MAP di app.py)
+# =====================================
+
+ROLE_WITH_SUMMARY_BELL = ["HOS", "BSM", "CSE", "RSE"]
 
 
 # =====================================
@@ -165,24 +173,41 @@ def sidebar():
             f":material/account_circle: **{st.session_state.outlet_user}**"
         )
 
-        col_role, col_bell = st.columns(
-            [4, 1], gap="small", vertical_alignment="center"
+        # Lonceng notif ringkasan "Tim Belum Submit" HANYA untuk
+        # role HOS / BSM / CSE / RSE (role yang punya bawahan &
+        # punya POPUP_SUMMARY_MAP di app.py). Role lain (ADMIN,
+        # HOR, DSE, FRONTLINER, dst) tidak butuh lonceng ini,
+        # sehingga kolom role dibiarkan full-width tanpa lonceng.
+        show_bell = (
+            st.session_state.outlet_role in ROLE_WITH_SUMMARY_BELL
         )
 
-        with col_role:
+        if show_bell:
+
+            col_role, col_bell = st.columns(
+                [4, 1], gap="small", vertical_alignment="center"
+            )
+
+            with col_role:
+                st.caption(
+                    f":material/badge: {st.session_state.outlet_role}"
+                )
+
+            with col_bell:
+                if st.button(
+                    "",
+                    icon=":material/notifications_active:",
+                    key="btn_bell_summary",
+                    help="Lihat ringkasan tim yang belum submit"
+                ):
+                    st.session_state["force_show_summary_popup"] = True
+                    st.rerun()
+
+        else:
+
             st.caption(
                 f":material/badge: {st.session_state.outlet_role}"
             )
-
-        with col_bell:
-            if st.button(
-                "",
-                icon=":material/notifications_active:",
-                key="btn_bell_summary",
-                help="Lihat ringkasan tim yang belum submit"
-            ):
-                st.session_state["force_show_summary_popup"] = True
-                st.rerun()
 
         st.divider()
         # =====================================

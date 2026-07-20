@@ -504,14 +504,18 @@ def show():
 
     users = tampil_user()
 
+    if not users:
+
+        st.error("Gagal memuat data user dari server. Silakan coba lagi.")
+        return
+
     df_user = pd.DataFrame(
         [dict(row) for row in users]
     )
 
     df_user.columns = (
-        df_user.columns.str.upper()
+        df_user.columns.astype(str).str.upper()
     )
-
     # =====================================================
     # FLAG_ACTIVE: True = Aktif (tampil di rekap & KPI),
     # False = Non Aktif (HANYA dihitung di KPI Vacant)
@@ -568,6 +572,31 @@ def show():
             return nama
 
         return nama
+
+    join_date_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["JOIN_DATE"]
+        .to_dict()
+    )
+
+    def get_join_date(username):
+
+        key = str(username).strip().upper()
+
+        tgl = join_date_map.get(key)
+
+        if pd.isna(tgl) or str(tgl).strip() == "":
+
+            return "-"
+
+        return tgl
 
     # =====================================================
     # USER BRAND
@@ -1408,6 +1437,9 @@ def show():
                 "Nama":
                     get_real_name(nama_cse),
 
+                "Join Date":
+                    get_join_date(nama_cse),
+
                 "Status":
 
                     "Aktif"
@@ -1758,6 +1790,9 @@ def show():
                         user_cse,
                      "Nama":
                         get_real_name(user_cse),
+
+                    "Join Date":
+                        get_join_date(user_cse),
 
                     "Outlet":
                         temp["ID Outlet"]
@@ -2313,6 +2348,9 @@ def show():
 
                 "Nama":
                     get_real_name(nama_cse),
+
+                "Join Date":
+                    get_join_date(nama_cse),
 
                 "Status":
                     status_user,
