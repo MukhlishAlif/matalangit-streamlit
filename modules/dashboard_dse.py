@@ -169,6 +169,7 @@ def show_grid(
         "Role": 120,
         "Upline": 180,
         "Status": 140,
+        "Join Date": 140,
 
         "Nama": 230,
         "DSE Aktif": 120,
@@ -457,7 +458,8 @@ def show():
             "atasan",
             "real_name",
             "status",
-            "flag_active"
+            "flag_active",
+            "join_date"
         ]
     )
 
@@ -520,6 +522,31 @@ def show():
             return nama
 
         return nama
+
+    join_date_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["JOIN_DATE"]
+        .to_dict()
+    )
+
+    def get_join_date(username):
+
+        key = str(username).strip().upper()
+
+        tgl = join_date_map.get(key)
+
+        if pd.isna(tgl) or str(tgl).strip() == "":
+
+            return "-"
+
+        return tgl
 
     # =====================================================
     # USER BRAND
@@ -2458,6 +2485,9 @@ def show():
 
                 "Nama":
                     get_real_name(nama_user),
+
+                "Join Date":
+                    get_join_date(nama_user),
 
                 "Upline":
                     row["ATASAN"],

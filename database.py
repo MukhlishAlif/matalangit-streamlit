@@ -170,6 +170,25 @@ def _normalize_flag_bio(value):
 
     return 1 if text in ("1", "true", "ya", "yes") else 0
 
+def _normalize_join_date(value):
+    """
+    Ambil tanggal join dari field 'join_date' kalau API menyediakannya,
+    kalau tidak fallback ke tanggal dari 'created_at' (dipotong jadi
+    YYYY-MM-DD saja, tanpa jam).
+    """
+
+    if not value:
+        return ""
+
+    text = str(value).strip()
+
+    if not text:
+        return ""
+
+    # kalau formatnya "2024-05-01 10:23:00" atau ada "T" (ISO),
+    # ambil bagian tanggalnya saja
+    return text[:10]
+
 
 def _outlet_row_tuple(r, bio_map=None):
     """
@@ -205,21 +224,24 @@ def _user_row_dict(r):
     role_raw = r.get("role") or ""
     status_raw = r.get("status")
 
+    created_at = r.get("created_at")
+
+    join_date_raw = r.get("join_date") or created_at
+
     return {
         "id": r.get("id"),
         "user": r.get("user") or r.get("username"),
         "role": role_raw.upper(),
         "atasan": r.get("atasan"),
         "status": status_raw,
-        "created_at": r.get("created_at"),
+        "created_at": created_at,
+        "join_date": _normalize_join_date(join_date_raw),
         "brand": r.get("brand"),
         "region": r.get("region"),
         "area": r.get("area"),
         "branch": r.get("branch"),
         "micro_cluster": r.get("micro_cluster"),
         "real_name": r.get("real_name") or r.get("full_name"),
-        # langsung ambil dari kolom status apa adanya, tanpa normalisasi:
-        # aktif hanya kalau nilainya persis "Aktif" (case-insensitive)
         "flag_active": str(status_raw).strip().upper() == "AKTIF",
     }
 
@@ -374,7 +396,7 @@ def load_user_hierarchy():
     records = [_user_row_dict(r) for r in raw_rows]
 
     default_cols = [
-        "id", "user", "role", "atasan", "status", "created_at",
+        "id", "user", "role", "atasan", "status", "created_at", "join_date",
         "brand", "region", "area", "branch", "micro_cluster", "real_name",
         "flag_active"
     ]
@@ -383,13 +405,14 @@ def load_user_hierarchy():
 
     df.columns = df.columns.str.upper()
 
-    for col in ["ATASAN", "ROLE", "STATUS"]:
+    for col in ["ATASAN", "ROLE", "STATUS", "JOIN_DATE"]:
         if col not in df.columns:
             df[col] = ""
 
     df["ATASAN"] = df["ATASAN"].fillna("")
     df["ROLE"] = df["ROLE"].fillna("")
     df["STATUS"] = df["STATUS"].fillna("AKTIF")
+    df["JOIN_DATE"] = df["JOIN_DATE"].fillna("")
 
     # ==========================================
     # FLAG_ACTIVE: true = aktif, false = non-aktif (dihitung Vacant,
@@ -555,7 +578,8 @@ def tampil_user():
             "atasan": d["atasan"],
             "real_name": d["real_name"],
             "status": d["status"],
-            "flag_active": d["flag_active"],   # <-- BARU, hasil dari _normalize_status_aktif(status)
+            "flag_active": d["flag_active"],
+            "join_date": d["join_date"],
         }
         for d in (_user_row_dict(r) for r in raw_rows)
     ]

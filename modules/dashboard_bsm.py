@@ -571,6 +571,52 @@ def show():
 
         return nama
 
+    def get_real_name(username):
+
+        key = str(username).strip().upper()
+
+        nama = real_name_map.get(key)
+
+        nama_str = str(nama).strip().upper()
+
+        if (
+            pd.isna(nama)
+            or nama_str in ["", "VACANT", "NAN", "NONE"]
+        ):
+
+            return nama
+
+        return nama
+
+    # ======================================================
+    # USER -> JOIN DATE
+    # ======================================================
+
+    join_date_map = (
+        df_user
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+        .set_index("USER")["JOIN_DATE"]
+        .to_dict()
+    )
+
+    def get_join_date(username):
+
+        key = str(username).strip().upper()
+
+        tgl = join_date_map.get(key)
+
+        if pd.isna(tgl) or str(tgl).strip() == "":
+
+            return "-"
+
+        return tgl
+
     # =====================================================
     # USER BRAND
     # =====================================================
@@ -1258,15 +1304,11 @@ def show():
                 "Nama":
                     get_real_name(nama_bsm),
 
+                "Join Date":
+                    get_join_date(nama_bsm),
+
                 "Status":
-
-                    "Aktif"
-
-                    if total_msisdn > 0
-
-                    else
-
-                    "Belum Input",
+                    status_user,
 
                 "MSISDN":
                     total_msisdn,
@@ -1620,8 +1662,18 @@ def show():
                 "Nama":
                     get_real_name(nama_bsm),
 
+                "Join Date":
+                    get_join_date(nama_bsm),
+
                 "Status":
-                    status_user,
+
+                    "Aktif"
+
+                    if total_msisdn > 0
+
+                    else
+
+                    "Belum Input",
 
                 "MSISDN":
                     total_msisdn,
