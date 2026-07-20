@@ -227,12 +227,17 @@ st.markdown(
         margin-bottom: 4px;
     }
 
+    /* Tinggi tombol nav DIKUNCI (min-height) supaya semua tombol
+       dashboard punya ukuran kotak yang SAMA PERSIS, baik yang
+       ada badge/centang di sampingnya maupun yang tidak (mis.
+       Dashboard Frontliner yang sudah tanpa notif). */
     [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button {
         background: #fff !important;
         color: #1F2937 !important;
         border: 1px solid rgba(0,0,0,0.06) !important;
         border-radius: 10px !important;
         padding: 9px 12px !important;
+        min-height: 42px !important;
         font-weight: 500 !important;
         font-size: 14.5px !important;
         box-shadow: none !important;
@@ -272,9 +277,13 @@ st.markdown(
     }
 
     /* Item aktif (type="primary") */
+    /* PENTING: border-width DISAMAKAN dengan tombol non-aktif (1px)
+       supaya ukuran/tinggi kotak semua tombol dashboard SERAGAM.
+       Bedanya cukup lewat warna border + background saja, bukan
+       lewat ketebalan border. */
     [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button[kind="primary"] {
         background: rgba(212,83,126,0.08) !important;
-        border: 1.5px solid #D4537E !important;
+        border: 1px solid #D4537E !important;
     }
 
     [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button[kind="primary"] p {
@@ -296,6 +305,19 @@ st.markdown(
     /* ketiban abu-abu.               */
     /* ============================= */
 
+    /* Wrapper badge/centang: dibuat setinggi tombol nav (min-height
+       sama dengan button di atas) dan di-flex-center supaya badge
+       SEJAJAR/rata tengah vertikal dengan tombol dashboard-nya,
+       bukan nempel di atas (margin-top manual). */
+    [data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] .ml-badge-wrap{
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        height:42px;
+        width:100%;
+        margin-top:-20px;
+    }
+
     [data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] .ml-badge {
         display: inline-flex;
         align-items: center;
@@ -303,7 +325,6 @@ st.markdown(
         min-width: 26px;
         height: 26px;
         padding: 0 8px;
-        margin-top: 6px;
         border-radius: 999px;
         background: #FF3B30 !important;
         color: #fff !important;
@@ -319,7 +340,6 @@ st.markdown(
         justify-content: center;
         width: 26px;
         height: 26px;
-        margin-top: 6px;
         border-radius: 999px;
         background: #25A244 !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
@@ -502,11 +522,14 @@ sidebar()
 # user) yang jadi "target submit" untuk menu tersebut. Dipakai
 # HANYA untuk role HOS, BSM, CSE/RSE (bukan ADMIN/HOR / role
 # submitter lainnya).
+#
+# CATATAN: "Dashboard Frontliner" SENGAJA TIDAK dimasukkan ke
+# ROLE_MAP. Sesuai permintaan, menu ini tidak butuh notif
+# badge/centang sama sekali -> status belum-submit-nya diabaikan.
 # =====================================
 
 ROLE_MAP = {
     "Dashboard DSE": "DSE",
-    "Dashboard Frontliner": "FRONTLINER",
     "Dashboard DSE Promotor": "PROMOTOR",
     "Dashboard GSE": "GSE",
     "Dashboard RGE": "RGE",
@@ -525,13 +548,17 @@ ROLE_MAP = {
 # target di tabel user }. Hanya role HOS, BSM, CSE, RSE yang punya
 # popup summary (role submitter murni seperti DSE/FRONTLINER/dst
 # tidak punya bawahan sehingga tidak perlu popup).
+#
+# Catatan: popup ringkasan ini TIDAK diubah -> "Frontliner" masih
+# tetap tampil di sana kalau permintaannya cuma untuk badge di
+# sidebar nav. Kalau mau Frontliner juga diabaikan di popup ini,
+# tinggal hapus baris "Frontliner" di tiap dict di bawah.
 # =====================================
 
 POPUP_SUMMARY_MAP = {
     "HOS": {
         "BSM": "BSM",
         "DSE": "DSE",
-        "Frontliner": "FRONTLINER",
         "DSE Promotor": "PROMOTOR",
         "Promotor": "NP",
         "GSE": "GSE",
@@ -541,7 +568,6 @@ POPUP_SUMMARY_MAP = {
     },
     "BSM": {
         "DSE": "DSE",
-        "Frontliner": "FRONTLINER",
         "DSE Promotor": "PROMOTOR",
         "Promotor": "NP",
         "GSE": "GSE",
@@ -551,13 +577,11 @@ POPUP_SUMMARY_MAP = {
     },
     "CSE": {
         "DSE": "DSE",
-        "Frontliner": "FRONTLINER",
         "DSE Promotor": "PROMOTOR",
         "GSE": "GSE",
     },
     "RSE": {
         "DSE": "DSE",
-        "Frontliner": "FRONTLINER",
         "DSE Promotor": "PROMOTOR",
         "GSE": "GSE",
     },
@@ -720,6 +744,13 @@ def render_sidebar_nav(menu_items, current_user, default_item=None):
     pindah dashboard. st.button tetap dalam sesi Streamlit yang
     sama (rerun via WebSocket), jadi session_state login TIDAK
     pernah hilang.
+
+    KHUSUS "Dashboard Frontliner": item ini SENGAJA dikecualikan
+    dari perhitungan badge (lihat ROLE_MAP di atas, item ini tidak
+    ada di sana) -> total selalu 0 -> kolom badge dibiarkan kosong,
+    tapi tombolnya tetap dirender dengan ukuran/tinggi yang SAMA
+    seperti tombol dashboard lain (dikunci lewat CSS min-height),
+    supaya kotaknya tetap seragam meski tanpa badge di sampingnya.
     """
 
     default_item = default_item or menu_items[0]
@@ -761,12 +792,12 @@ def render_sidebar_nav(menu_items, current_user, default_item=None):
             if total > 0:
                 if belum > 0:
                     st.markdown(
-                        f'<div class="ml-badge">{belum}</div>',
+                        f'<div class="ml-badge-wrap"><div class="ml-badge">{belum}</div></div>',
                         unsafe_allow_html=True
                     )
                 else:
                     st.markdown(
-                        '<div class="ml-check"></div>',
+                        '<div class="ml-badge-wrap"><div class="ml-check"></div></div>',
                         unsafe_allow_html=True
                     )
 
