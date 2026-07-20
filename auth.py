@@ -165,9 +165,24 @@ def sidebar():
             f":material/account_circle: **{st.session_state.outlet_user}**"
         )
 
-        st.caption(
-            f":material/badge: {st.session_state.outlet_role}"
+        col_role, col_bell = st.columns(
+            [4, 1], gap="small", vertical_alignment="center"
         )
+
+        with col_role:
+            st.caption(
+                f":material/badge: {st.session_state.outlet_role}"
+            )
+
+        with col_bell:
+            if st.button(
+                "",
+                icon=":material/notifications_active:",
+                key="btn_bell_summary",
+                help="Lihat ringkasan tim yang belum submit"
+            ):
+                st.session_state["force_show_summary_popup"] = True
+                st.rerun()
 
         st.divider()
         # =====================================

@@ -39,6 +39,14 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown(
+    """
+    <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+    """,
+    unsafe_allow_html=True
+)
+
 # =====================================
 # CUSTOM CSS
 # =====================================
@@ -209,91 +217,240 @@ st.markdown(
     /* ============================= */
     /* SIDEBAR NAV DENGAN BADGE       */
     /* (HOS / BSM / CSE-RSE)          */
+    /* Dipakai via st.sidebar.button  */
+    /* (key diawali "navbtn_") supaya */
+    /* TIDAK full-reload browser      */
+    /* (aman dari kehilangan sesi)    */
     /* ============================= */
 
-    .ml-nav {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        margin-bottom: 0.5rem;
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] {
+        margin-bottom: 4px;
     }
 
-    .ml-nav-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        background: #fff;
-        border: 1px solid rgba(0,0,0,0.06);
-        border-radius: 10px;
-        padding: 9px 12px;
-        text-decoration: none !important;
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button {
+        background: #fff !important;
         color: #1F2937 !important;
-        font-size: 14.5px;
-        font-weight: 500;
-        transition: all 0.15s ease;
+        border: 1px solid rgba(0,0,0,0.06) !important;
+        border-radius: 10px !important;
+        padding: 9px 12px !important;
+        font-weight: 500 !important;
+        font-size: 14.5px !important;
+        box-shadow: none !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        transform: none !important;
+        display: flex !important;
     }
 
-    .ml-nav-item:hover {
-        border-color: #D4537E;
-        background: rgba(212,83,126,0.05);
+    /* Perkuat rata kiri sampai ke wrapper teks di dalam tombol,   */
+    /* karena Streamlit kadang nge-center teks tombol lewat        */
+    /* div/markdown-container internal, bukan cuma di elemen       */
+    /* <button>-nya sendiri.                                       */
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button > div,
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button div[data-testid="stMarkdownContainer"] {
+        justify-content: flex-start !important;
+        text-align: left !important;
+        width: 100% !important;
     }
 
-    .ml-nav-item.active {
-        background: #fff;
-        border-color: rgba(0,0,0,0.06);
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button div[data-testid="stMarkdownContainer"] p {
+        text-align: left !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button:hover {
+        border-color: #D4537E !important;
+        background: rgba(212,83,126,0.05) !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button p {
         color: #1F2937 !important;
-        font-weight: 500;
+        font-weight: 500 !important;
     }
 
-    .ml-nav-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    /* Item aktif (type="primary") */
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button[kind="primary"] {
+        background: rgba(212,83,126,0.08) !important;
+        border: 1.5px solid #D4537E !important;
     }
 
-    /* Badge merah bulat (mirip notif WhatsApp) */
-    .ml-badge {
-        flex-shrink: 0;
+    [data-testid="stSidebar"] div[class*="st-key-navbtn_"] button[kind="primary"] p {
+        color: #1F2937 !important;
+        font-weight: 600 !important;
+    }
+
+    /* ============================= */
+    /* BADGE NOTIF (kolom kecil di    */
+    /* sebelah tombol nav)            */
+    /*                                 */
+    /* Selector di-prefix ganda       */
+    /* [data-testid="stSidebar"] +    */
+    /* .ml-badge/.ml-check supaya     */
+    /* SPESIFISITAS-nya lebih tinggi  */
+    /* daripada aturan global         */
+    /* "[data-testid=stSidebar] span" */
+    /* di atas, jadi warnanya tidak   */
+    /* ketiban abu-abu.               */
+    /* ============================= */
+
+    [data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] .ml-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 20px;
-        height: 20px;
-        padding: 0 6px;
+        min-width: 26px;
+        height: 26px;
+        padding: 0 8px;
+        margin-top: 6px;
         border-radius: 999px;
-        background: #FF3B30;
+        background: #FF3B30 !important;
         color: #fff !important;
-        font-size: 11.5px;
+        font-size: 12.5px;
         font-weight: 700;
         line-height: 1;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
     }
 
-    /* Badge hijau centang (semua sudah submit) */
-    .ml-check {
-        flex-shrink: 0;
+    [data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] .ml-check {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 20px;
-        height: 20px;
+        width: 26px;
+        height: 26px;
+        margin-top: 6px;
         border-radius: 999px;
-        background: #25A244;
+        background: #25A244 !important;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
         position: relative;
     }
 
-    .ml-check::after {
+    [data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] .ml-check::after {
         content: "";
         position: absolute;
-        width: 9px;
-        height: 5px;
+        width: 10px;
+        height: 6px;
         border-left: 2px solid #fff;
         border-bottom: 2px solid #fff;
         transform: rotate(-45deg);
-        top: 6px;
-        left: 5px;
+        top: 8px;
+        left: 8px;
+    }
+
+    /* ============================= */
+    /* POPUP SUMMARY BELUM SUBMIT     */
+    /* ============================= */
+
+    .ml-summary-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: #F9FAFB;
+        border: 1px solid rgba(0,0,0,0.06);
+        margin-bottom: 6px;
+    }
+
+    .ml-summary-label {
+        font-weight: 600;
+        color: #1F2937;
+        font-size: 14.5px;
+    }
+
+    .ml-summary-value-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 26px;
+        height: 26px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #FF3B30;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .ml-summary-value-check {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        background: #25A244;
+        position: relative;
+    }
+
+    .ml-summary-value-check::after {
+        content: "";
+        position: absolute;
+        width: 10px;
+        height: 6px;
+        border-left: 2px solid #fff;
+        border-bottom: 2px solid #fff;
+        transform: rotate(-45deg);
+        top: 8px;
+        left: 8px;
+    }
+
+    /* Row "sudah semua submit" -> aksen hijau */
+    .ml-summary-row-done {
+        background: rgba(37,162,68,0.06) !important;
+        border-color: rgba(37,162,68,0.25) !important;
+    }
+
+    /* ============================= */
+    /* TOMBOL LONCENG NOTIF (buka    */
+    /* ulang popup ringkasan)         */
+    /* ============================= */
+
+    div[class*="st-key-btn_bell_summary"] button {
+        background: #FF3B30 !important;
+        color: #fff !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 38px !important;
+        height: 38px !important;
+        padding: 0 !important;
+        font-size: 17px !important;
+        box-shadow: 0 2px 8px rgba(255,59,48,0.4) !important;
+        transform: none !important;
+        animation: ml-bell-pulse 2s ease-in-out infinite;
+    }
+
+    div[class*="st-key-btn_bell_summary"] button:hover {
+        background: #E5352B !important;
+        transform: scale(1.05) !important;
+        box-shadow: 0 3px 10px rgba(255,59,48,0.5) !important;
+    }
+
+    @keyframes ml-bell-pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(255,59,48,0.5);
+        }
+        50% {
+            box-shadow: 0 0 0 6px rgba(255,59,48,0);
+        }
+    }
+
+    .ml-summary-label-done {
+        color: #1D8A3A !important;
+        font-weight: 600 !important;
+    }
+
+    /* Expander "belum submit" -> aksen merah di border/background.
+       DI-SCOPE hanya di dalam dialog popup (stDialog), supaya
+       TIDAK ikut mengubah tampilan st.expander di halaman/dashboard
+       lain yang tidak berhubungan dengan popup ini. */
+    div[data-testid="stDialog"] div[data-testid="stExpander"],
+    div[data-testid="stExpander"].ml-expander-belum {
+        border: 1px solid rgba(255,59,48,0.25) !important;
+        background: rgba(255,59,48,0.04) !important;
+        border-radius: 10px !important;
+        margin-bottom: 6px !important;
     }
 
     @media (max-width: 768px) {
@@ -313,6 +470,10 @@ st.markdown(
 
         .hero-logo {
             width: 200px;
+        }
+
+        .ml-summary-label {
+            font-size: 13px;
         }
     }
 
@@ -356,12 +517,59 @@ ROLE_MAP = {
 }
 
 
+# =====================================
+# MAPPING UNTUK POPUP SUMMARY
+# =====================================
+#
+# role login -> { label yang ditampilkan di popup : role/list-role
+# target di tabel user }. Hanya role HOS, BSM, CSE, RSE yang punya
+# popup summary (role submitter murni seperti DSE/FRONTLINER/dst
+# tidak punya bawahan sehingga tidak perlu popup).
+# =====================================
+
+POPUP_SUMMARY_MAP = {
+    "HOS": {
+        "BSM": "BSM",
+        "DSE": "DSE",
+        "Frontliner": "FRONTLINER",
+        "DSE Promotor": "PROMOTOR",
+        "Promotor": "NP",
+        "GSE": "GSE",
+        "RGE": "RGE",
+        "GEMPI": "GEMINI",
+        "CSE/RSE": ["CSE", "RSE"],
+    },
+    "BSM": {
+        "DSE": "DSE",
+        "Frontliner": "FRONTLINER",
+        "DSE Promotor": "PROMOTOR",
+        "Promotor": "NP",
+        "GSE": "GSE",
+        "RGE": "RGE",
+        "GEMPI": "GEMINI",
+        "CSE/RSE": ["CSE", "RSE"],
+    },
+    "CSE": {
+        "DSE": "DSE",
+        "Frontliner": "FRONTLINER",
+        "DSE Promotor": "PROMOTOR",
+        "GSE": "GSE",
+    },
+    "RSE": {
+        "DSE": "DSE",
+        "Frontliner": "FRONTLINER",
+        "DSE Promotor": "PROMOTOR",
+        "GSE": "GSE",
+    },
+}
+
+
 @st.cache_data(ttl=60)
 def _get_submission_status_today():
     """
     Ambil df_user (semua user, kolom di-uppercase) dan set username
     yang sudah submit MSISDN HARI INI. Di-cache 60 detik supaya
-    sidebar tidak nge-hit DB/API berkali-kali tiap render.
+    sidebar/popup tidak nge-hit DB/API berkali-kali tiap render.
     """
 
     users = tampil_user()
@@ -437,68 +645,244 @@ def hitung_belum_submit(target_roles, current_user):
     return belum, total
 
 
+def _get_user_list_belum_submit(target_roles, current_user):
+    """
+    Ambil daftar detail user (Username, Nama) yang BELUM submit
+    hari ini, untuk role target_roles yang berada di downline
+    current_user dan berstatus aktif. Dipakai untuk isi tabel
+    detail di dalam expander popup.
+    """
+
+    if isinstance(target_roles, str):
+        target_roles = [target_roles]
+
+    df_user, sudah_submit = _get_submission_status_today()
+
+    if df_user.empty:
+        return pd.DataFrame(columns=["Username", "Nama"])
+
+    downline = set(get_downline(current_user))
+
+    target = df_user[
+
+        (df_user["ROLE"].isin(target_roles))
+
+        &
+
+        (df_user["FLAG_ACTIVE"] == True)
+
+        &
+
+        (df_user["USER"].astype(str).str.strip().isin(downline))
+
+    ].copy()
+
+    target["USER"] = target["USER"].astype(str).str.strip()
+
+    belum_df = target[~target["USER"].isin(sudah_submit)]
+
+    # cari kolom nama secara otomatis (sesuaikan di sini kalau
+    # nama kolom di database kamu berbeda)
+    name_col = next(
+        (c for c in ["REAL_NAME", "NAMA", "NAME", "NAMA_LENGKAP"] if c in belum_df.columns),
+        None
+    )
+
+    if name_col:
+        result = (
+            belum_df[["USER", name_col]]
+            .drop_duplicates()
+            .sort_values("USER")
+            .reset_index(drop=True)
+            .rename(columns={"USER": "Username", name_col: "Nama"})
+        )
+    else:
+        result = (
+            belum_df[["USER"]]
+            .drop_duplicates()
+            .sort_values("USER")
+            .reset_index(drop=True)
+            .rename(columns={"USER": "Username"})
+        )
+
+    return result
+
+
 def render_sidebar_nav(menu_items, current_user, default_item=None):
     """
     Render menu sidebar custom (bukan st.radio) supaya bisa nampilin
-    badge bulat merah (belum submit) / centang hijau (sudah lengkap)
-    di sisi kanan tiap item, mirip notif WhatsApp.
+    badge merah (belum submit) / centang hijau (sudah lengkap) di
+    tiap item, mirip notif WhatsApp.
 
-    Navigasi memakai query param ?menu=... (klik = <a href>), karena
-    st.radio tidak bisa merender HTML/badge di dalam optionnya.
+    PENTING: navigasi memakai st.sidebar.button (bukan <a href>).
+    <a href="?menu=..."> menyebabkan BROWSER RELOAD PENUH, yang
+    memutus koneksi/sesi Streamlit sehingga user "ke-logout" saat
+    pindah dashboard. st.button tetap dalam sesi Streamlit yang
+    sama (rerun via WebSocket), jadi session_state login TIDAK
+    pernah hilang.
     """
 
     default_item = default_item or menu_items[0]
 
-    query_menu = st.query_params.get("menu")
-
-    if query_menu in menu_items:
-        current_menu = query_menu
-    else:
-        current_menu = st.session_state.get(
-            "outlet_menu_selected", default_item
-        )
+    current_menu = st.session_state.get(
+        "outlet_menu_selected", default_item
+    )
 
     if current_menu not in menu_items:
         current_menu = default_item
 
     st.session_state["outlet_menu_selected"] = current_menu
 
-    html = '<div class="ml-nav">'
-
     for item in menu_items:
 
-        badge_html = ""
+        belum, total = 0, 0
         target_roles = ROLE_MAP.get(item)
 
         if target_roles:
-
             belum, total = hitung_belum_submit(
                 target_roles, current_user
             )
 
-            if total > 0:
+        is_active = (item == current_menu)
 
-                if belum > 0:
-                    badge_html = f'<span class="ml-badge">{belum}</span>'
-                else:
-                    badge_html = '<span class="ml-check"></span>'
-
-        active_class = " active" if item == current_menu else ""
-        encoded = urllib.parse.quote(item)
-
-        html += (
-            f'<a class="ml-nav-item{active_class}" '
-            f'href="?menu={encoded}" target="_self">'
-            f'<span class="ml-nav-label">{item}</span>'
-            f'{badge_html}'
-            f'</a>'
+        col_btn, col_badge = st.sidebar.columns(
+            [5, 1], gap="small", vertical_alignment="center"
         )
 
-    html += '</div>'
+        with col_btn:
+            clicked = st.button(
+                item,
+                key=f"navbtn_{item}",
+                use_container_width=True,
+                type="primary" if is_active else "secondary",
+            )
 
-    st.sidebar.markdown(html, unsafe_allow_html=True)
+        with col_badge:
+            if total > 0:
+                if belum > 0:
+                    st.markdown(
+                        f'<div class="ml-badge">{belum}</div>',
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(
+                        '<div class="ml-check"></div>',
+                        unsafe_allow_html=True
+                    )
 
-    return current_menu
+        if clicked and not is_active:
+            st.session_state["outlet_menu_selected"] = item
+
+            # sinkronkan URL biar bisa di-bookmark (opsional,
+            # tidak memicu reload karena di-set lewat Python API,
+            # bukan lewat <a href> / navigasi browser)
+            try:
+                st.query_params["menu"] = item
+            except Exception:
+                pass
+
+            st.rerun()
+
+    return st.session_state["outlet_menu_selected"]
+
+
+# =====================================
+# POPUP RINGKASAN "BELUM SUBMIT"
+# =====================================
+#
+# Muncul SEKALI setiap sesi login (bukan setiap pindah menu/page),
+# untuk role HOS / BSM / CSE / RSE. Ditandai lewat session_state
+# per-username, jadi tidak akan trigger ulang saat rerun karena
+# pindah dashboard, dan tidak menyentuh state login sama sekali
+# (aman dari ke-logout).
+# =====================================
+
+# fallback kalau versi streamlit belum punya st.dialog (>=1.31)
+_dialog_decorator = getattr(st, "dialog", None) or getattr(
+    st, "experimental_dialog", None
+)
+
+
+def _popup_flag_key(user):
+    return f"popup_summary_shown__{user}"
+
+
+def _render_summary_rows(role, user):
+
+    role_targets = POPUP_SUMMARY_MAP.get(role, {})
+
+    if not role_targets:
+        st.info("Tidak ada data ringkasan untuk role ini.")
+        return
+
+    any_row = False
+
+    for label, target_roles in role_targets.items():
+
+        belum, total = hitung_belum_submit(target_roles, user)
+
+        if total == 0:
+            continue
+
+        any_row = True
+
+        if belum > 0:
+
+            # baris yang masih ada tunggakan -> merah, bisa diklik
+            # untuk buka detail siapa aja yang belum submit
+            with st.expander(
+                f":red[**{label}**]  —  :red[**{belum}**] dari {total} belum submit"
+            ):
+
+                df_detail = _get_user_list_belum_submit(
+                    target_roles, user
+                )
+
+                if df_detail.empty:
+                    st.caption("Tidak ada detail user yang bisa ditampilkan.")
+                else:
+                    st.dataframe(
+                        df_detail,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+        else:
+
+            # semua sudah submit -> hijau, row biasa (tidak ada
+            # detail untuk dibuka)
+            st.markdown(
+                f'<div class="ml-summary-row ml-summary-row-done">'
+                f'<span class="ml-summary-label ml-summary-label-done">{label}</span>'
+                f'<span class="ml-summary-value-check"></span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+    if not any_row:
+        st.info("Belum ada bawahan aktif untuk role ini.")
+
+
+if _dialog_decorator is not None:
+
+    @_dialog_decorator("Tim Belum Submit")
+    def _show_submit_summary_popup(role, user):
+
+        _render_summary_rows(role, user)
+
+
+else:
+
+    # fallback paling aman untuk versi streamlit lama (tanpa
+    # st.dialog): tampilkan di atas halaman sebagai container biasa
+    # (BUKAN st.expander, karena tiap baris "belum submit" di
+    # _render_summary_rows sudah pakai st.expander sendiri --
+    # Streamlit tidak mengizinkan expander bersarang/nested).
+    def _show_submit_summary_popup(role, user):
+
+        st.markdown("#### Tim Belum Submit")
+        _render_summary_rows(role, user)
+        st.divider()
 
 
 # =====================================
@@ -507,6 +891,21 @@ def render_sidebar_nav(menu_items, current_user, default_item=None):
 
 role = st.session_state.outlet_role
 user = st.session_state.outlet_user
+
+
+# tampilkan popup ringkasan sekali saja per sesi login,
+# hanya untuk role yang punya bawahan (HOS / BSM / CSE / RSE)
+if role in POPUP_SUMMARY_MAP:
+
+    flag_key = _popup_flag_key(user)
+
+    force_popup = st.session_state.pop(
+        "force_show_summary_popup", False
+    )
+
+    if force_popup or not st.session_state.get(flag_key, False):
+        st.session_state[flag_key] = True
+        _show_submit_summary_popup(role, user)
 
 # =====================================
 # MENU
