@@ -195,6 +195,7 @@ def _render_rekap(df, title, icon, nama_role):
                 "ID Outlet",
                 "MSISDN",
                 "Input By",
+                "Upline",
                 "Tanggal",
                 "Tanggal Biometrik",
                 "ROLE",
@@ -218,6 +219,7 @@ def _render_rekap(df, title, icon, nama_role):
                 "ID Outlet",
                 "MSISDN",
                 "Input By",
+                "Upline",
                 "Tanggal",
                 "Tanggal Biometrik",
                 "Biometrik H-1",
@@ -226,7 +228,6 @@ def _render_rekap(df, title, icon, nama_role):
             ],
             key=f"editor_{nama_role}"
         )
-
         # ===========================
         # DELETE
         # ===========================
@@ -526,6 +527,38 @@ def show():
         )
         .set_index("USER")["ROLE"]
         .to_dict()
+    )
+
+    df["ROLE"] = (
+        df["Input By"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .map(role_map)
+        .fillna("")
+    )
+
+    # ===========================
+    # UPLINE MAP
+    # ===========================
+
+    atasan_map = (
+        users
+        .drop_duplicates(subset="USER")
+        .assign(
+            USER=lambda x: x["USER"].astype(str).str.strip().str.upper()
+        )
+        .set_index("USER")["ATASAN"]
+        .to_dict()
+    )
+
+    df["Upline"] = (
+        df["Input By"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .map(atasan_map)
+        .fillna("")
     )
 
     df["ROLE"] = (
