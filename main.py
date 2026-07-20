@@ -240,11 +240,10 @@ st.markdown(
     }
 
     .ml-nav-item.active {
-        background: linear-gradient(90deg, #F5B400, #D4537E);
-        border-color: transparent;
-        color: #fff !important;
-        font-weight: 600;
-        box-shadow: 0 4px 14px rgba(212,83,126,0.25);
+        background: #fff;
+        border-color: rgba(0,0,0,0.06);
+        color: #1F2937 !important;
+        font-weight: 500;
     }
 
     .ml-nav-label {
