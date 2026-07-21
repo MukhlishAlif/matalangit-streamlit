@@ -18,7 +18,9 @@ from st_aggrid import (
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user
+    tampil_user,
+    load_leave_map,
+    get_leave_flag_range,
 )
 
 # =========================================================
@@ -726,6 +728,8 @@ def show():
         .str.strip()
 
     )
+
+    leave_map = load_leave_map()
 
     # ======================================================
     # USER -> REAL NAME
@@ -2174,6 +2178,9 @@ def show():
 
             "Join Date":
                 get_join_date(nama_promotor),
+
+            "Flag Izin":
+                get_leave_flag_range(leave_map, nama_promotor, start_date, end_date),
 
             "Upline":
                 row["ATASAN"],

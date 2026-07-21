@@ -19,6 +19,7 @@ from modules.main_dashboard import show as main_dashboard
 from modules.quickcount_dashboard import show as quickcount_dashboard
 from modules.dashboard_bsm import show as dashboard_bsm
 from modules.dashboard_np import show as dashboard_np
+from modules.performance import show as performance
 
 from auth import login_page, sidebar
 
@@ -909,7 +910,7 @@ def _render_summary_rows(role, user):
 
 if _dialog_decorator is not None:
 
-    @_dialog_decorator("Tim Belum Submit")
+    @_dialog_decorator("DAILY QUEST")
     def _show_submit_summary_popup(role, user):
 
         _render_summary_rows(role, user)
@@ -973,6 +974,7 @@ elif role in ["CSE","RSE"]:
         "Dashboard DSE",
         "Dashboard Frontliner",
         "Dashboard DSE Promotor",
+        "Dashboard Promotor"
         "Dashboard GSE",
         "Data MSISDN"
     ]
@@ -1000,6 +1002,7 @@ elif role == "BSM":
 elif role == "HOS":
 
     menu_items = [
+        "Performance Team",
         "Leaderboard Biometrik",
         "Leaderboard Quick Count",
         "Dashboard BSM",
@@ -1093,3 +1096,7 @@ elif menu == "Dashboard Promotor":
 elif menu == "Data MSISDN":
 
     data_outlet()
+
+elif menu == "Performance Team":
+
+    performance()

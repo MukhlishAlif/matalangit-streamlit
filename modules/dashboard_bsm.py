@@ -17,7 +17,9 @@ from io import BytesIO
 from database import (
     tampil_data_by_date,
     get_latest_data_date,
-    tampil_user
+    tampil_user,
+    load_leave_map,
+    get_leave_flag_range,
 )
 
 
@@ -537,6 +539,10 @@ def show():
 
     )
 
+    # Peta izin/cuti (hanya APPROVED), dipakai untuk kolom "Flag Izin"
+    # di tabel Rekap DSE Promotor saja.
+    leave_map = load_leave_map()
+
     # ======================================================
     # USER -> REAL NAME
     # ======================================================
@@ -553,23 +559,6 @@ def show():
         .set_index("USER")["REAL_NAME"]
         .to_dict()
     )
-
-    def get_real_name(username):
-
-        key = str(username).strip().upper()
-
-        nama = real_name_map.get(key)
-
-        nama_str = str(nama).strip().upper()
-
-        if (
-            pd.isna(nama)
-            or nama_str in ["", "VACANT", "NAN", "NONE"]
-        ):
-
-            return nama
-
-        return nama
 
     def get_real_name(username):
 
@@ -1296,6 +1285,19 @@ def show():
 
             ) if total_msisdn > 0 else 0
 
+            status_user = (
+
+                "Aktif"
+
+                if total_msisdn > 0
+
+                else
+
+                "Belum Input"
+
+            )
+
+
             rekap_bsm.append({
 
                 "BSM":
@@ -1306,6 +1308,9 @@ def show():
 
                 "Join Date":
                     get_join_date(nama_bsm),
+                
+                "Flag Izin":
+                    get_leave_flag_range(leave_map, nama_bsm, start_date, end_date),
 
                 "Status":
                     status_user,
@@ -1664,6 +1669,9 @@ def show():
 
                 "Join Date":
                     get_join_date(nama_bsm),
+                
+                "Flag Izin":
+                    get_leave_flag_range(leave_map, nama_bsm, start_date, end_date),
 
                 "Status":
 

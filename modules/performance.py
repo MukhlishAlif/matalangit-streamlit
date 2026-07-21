@@ -110,6 +110,17 @@ def inject_css():
         margin-top:4px;
     }
 
+    .kpi-value-sub{
+        font-size:12px;
+        font-weight:700;
+        color:#059669;
+        background:#DCFCE7;
+        padding:2px 8px;
+        border-radius:999px;
+        margin-left:6px;
+        vertical-align:middle;
+    }
+
     .mld-card-title{
         font-weight:800;
         font-size:14px;
@@ -117,214 +128,6 @@ def inject_css():
         margin-bottom:12px;
     }
 
-
-    /* ===== HOS ACHIEVEMENT - PODIUM ===== */
-
-    .hos-panel{
-
-        height:620px;
-        display:flex;
-        align-items:flex-end;
-
-    }
-
-    .podium-wrap{
-
-        width:100%;
-
-        display:flex;
-        align-items:flex-end;
-        justify-content:center;
-
-        gap:15px;
-
-        padding-top:15px;
-
-    }
-
-    .podium-card{
-
-        flex:1;
-        max-width:140px;
-
-        border-radius:16px 16px 6px 6px;
-
-        text-align:center;
-        color:white;
-
-        box-shadow:0 6px 16px rgba(0,0,0,.14);
-
-        padding:14px 8px 12px 8px;
-
-        position:relative;
-        overflow:hidden;
-
-        transition:all .2s ease;
-
-        display:flex;
-        flex-direction:column;
-        justify-content:flex-end;
-
-        align-self:flex-end;
-
-    }
-
-    .podium-card:hover{
-
-        transform:translateY(-4px);
-
-    }
-
-    .podium-card::before{
-
-        content:"";
-
-        position:absolute;
-
-        top:-24px;
-        right:-24px;
-
-        width:80px;
-        height:80px;
-
-        background:rgba(255,255,255,.10);
-
-        border-radius:50%;
-
-    }
-
-    /* ===== Rank ===== */
-
-    .podium-card.place-1{
-
-        order:2;
-
-        height:335px;
-
-        background:linear-gradient(160deg,#A78BFA,#7C3AED);
-        color:#FFFFFF;
-
-        z-index:3;
-
-    }
-
-    .podium-card.place-2{
-
-        order:1;
-
-        height:300px;
-
-        background:linear-gradient(160deg,#FF6B95,#EC1C4C);
-
-        color:#FFFFFF;
-
-    }
-
-    .podium-card.place-3{
-
-        order:3;
-
-        height:270px;
-
-        background:linear-gradient(160deg,#FFE066,#F5B400);
-
-        color:#3A2A00;
-
-    }
-
-    .podium-card.place-4{
-
-        order:4;
-
-        height:235px;
-
-        background:linear-gradient(160deg,#CBD5E1,#94A3B8);
-
-        color:#1E293B;
-
-    }
-
-    .podium-crown{
-
-        font-size:45px;
-
-        margin-bottom:30px;
-
-    }
-
-    .podium-medal{
-
-        display:inline-flex;
-
-        align-items:center;
-        justify-content:center;
-
-        width:30px;
-        height:30px;
-
-        border-radius:50%;
-
-        background:rgba(255,255,255,.35);
-
-        font-weight:1000;
-
-        font-size:20px;
-
-        margin:0 auto 17px auto;
-
-    }
-
-    .podium-name{
-
-        font-weight:700;
-
-        font-size:13.5px;
-
-        white-space:nowrap;
-
-        overflow:hidden;
-
-        text-overflow:ellipsis;
-
-    }
-
-    .podium-val{
-
-        font-size:24px;
-
-        font-weight:800;
-
-        margin-top:6px;
-
-    }
-
-    .podium-caption{
-
-        font-size:9.5px;
-
-        opacity:.85;
-
-        margin-top:2px;
-
-    }
-
-    .podium-submit-pill{
-
-        display:inline-block;
-
-        margin-top:8px;
-
-        padding:3px 10px;
-
-        border-radius:999px;
-
-        background:rgba(255,255,255,.25);
-
-        font-size:10.5px;
-
-        font-weight:700;
-
-    }
 
     /* ===== RANKING ROW v2 ===== */
 
@@ -776,16 +579,6 @@ def load_all_data(start_date, end_date):
         children_map
     ) = load_user_hierarchy()
 
-    # ------------------------------------------------
-    # OUTLET
-    # ------------------------------------------------
-    # Catatan: khusus Quick Count, "Biometrik" di sini dipakai untuk
-    # info tambahan saja -- metrik utama Quick Count tetap JUMLAH BARIS
-    # SUBMIT (bukan biometrik). Kolom Biometrik diambil LANGSUNG dari
-    # flag_bio yang dikirim API per baris outlet (lewat SELECT di
-    # tampil_data_by_date), tidak perlu load_biometrik()/merge manual lagi.
-    # ------------------------------------------------
-
     df = pd.DataFrame(
 
         outlet_rows,
@@ -808,12 +601,6 @@ def load_all_data(start_date, end_date):
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
 
     df["Biometrik"] = df["Biometrik"].fillna(0).astype(int)
-
-    # ------------------------------------------------
-    # BUANG BARIS DI LUAR RENTANG TANGGAL SEDINI MUNGKIN,
-    # sebelum susur hierarki (baris yang tersisa jadi lebih sedikit
-    # kalau histori data-nya besar).
-    # ------------------------------------------------
 
     df = df[
         (df["Tanggal"].dt.date >= buffer_start)
@@ -883,12 +670,6 @@ def get_descendants(root, children_map, max_depth=20):
     return hasil
 
 def get_active_descendants(root, children_map, active_users_set, max_depth=20):
-    """
-    Sama seperti get_descendants, tapi hasil akhirnya disaring supaya HANYA
-    berisi user yang FLAG_ACTIVE == True. Dipakai di semua tempat yang
-    menghitung/menampilkan "downline" -- user non-aktif tidak boleh ikut
-    dihitung sebagai bawahan di manapun.
-    """
     downline = get_descendants(root, children_map, max_depth=max_depth)
     return [u for u in downline if u in active_users_set]
 
@@ -926,7 +707,6 @@ def fmt(n):
         return str(n)
 
 def mat_icon(name, size=16, color=None, valign=-3):
-    """Render ikon Material Symbols sebagai pengganti emoji."""
 
     style = f"font-size:{size}px;vertical-align:{valign}px;"
 
@@ -1017,11 +797,6 @@ im3_icon = get_base64_image("im3.png")
 tid_icon = get_base64_image("3id.png")
 
 
-def get_base64_image(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-
 LEAVE_CATEGORY_LABEL = {
     "sick": "Sakit",
     "leave": "Izin",
@@ -1034,12 +809,6 @@ def categorize_leave_type(leave_type):
 
 
 def get_leave_breakdown(leave_map, user_list, filter_start, filter_end):
-    """
-    Untuk user yang TIDAK submit pada periode ini, hitung berapa orang
-    yang lagi izin approved & overlap filter_start-filter_end,
-    dikelompokkan per kategori (Sakit / Cuti / Izin Lainnya).
-    1 user dihitung 1x (ambil leave entry pertama yang overlap).
-    """
     counts = {}
 
     for u in user_list:
@@ -1071,14 +840,11 @@ def show():
         """,
         unsafe_allow_html=True
     )
-    
+
     inject_css()
 
     # ------------------------------------------------
-    # Hierarki user (df_user, role_map, dst) TIDAK tergantung
-    # tanggal filter, jadi diambil duluan di sini (cache ttl=300)
-    # supaya bisa dipakai untuk header & dropdown HoS sebelum
-    # tahu tanggal apa yang dipilih user.
+    # Hierarki user (tidak tergantung tanggal filter)
     # ------------------------------------------------
     (
         df_user,
@@ -1094,14 +860,33 @@ def show():
         .str.strip()
     )
 
-    # Peta izin/cuti, dipakai untuk kolom "Flag Izin" di Team & Individual Performance
     leave_map = load_leave_map()
 
     # ------------------------------------------------
-    # HEADER
+    # USER YANG LOGIN = HOS PEMILIK HALAMAN INI.
+    # Seluruh halaman di-scope HANYA ke HoS ini + bawahan-
+    # bawahannya (downline). Tidak ada lagi filter/pemilihan
+    # HoS lain -- halaman ini memang khusus 1 HoS.
     # ------------------------------------------------
-    current_user = st.session_state.get("outlet_user", "-")
+
+    current_user = str(st.session_state.get("outlet_user", "-")).strip()
     current_role = role_map.get(current_user, "-")
+
+    hos_root = current_user
+
+    # Downline AKTIF (dipakai untuk semua perhitungan performance)
+    hos_downline_active = get_active_descendants(hos_root, children_map, active_users_set)
+
+    # Downline SEMUA (termasuk non-aktif, dipakai untuk hitung Vacant)
+    hos_downline_all = get_descendants(hos_root, children_map)
+
+    # ==========================================
+    # BRAND DIKUNCI KE BRAND HOS INI SENDIRI.
+    # HoS IM3 tidak boleh melihat/memilih data 3ID, dan
+    # sebaliknya -- brand-nya TIDAK bisa dipilih bebas.
+    # ==========================================
+
+    hos_brand = brand_map.get(hos_root, "")
 
     real_name_map = (
         df_user
@@ -1115,12 +900,8 @@ def show():
         current_user
     )
 
-    initials = "".join(
-        [w[0].upper() for w in str(display_name).split()[:2]]
-    ) or "-"
-
     # Load logo jadi base64
-    logo_b64 = get_base64_image("icon.png")  # sesuaikan path kalau perlu, mis. "assets/icon.png"
+    logo_b64 = get_base64_image("icon.png")
 
     st.markdown(
         f"""
@@ -1170,46 +951,6 @@ def show():
             border-radius: 20px;
             display: inline-block;
         }}
-        .mld-pill-row {{
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }}
-        .mld-user-card {{
-            background: rgba(255,255,255,0.16);
-            border-radius: 12px;
-            padding: 12px 18px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }}
-        .mld-avatar {{
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 15px;
-            color: #993556;
-            flex-shrink: 0;
-        }}
-        .mld-user-name {{
-            font-weight: 600;
-            font-size: 15px;
-            color: #fff;
-        }}
-        .mld-role-pill {{
-            background: rgba(255,255,255,0.25);
-            color: #fff;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 2px;
-            display: inline-block;
-        }}
         </style>
 
         <div class="mld-header">
@@ -1217,36 +958,24 @@ def show():
                 <div>
                     <div class="mld-title-row">
                         <img src="data:image/jpg;base64,{logo_b64}" class="mld-logo-img" />
-                        <span class="mld-title-text">Leaderboard Quick Count</span>
+                        <span class="mld-title-text">Performance Team</span>
                     </div>
                     <div class="mld-sub">
-                        Leaderboard berdasarkan jumlah submit MSISDN
+                        Performance Team {display_name} ({hos_root}) berdasarkan jumlah submit MSISDN
                     </div>
+                    <div class="mld-pill" style="margin-top:10px;">HoS Area : {display_name}</div>
                 </div>
             </div>
         </div>
-
-        <script>
-        function mldTick() {{
-            var d = new Date();
-            var h = String(d.getHours()).padStart(2, '0');
-            var m = String(d.getMinutes()).padStart(2, '0');
-            var s = String(d.getSeconds()).padStart(2, '0');
-            var el = document.getElementById('mld-clock');
-            if (el) {{ el.textContent = h + ':' + m + ':' + s + ' WIB'; }}
-        }}
-        mldTick();
-        setInterval(mldTick, 1000);
-        </script>
         """,
         unsafe_allow_html=True
     )
 
     # ------------------------------------------------
-    # FILTER BAR
+    # FILTER BAR (tanpa filter HoS -- sudah fix ke HoS login)
     # ------------------------------------------------
 
-    f1, f2, f3, f4, f5, f6 = st.columns([2, 1.2, 1.5, 1.5, 1, 1])
+    f1, f2, f3, f4, f5 = st.columns([2, 1.2, 1.5, 1, 1])
 
     with f1:
 
@@ -1254,7 +983,7 @@ def show():
 
             ":material/calendar_month: Filter Tanggal",
 
-            value=(date.today(), date.today()),   # <-- tuple = aktifkan mode rentang, default cuma hari ini
+            value=(date.today(), date.today()),
 
             key="mld_periode"
 
@@ -1268,39 +997,30 @@ def show():
         else:
             start_date = end_date = periode
 
-    # ==========================================
-    # LOAD DATA OUTLET SESUAI TANGGAL YANG DIPILIH.
-    # df_user/role_map/atasan_map/brand_map/children_map SUDAH
-    # diambil di atas (tidak tergantung tanggal), jadi di sini
-    # cukup ambil df-nya saja -- tidak menimpa variabel di atas.
-    # ==========================================
-
     df, _, _, _, _, _ = load_all_data(start_date, end_date)
 
     with f2:
 
-        selected_brand = st.selectbox(
-            "Brand",
-            ["Semua Brand", "IM3", "3ID"],
-            key="qc_brand"
-        )
+        if hos_brand in ("IM3", "3ID"):
+
+            selected_brand = hos_brand
+
+            st.markdown(
+                f"<div style='padding-top:6px;'><span class='mld-pill' "
+                f"style='background:rgba(0,0,0,.06);color:#374151;'>"
+                f"Brand: {hos_brand}</span></div>",
+                unsafe_allow_html=True
+            )
+
+        else:
+
+            selected_brand = st.selectbox(
+                "Brand",
+                ["Semua Brand", "IM3", "3ID"],
+                key="qc_brand"
+            )
 
     with f3:
-
-        hos_list = sorted(
-            df_user[
-                (df_user["ROLE"] == "HOS")
-                & (df_user["FLAG_ACTIVE"] == True)
-            ]["USER"].dropna().unique().tolist()
-        )
-
-        selected_hos = st.selectbox(
-            "HoS Area",
-            ["Semua HoS"] + hos_list,
-            key="qc_hos"
-        )
-
-    with f4:
 
         selected_group = st.selectbox(
             "Personnel",
@@ -1308,25 +1028,23 @@ def show():
             key="qc_personnel"
         )
 
-    with f5:
+    with f4:
 
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
 
         st.download_button(
             ":material/download: Export",
-            data=to_excel(df),
-            file_name="leaderboard_quickcount.xlsx",
+            data=to_excel(df[df["Input By"].isin(hos_downline_active)]),
+            file_name="performance_team_hos.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-    with f6:
+    with f5:
 
         st.markdown("<div style='height:23px'></div>", unsafe_allow_html=True)
 
         if st.button("Refresh", use_container_width=True, key="mld_refresh"):
 
-            # Bersihkan cache load_all_data supaya data ke-load ulang
-            # dari database, bukan dari cache lama.
             st.cache_data.clear()
 
             st.rerun()
@@ -1337,17 +1055,9 @@ def show():
 
     dff = df.copy()
 
-    # ==========================================
-    # PASTIKAN KOLOM TANGGAL BERTIPE DATETIME
-    # ==========================================
-
     dff["Tanggal"] = pd.to_datetime(
         dff["Tanggal"]
     )
-
-    # ==========================================
-    # FILTER PERIODE
-    # ==========================================
 
     if isinstance(periode, tuple):
 
@@ -1363,6 +1073,8 @@ def show():
 
         start_date = end_date = periode
 
+    n_days = max((end_date - start_date).days + 1, 1)
+
     dff = dff[
 
         (dff["Tanggal"].dt.date >= start_date)
@@ -1373,10 +1085,6 @@ def show():
 
     ]
 
-    # ==========================================
-    # FILTER BRAND
-    # ==========================================
-
     if selected_brand != "Semua Brand":
 
         dff = dff[
@@ -1386,20 +1094,16 @@ def show():
         ]
 
     # ==========================================
-    # FILTER HOS
+    # SCOPE KE HOS INI SAJA -- hanya submission dari
+    # bawahan (downline) HoS yang sedang login.
     # ==========================================
 
-    if selected_hos != "Semua HoS":
-
-        dff = dff[
-
-            dff["HOS"] == selected_hos
-
-        ]
-
-    # ==========================================
-    # FILTER PERSONNEL
-    # ==========================================
+    dff = dff[
+        dff["Input By"]
+        .astype(str)
+        .str.strip()
+        .isin(hos_downline_active)
+    ]
 
     if selected_group != "Semua Personnel":
 
@@ -1415,29 +1119,18 @@ def show():
 
         ]
 
-    # ==========================================
-    # FILTER: HANYA SUBMISSION DARI USER AKTIF.
-    # User non-aktif tidak boleh muncul/dihitung di manapun
-    # (dashboard maupun leaderboard) -- cukup dihitung di Vacant.
-    # ==========================================
-
-    dff = dff[
-        dff["Input By"]
-        .astype(str)
-        .str.strip()
-        .isin(active_users_set)
-    ]
+    # (dff sudah di-scope ke user aktif lewat hos_downline_active)
 
     st.divider()
 
     # =====================================================
-    # PERSONNEL
+    # PERSONNEL (SCOPE KE DOWNLINE HOS INI)
     # =====================================================
 
-    # Semua personel dengan role terkait, TERMASUK non-aktif -- HANYA
-    # dipakai untuk hitung Vacant.
     all_personnel_raw = df_user[
-        df_user["ROLE"].isin(PERSONNEL_ROLES)
+        (df_user["ROLE"].isin(PERSONNEL_ROLES))
+        &
+        (df_user["USER"].astype(str).str.strip().isin(hos_downline_all))
     ]
 
     if selected_brand != "Semua Brand":
@@ -1450,8 +1143,6 @@ def show():
             all_personnel_raw["ROLE"].isin(PERSONNEL_GROUPS[selected_group])
         ]
 
-    # Personel AKTIF saja -- dipakai untuk Team Total, dan semua
-    # tampilan/hitungan lain di dashboard & leaderboard.
     all_personnel = all_personnel_raw[
         all_personnel_raw["FLAG_ACTIVE"] == True
     ]
@@ -1459,11 +1150,6 @@ def show():
     active_personnel = all_personnel[
         all_personnel["STATUS"].astype(str).str.upper() == "AKTIF"
     ]
-
-    # ==========================================
-    # Hanya personel aktif yang submit pada periode terpilih
-    # (dff sudah difilter user aktif di atas)
-    # ==========================================
 
     submitted_users = (
         dff["Input By"]
@@ -1483,48 +1169,28 @@ def show():
     total_team = all_personnel["USER"].nunique()
     active_team = active_personnel["USER"].nunique()
 
-# ==========================================
-    # METRIK UTAMA QUICK COUNT = JUMLAH SUBMIT
+    # ==========================================
+    # METRIK UTAMA = JUMLAH SUBMIT
     # ==========================================
 
     submit_im3 = len(dff[dff["Brand"] == "IM3"])
     submit_3id = len(dff[dff["Brand"] == "3ID"])
     submit_total = len(dff)
 
-    # ==========================================
-    # TOTAL VACANT = user non-aktif (FLAG_ACTIVE == False)
-    # ==========================================
+    bio_im3 = int(dff.loc[dff["Brand"] == "IM3", "Biometrik"].sum())
+    bio_3id = int(dff.loc[dff["Brand"] == "3ID", "Biometrik"].sum())
+    bio_total = int(dff["Biometrik"].sum())
+
+    bio_pct_im3 = (bio_im3 / submit_im3 * 100) if submit_im3 else 0
+    bio_pct_3id = (bio_3id / submit_3id * 100) if submit_3id else 0
+    bio_pct_total = (bio_total / submit_total * 100) if submit_total else 0
 
     total_vacant = all_personnel_raw[
         all_personnel_raw["FLAG_ACTIVE"] == False
     ]["USER"].nunique()
 
     # ==========================================
-    # TOTAL CUTI = jumlah personel aktif yang Flag Izin-nya "Cuti"
-    # pada rentang start_date - end_date (rentang yg dipilih di filter tanggal).
-    # Pakai get_leave_flag_range() -- fungsi yg SAMA persis dengan
-    # yg dipakai kolom "Flag Izin" di tabel, jadi hasilnya pasti konsisten.
-    # ==========================================
-
-    total_cuti = 0
-
-    for u in all_personnel["USER"].astype(str).str.strip().unique():
-
-        flag_text = str(
-            get_leave_flag_range(leave_map, u, start_date, end_date)
-            or ""
-        ).strip().lower()
-
-        if "cuti" in flag_text:
-            total_cuti += 1
-
-    # ==========================================
-    # TOTAL CUTI = jumlah personel aktif yang punya leave APPROVED
-    # kategori "Cuti" yang overlap dengan periode filter (start_date-end_date).
-    # Dihitung dari SEMUA personel aktif (all_personnel), bukan cuma yang
-    # gak submit -- sama seperti logic ring Persentase Cuti di section lain,
-    # supaya orang yang tetap submit sebagian hari tapi cuti di hari lain
-    # tetap kehitung.
+    # TOTAL IZIN = Izin + Sakit (approved, overlap filter tanggal)
     # ==========================================
 
     leave_counts_total = get_leave_breakdown(
@@ -1534,14 +1200,10 @@ def show():
         end_date
     )
 
-    total_cuti = (
+    total_izin = (
         leave_counts_total.get("Izin", 0)
         + leave_counts_total.get("Sakit", 0)
     )
-
-    # ==========================================
-    # TEAM PER BRAND
-    # ==========================================
 
     team_im3 = all_personnel[
         all_personnel["BRAND"] == "IM3"
@@ -1550,10 +1212,6 @@ def show():
     team_3id = all_personnel[
         all_personnel["BRAND"] == "3ID"
     ]["USER"].nunique()
-
-    # ==========================================
-    # AVG SUBMIT / PERSONEL
-    # ==========================================
 
     avg_im3 = (
         submit_im3 / team_im3
@@ -1596,42 +1254,37 @@ def show():
             "#10B981"
         ),
 
-        (
-            "event_busy",
-            "Total Izin",
-            fmt(total_cuti),
-            "-",
-            "#8B5CF6"
-        ),
-
-
-        (
-            f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
-            "Submit IM3",
-            fmt(submit_im3),
-            f"Avg {avg_im3:.1f} Submit/Person",
-            "#F59E0B"
-        ),
-
-        (
-            f'<img src="data:image/png;base64,{tid_icon}" style="width:28px;height:28px;object-fit:contain;vertical-align:-4px;" />',
-            "Submit 3ID",
-            fmt(submit_3id),
-            f"Avg {avg_3id:.1f} Submit/Person",
-            "#EC1C4C"
-        ),
-
-        (
-            "lock",
-            "Submit Total",
-            fmt(submit_total),
-            f"Avg {avg_total:.1f} Submit/Person",
-            "#0F766E"
-        ),
-
     ]
 
-    kpi_cols = st.columns(7)
+    # Card Submit IM3 HANYA muncul kalau HoS ini bukan khusus 3ID
+    if hos_brand != "3ID":
+        kpi_defs.append((
+            f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
+            "Submit IM3",
+            f'{fmt(submit_im3)} <span class="kpi-value-sub">{bio_pct_im3:.0f}% Bio</span>',
+            f"Avg {avg_im3:.1f} Submit/Person",
+            "#F59E0B"
+        ))
+
+    # Card Submit 3ID HANYA muncul kalau HoS ini bukan khusus IM3
+    if hos_brand != "IM3":
+        kpi_defs.append((
+            f'<img src="data:image/png;base64,{tid_icon}" style="width:28px;height:28px;object-fit:contain;vertical-align:-4px;" />',
+            "Submit 3ID",
+            f'{fmt(submit_3id)} <span class="kpi-value-sub">{bio_pct_3id:.0f}% Bio</span>',
+            f"Avg {avg_3id:.1f} Submit/Person",
+            "#EC1C4C"
+        ))
+
+    kpi_defs.append((
+        "lock",
+        "Submit Total",
+        f'{fmt(submit_total)} <span class="kpi-value-sub">{bio_pct_total:.0f}% Bio</span>',
+        f"Avg {avg_total:.1f} Submit/Person",
+        "#0F766E"
+    ))
+
+    kpi_cols = st.columns(len(kpi_defs))
 
     for col, (icon, label, value, foot, color) in zip(kpi_cols, kpi_defs):
 
@@ -1641,10 +1294,8 @@ def show():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-
-
-# ------------------------------------------------
-    # PERSONNEL SUMMARY - SUBMIT (Versi Rapi & Manteb)
+    # ------------------------------------------------
+    # PERSONNEL SUMMARY - SUBMIT (scope downline HoS ini)
     # ------------------------------------------------
 
     st.markdown(
@@ -1685,7 +1336,6 @@ def show():
                 "grad": "linear-gradient(160deg, #f87171 0%, #dc2626 100%)"
 
             }
-    
 
     role_groups = {
         "BSM": ["BSM"],
@@ -1706,6 +1356,7 @@ def show():
             (df_user["ROLE"].isin(roles))
             & (df_user["FLAG_ACTIVE"] == True)
             & (df_user["STATUS"].astype(str).str.upper() == "AKTIF")
+            & (df_user["USER"].astype(str).str.strip().isin(hos_downline_all))
             & (
                 (selected_brand == "Semua Brand")
                 | (df_user["BRAND"] == selected_brand)
@@ -1715,22 +1366,35 @@ def show():
         role_users = df_user[role_filter_base]["USER"].unique().tolist()
         total_role = len(role_users)
 
-        role_data = dff[dff["Role"].isin(roles)]
+        role_data = dff[
+
+            dff["Role"].isin(roles)
+
+        ]
 
         input_role = role_data["Input By"].nunique()
+
         submit_role = len(role_data)
 
-        percent = (input_role / total_role * 100) if total_role > 0 else 0
-        avg_submit = (submit_role / input_role) if input_role > 0 else 0
+        bio_role = int(role_data["Biometrik"].sum())
 
-        submitted_set = set(
-            role_data["Input By"].dropna().astype(str).str.strip().unique()
-        )
+        percent = (
 
-        non_submit_users = [
-            u for u in role_users
-            if str(u).strip() not in submitted_set
-        ]
+            input_role / total_role * 100
+
+        ) if total_role > 0 else 0
+
+        avg_submit = (
+
+            submit_role / input_role
+
+        ) if input_role > 0 else 0
+
+        bio_pct_role = (
+
+            bio_role / submit_role * 100
+
+        ) if submit_role > 0 else 0
 
         leave_counts = get_leave_breakdown(
             leave_map, role_users, start_date, end_date
@@ -1738,7 +1402,7 @@ def show():
 
         jumlah_cuti = leave_counts.get("Izin", 0)
         jumlah_sakit = leave_counts.get("Sakit", 0)
-        jumlah_izin = jumlah_cuti + jumlah_sakit  # total orang izin (cuti+sakit)
+        jumlah_izin = jumlah_cuti + jumlah_sakit
 
         pct_cuti = (jumlah_cuti / total_role * 100) if total_role > 0 else 0
         pct_sakit = (jumlah_sakit / total_role * 100) if total_role > 0 else 0
@@ -1746,14 +1410,22 @@ def show():
         role_summary.append({
 
             "Role": group_label,
+
             "Total": total_role,
+
             "Input": input_role,
+
             "Submit": submit_role,
+
             "Avg Submit": avg_submit,
+
+            "Bio Pct": bio_pct_role,
+
             "Persentase": percent,
+
             "PersentaseCuti": pct_cuti,
             "PersentaseSakit": pct_sakit,
-            "JumlahIzin": jumlah_izin,   # <-- baris baru
+            "JumlahIzin": jumlah_izin,
 
         })
 
@@ -1851,7 +1523,6 @@ def show():
 
     )
 
-    # Layout 4 kolom per baris (otomatis lanjut ke baris berikutnya)
     CARDS_PER_ROW = 4
 
     for row_start in range(0, len(summary_role), CARDS_PER_ROW):
@@ -1909,7 +1580,7 @@ def show():
                 '</div>'
             )
 
-            legend_parts = [f'{pct_submit:.0f}% Submit']
+            legend_parts = [f'{pct_submit:.0f}% Submit &middot; Bio {row["Bio Pct"]:.0f}%']
 
             if pct_cuti > 0:
                 legend_parts.append(f'{pct_cuti:.0f}% Izin')
@@ -1937,9 +1608,9 @@ def show():
                 st.markdown(card_html, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
+
     # ------------------------------------------------
-    # Helper kompak: 1 baris ranking branch (avg + total submit),
-    # ukurannya disamakan dengan card leaderboard (lb-row).
+    # Helper kompak: 1 baris ranking branch (avg + total submit)
     # ------------------------------------------------
 
     def lb_branch_row(rank_label, branch_name, bsm_name, avg_val, total_val):
@@ -1963,14 +1634,21 @@ def show():
         )
 
     # ------------------------------------------------
-    # Helper: render 1 card branch (Top3 + Bottom3) untuk 1 brand.
-    # Logic IM3 & 3ID identik, jadi cukup ditulis sekali.
+    # Helper: render Top3 & Bottom3 BRANCH (BSM) SAMPINGAN
+    # dalam 1 card. Satu HoS cuma pegang 1 brand (IM3 saja
+    # atau 3ID saja) jadi tidak perlu split IM3/3ID lagi --
+    # brand-nya ditentukan otomatis dari data downline (dff).
     # ------------------------------------------------
 
-    def render_brand_branch_card(brand, brand_label):
+    def render_branch_top_bottom():
+
+        brand_counts = dff["Brand"].value_counts()
+        hos_brand_label = brand_counts.idxmax() if not brand_counts.empty else "-"
 
         st.markdown(
-            f"<div class='mld-card-title'>{mat_icon('emoji_events', size=16, color='#F59E0B', valign=-3)} {brand_label} Branch (by Avg Submit / Person)</div>",
+            f"<div class='mld-card-title'>{mat_icon('emoji_events', size=16, color='#F59E0B', valign=-3)} "
+            f"Branch (BSM) Performance "
+            f"<span style='font-weight:600;font-size:11px;color:#9CA3AF;'>· {hos_brand_label} · by Avg Submit/Person</span></div>",
             unsafe_allow_html=True
         )
 
@@ -1988,7 +1666,7 @@ def show():
 
         branch_scores = []
 
-        for branch_name, branch_df in dff[dff["Brand"] == brand].groupby("Branch"):
+        for branch_name, branch_df in dff.groupby("Branch"):
 
             total_submit = len(branch_df)
 
@@ -2009,122 +1687,119 @@ def show():
             3: mat_icon("military_tech", size=16, color="#CD7F32"),
         }
 
-        st.markdown("<div class='lb-sub'>Top 3</div>", unsafe_allow_html=True)
+        col_top, col_bottom = st.columns(2)
 
-        if not top3:
-            st.caption("Belum ada data.")
-        else:
-            for i, (branch_name, bsm_name, total_submit, avg_submit) in enumerate(top3, start=1):
-                lb_branch_row(medals.get(i, str(i)), branch_name, bsm_name, avg_submit, total_submit)
+        with col_top:
 
-        st.markdown("<div class='lb-sub' style='margin-top:8px;'>Bottom 3</div>", unsafe_allow_html=True)
+            st.markdown("<div class='lb-sub' style='color:#059669;'>Top 3</div>", unsafe_allow_html=True)
 
-        if not bottom3:
-            st.caption("Belum ada data.")
-        else:
-            for i, (branch_name, bsm_name, total_submit, avg_submit) in enumerate(bottom3, start=0):
-                lb_branch_row(mat_icon("trending_down", size=16, color="#EF4444"), branch_name, bsm_name, avg_submit, total_submit)
+            if not top3:
+                st.caption("Belum ada data.")
+            else:
+                for i, (branch_name, bsm_name, total_submit, avg_submit) in enumerate(top3, start=1):
+                    lb_branch_row(medals.get(i, str(i)), branch_name, bsm_name, avg_submit, total_submit)
 
- # ------------------------------------------------
-    # ACHIEVEMENT HOS + IM3 + 3ID BRANCH
-    # (berbasis JUMLAH SUBMIT, bukan Biometrik)
+        with col_bottom:
+
+            st.markdown("<div class='lb-sub' style='color:#dc2626;'>Bottom 3</div>", unsafe_allow_html=True)
+
+            if not bottom3:
+                st.caption("Belum ada data.")
+            else:
+                for i, (branch_name, bsm_name, total_submit, avg_submit) in enumerate(bottom3, start=0):
+                    lb_branch_row(mat_icon("trending_down", size=16, color="#EF4444"), branch_name, bsm_name, avg_submit, total_submit)
+
+    # ------------------------------------------------
+    # RINGKASAN PERFORMANCE HOS INI (achievement vs target
+    # + top 5 personel terbaik) + BRANCH (BSM) TOP/BOTTOM
     # ------------------------------------------------
 
-    col_hos, col_im3, col_3id = st.columns([1.6, 0.8, 0.8])
+    col_summary, col_branch = st.columns([1.5, 1.3])
 
-    with col_hos:
+    with col_summary:
 
         with st.container(border=True):
 
             st.markdown(
-                f"<div class='mld-card-title'>{mat_icon('military_tech', size=18, color='#FFD700', valign=-4)} Achievement HOS (by Avg Submit / Person)</div>",
+                f"<div class='mld-card-title'>{mat_icon('insights', size=18, color='#7C3AED', valign=-4)} Ringkasan Performance {display_name}</div>",
                 unsafe_allow_html=True
             )
 
-            real_name_map = (
-                df_user
-                .drop_duplicates(subset="USER")
-                .set_index("USER")["REAL_NAME"]
-                .to_dict()
+            n_branch = dff["Branch"].nunique()
+
+            # ==========================================
+            # TARGET PER USER BEDA-BEDA:
+            # NP / PROMOTOR = 10 submit/hari, role lain = 5 submit/hari.
+            # Dihitung dari SEMUA personel aktif di bawah HoS ini
+            # (bukan cuma yang submit), lalu dijumlah -> target team.
+            # ==========================================
+
+            def target_per_user(role):
+                return 10 if role in ("NP", "PROMOTOR") else TARGET_PER_DAY
+
+            all_personnel_roles = all_personnel[["USER", "ROLE"]].drop_duplicates(subset="USER").copy()
+            all_personnel_roles["Target"] = all_personnel_roles["ROLE"].apply(target_per_user) * n_days
+
+            target_submit = int(all_personnel_roles["Target"].sum())
+            achievement_pct = (submit_total / target_submit * 100) if target_submit else 0
+
+            bar_color = (
+                "#059669" if achievement_pct >= 100
+                else "#D97706" if achievement_pct >= 70
+                else "#DC2626"
             )
 
-            hos_scores = []
+            st.markdown(
+                f"""
+                <div class="branch-card-header">
+                    <div>
+                        <div class="branch-card-name">{display_name}</div>
+                        <div class="branch-card-sub">{hos_root} · {n_branch} Branch</div>
+                    </div>
+                    <div class="branch-stat-row">
+                        <div class="branch-stat-chip">
+                            <div class="branch-stat-val">{fmt(active_team)}</div>
+                            <div class="branch-stat-label">Personel Aktif</div>
+                        </div>
+                        <div class="branch-stat-chip">
+                            <div class="branch-stat-val">{avg_total:.1f}</div>
+                            <div class="branch-stat-label">Avg / Person</div>
+                        </div>
+                        <div class="branch-stat-chip">
+                            <div class="branch-stat-val">{achievement_badge(achievement_pct)}</div>
+                            <div class="branch-stat-label">Achievement</div>
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-            for hos_user in hos_list:
+            st.markdown(
+                f"""
+                <div class="progress-wrap">
+                    <div class="progress-label">
+                        <span>Submit Semua team vs Target ({fmt(target_submit)})</span>
+                        <span>{fmt(submit_total)} / {fmt(target_submit)}</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" style="width:{min(achievement_pct, 100):.0f}%;background:{bar_color};"></div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-                downline = get_active_descendants(hos_user, children_map, active_users_set)
 
-                hos_df = dff[dff["Input By"].isin(downline)]
-
-                if hos_df.empty:
-                    continue
-
-                total_submit = len(hos_df)
-                total_person = hos_df["Input By"].nunique()
-                avg_submit = (total_submit / total_person) if total_person > 0 else 0
-
-                hos_scores.append((
-                    hos_user,
-                    real_name_map.get(hos_user, "-"),
-                    total_submit,
-                    avg_submit,
-                    atasan_map.get(hos_user, "-")
-                ))
-
-            hos_scores = sorted(hos_scores, key=lambda x: x[3], reverse=True)[:4]
-
-            if hos_scores:
-
-                medal_icon = {
-                    1: mat_icon("military_tech", size=20, color="#FFD700", valign=-4),
-                    2: mat_icon("military_tech", size=20, color="#C0C0C0", valign=-4),
-                    3: mat_icon("military_tech", size=20, color="#CD7F32", valign=-4),
-                    4: mat_icon("workspace_premium", size=20, color="#94A3B8", valign=-4),
-                }
-                crown = {1: mat_icon("workspace_premium", size=45, color="#FFD700", valign=-8)}
-
-                podium_cards = []
-
-                for i, (username, real_name, total_submit, avg_submit, atasan) in enumerate(hos_scores, start=1):
-
-                    card_html = (
-                        f'<div class="podium-card place-{i}">'
-                        f'<div class="podium-crown">{crown.get(i, "")}</div>'
-                        f'<div class="podium-medal">{medal_icon.get(i, i)}</div>'
-                        f'<div class="podium-name">{username}</div>'
-                        f'<div style="font-size:10px;opacity:.82;margin-top:-2px;margin-bottom:6px;">{real_name}</div>'
-                        f'<div class="podium-val">{avg_submit:.1f}</div>'
-                        f'<div class="podium-caption">Avg Submit / Person</div>'
-                        f'<div class="podium-submit-pill">{mat_icon("check_circle", size=12, valign=-2)}  {fmt(total_submit)} Submit</div>'
-                        f'</div>'
-                    )
-
-                    podium_cards.append(card_html)
-
-                st.markdown(
-                    '<div class="podium-wrap">' + "".join(podium_cards) + "</div>",
-                    unsafe_allow_html=True
-                )
-
-            else:
-
-                st.info("Belum ada data HoS untuk periode/filter ini.")
-
-    with col_im3:
+    with col_branch:
 
         with st.container(border=True):
 
-            render_brand_branch_card("IM3", "IM3")
+            render_branch_top_bottom()
 
-    with col_3id:
-
-        with st.container(border=True):
-
-            render_brand_branch_card("3ID", "3ID")
-
-# ------------------------------------------------
+    # ------------------------------------------------
     # 6 LEADERBOARD: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP
-    # (Total Submit, bukan Total Biometrik)
+    # (SCOPE ke downline HoS ini saja)
     # ------------------------------------------------
 
     st.markdown(
@@ -2341,15 +2016,6 @@ def show():
 
     )
 
-    # Map username -> nama asli (strip + upper biar aman dari mismatch)
-    real_name_map = (
-        df_user
-        .drop_duplicates(subset="USER")
-        .assign(USER=lambda x: x["USER"].astype(str).str.strip().str.upper())
-        .set_index("USER")["REAL_NAME"]
-        .to_dict()
-    )
-
     lb_defs = [
         ("BSM", PERSONNEL_GROUPS["BSM"]),
         ("CSE / RSE", PERSONNEL_GROUPS["CSE/RSE"]),
@@ -2359,9 +2025,6 @@ def show():
         ("Promotor", PERSONNEL_GROUPS["NP"]),
     ]
 
-    # Layout 3 kolom per baris:
-    # Baris 1 -> BSM | CSE/RSE | DSE
-    # Baris 2 -> RGE | PROMOTOR | NP
     LB_PER_ROW = 3
 
     for row_start in range(0, len(lb_defs), LB_PER_ROW):
@@ -2375,30 +2038,21 @@ def show():
                 with st.container(border=True):
 
                     # ==========================================
-                    # BASE: SEMUA USER DENGAN ROLE INI
-                    # (bukan cuma yang ada di dff)
+                    # BASE: SEMUA USER ROLE INI, DI BAWAH HOS INI
                     # ==========================================
 
                     base_users = df_user[
                         (df_user["ROLE"].isin(roles))
                         & (df_user["FLAG_ACTIVE"] == True)
+                        & (df_user["USER"].astype(str).str.strip().isin(hos_downline_active))
                     ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
                         columns={"USER": "Input By", "BRANCH": "Branch"}
                     )
 
-                    # Kalau brand/branch difilter di halaman ini, terapkan juga ke base_users
                     if selected_brand != "Semua Brand":
-                        base_users = df_user[
-                            (df_user["ROLE"].isin(roles))
-                            & (df_user["FLAG_ACTIVE"] == True)
-                            & (df_user["BRAND"] == selected_brand)
-                        ][["USER", "BRANCH"]].drop_duplicates(subset="USER").rename(
-                            columns={"USER": "Input By", "BRANCH": "Branch"}
-                        )
-
-                    # ==========================================
-                    # SUBMIT COUNT DARI dff (bisa kosong utk user tertentu)
-                    # ==========================================
+                        base_users = base_users[
+                            base_users["Input By"].map(brand_map) == selected_brand
+                        ]
 
                     submit_count = (
                         dff[dff["Role"].isin(roles)]
@@ -2406,10 +2060,6 @@ def show():
                         .size()
                         .reset_index(name="Submit")
                     )
-
-                    # ==========================================
-                    # LEFT JOIN: semua user tetap muncul, yang gak submit -> 0
-                    # ==========================================
 
                     grp = base_users.merge(
                         submit_count,
@@ -2420,8 +2070,6 @@ def show():
                     grp["Submit"] = grp["Submit"].fillna(0).astype(int)
 
                     grp = grp.sort_values("Submit", ascending=False)
-
-                    # Tambahkan kolom Real Name (fallback ke username kalau kosong/tidak ada)
 
                     real_name_raw = (
                         grp["Input By"]
@@ -2457,8 +2105,6 @@ def show():
 
                     def build_lb_items(df_rank, side_icon):
 
-                        # PENTING: setiap baris dibangun tanpa newline/indentasi
-                        # supaya Streamlit tidak menganggapnya sebagai code block Markdown.
                         if df_rank.empty:
                             return '<div class="lb-empty">-</div>'
 
@@ -2505,329 +2151,18 @@ def show():
                     st.markdown(card_html, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-# ------------------------------------------------
-    # BRANCH PERFORMANCE TABLE
-    # (metrik utama = jumlah submit MSISDN)
-    # ------------------------------------------------
-    """
-    with st.container(border=True):
-
-        st.markdown(
-            f"<div class='mld-card-title'>{mat_icon('assignment', size=18, valign=-4)} Branch Performance</div>",
-            unsafe_allow_html=True
-        )
-
-        t1, t2 = st.columns([1, 3])
-
-        with t1:
-
-            table_group = st.selectbox(
-                "Personnel (tabel)",
-                list(PERSONNEL_GROUPS.keys()),
-                key="qc_table_personnel"
-            )
-
-        with t2:
-
-            st.markdown(
-                f"<div style='font-size:13px;margin-bottom:2px;'>{mat_icon('search', size=14, valign=-2)} Search Branch / MC</div>",
-                unsafe_allow_html=True
-            )
-            search = st.text_input(
-                "Search Branch / MC",
-                key="qc_search",
-                label_visibility="collapsed"
-            )
-
-        roles_for_table = PERSONNEL_GROUPS[table_group]
-
-        table_df = dff[
-            dff["Role"].isin(roles_for_table)
-        ].copy()
-
-        # User yang submit pada periode terpilih
-        submitted_users = (
-            table_df["Input By"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .unique()
-        )
-
-        roster = df_user[
-
-            (df_user["ROLE"].isin(roles_for_table))
-            &
-            (
-                (selected_brand == "Semua Brand")
-                |
-                (df_user["BRAND"] == selected_brand)
-            )
-
-        ].copy()
-
-        # Hanya personel yang submit pada periode terpilih
-        roster = roster[
-
-            roster["USER"]
-            .astype(str)
-            .str.strip()
-            .isin(submitted_users)
-
-        ]
-
-        roster["Branch"] = roster["USER"].apply(
-
-            lambda u: ancestor_lookup(
-                u,
-                {"BSM"},
-                role_map,
-                atasan_map
-            )
-
-        )
-
-        roster["MC"] = roster["USER"].apply(
-
-            lambda u: ancestor_lookup(
-                u,
-                {"CSE", "RSE"},
-                role_map,
-                atasan_map
-            )
-
-        )
-
-        branch_list = sorted(
-
-            table_df["Branch"]
-            .dropna()
-            .unique()
-
-        )
-
-        if search:
-
-            branch_list = [
-
-                b for b in branch_list
-
-                if search.lower() in b.lower()
-
-            ]
-
-        if not branch_list:
-
-            st.info("Tidak ada data Branch untuk filter ini.")
-
-        for branch_name in branch_list:
-
-            branch_roster = roster[roster["Branch"] == branch_name]
-            branch_data = table_df[table_df["Branch"] == branch_name]
-
-            n_personnel = branch_roster["USER"].nunique()
-            n_active = branch_data["Input By"].nunique()
-            n_submit = len(branch_data)
-
-            avg_per_person = (
-
-                n_submit / n_personnel
-
-                if n_personnel
-
-                else 0
-
-            )
-            with st.expander(
-                f"**{branch_name}**  ·  {n_personnel} personnel  ·  "
-                f"{fmt(n_submit)} submit  ",
-                expanded=False
-            ):
-
-                b1, b2, b3, b4 = st.columns(4)
-
-                b1.metric("# Personnel", n_personnel)
-
-                b2.metric("Active", n_active)
-
-                b3.metric("Submit", fmt(n_submit))
-
-                b4.metric(
-                    "Avg/Person",
-                    f"{avg_per_person:.1f}"
-                )
-
-                mc_list = sorted(
-
-                    branch_data["MC"]
-                    .dropna()
-                    .unique()
-
-                )
-
-                mc_list = [m for m in mc_list if m and m != "-"]
-
-                rows = []
-
-                for mc_name in mc_list:
-
-                    mc_roster = branch_roster[
-                        branch_roster["MC"] == mc_name
-                    ]
-
-                    mc_data = branch_data[
-                        branch_data["MC"] == mc_name
-                    ]
-
-                    mc_personnel = mc_roster["USER"].nunique()
-
-                    mc_active = mc_data["Input By"].nunique()
-
-                    mc_submit = len(mc_data)
-
-                    mc_avg = (
-
-                        mc_submit / mc_personnel
-
-                        if mc_personnel
-
-                        else 0
-
-                    )
-
-                    # ======================================
-                    # DATA FULL (TIDAK TERFILTER PERIODE)
-                    # ======================================
-
-                    mc_all = df[
-
-                        (df["MC"] == mc_name)
-
-                        &
-
-                        (
-                            (selected_brand == "Semua Brand")
-                            |
-                            (df["Brand"] == selected_brand)
-                        )
-
-                    ].copy()
-
-                    if selected_hos != "Semua HoS":
-
-                        mc_all = mc_all[
-                            mc_all["HOS"] == selected_hos
-                        ]
-
-                    # gunakan role filter yang SAMA dengan tabel ini
-                    # (roles_for_table = PERSONNEL_GROUPS[table_group])
-                    # bukan filter personnel global (selected_group),
-                    # supaya D-1/D-2/D-3 konsisten dengan kolom Submit di baris ini
-                    mc_all = mc_all[
-                        mc_all["Role"].isin(roles_for_table)
-                    ]
-
-                    mc_all["Tanggal"] = pd.to_datetime(
-                        mc_all["Tanggal"]
-                    )
-
-                    # ======================================
-                    # D-1 / D-2 / D-3
-                    # berdasarkan tanggal akhir filter
-                    # ======================================
-
-                    d1_date = end_date - timedelta(days=1)
-                    d2_date = end_date - timedelta(days=2)
-                    d3_date = end_date - timedelta(days=3)
-
-                    d1 = len(
-                        mc_all[
-                            mc_all["Tanggal"].dt.date == d1_date
-                        ]
-                    )
-
-                    d2 = len(
-                        mc_all[
-                            mc_all["Tanggal"].dt.date == d2_date
-                        ]
-                    )
-
-                    d3 = len(
-                        mc_all[
-                            mc_all["Tanggal"].dt.date == d3_date
-                        ]
-                    )
-
-                    rows.append({
-
-                        "MC": mc_name,
-                        "# Personnel": mc_personnel,
-                        "Active": mc_active,
-                        "Submit": mc_submit,
-                        "Avg/Person": round(
-                            mc_avg,
-                            1
-                        ),
-
-                        f"D-1 ({d1_date.strftime('%d/%m')})": d1,
-                        f"D-2 ({d2_date.strftime('%d/%m')})": d2,
-                        f"D-3 ({d3_date.strftime('%d/%m')})": d3
-
-                    })
-
-                if rows:
-
-                    st.dataframe(
-
-                        pd.DataFrame(rows),
-
-                        use_container_width=True,
-
-                        hide_index=True
-
-                    )
-
-                else:
-
-                    st.caption("Belum ada Micro Cluster / data untuk branch ini.")
-    """
 
     DATE_COL = "Tanggal"
 
     dff[DATE_COL] = pd.to_datetime(dff[DATE_COL], errors="coerce").dt.date
-# ------------------------------------------------
-# SECTION 1: TEAM PERFORMANCE
-# (3 TAB: HOS, BSM, CSE/RSE)
-# ------------------------------------------------
-    with st.container(border=True):
 
-        title_col, filter_brand_col, filter_personnel_col = st.columns([2.5, 1, 1.5])
-
-        with title_col:
-            st.markdown(
-                f"<div class='mld-card-title'>{mat_icon('table_chart', size=18, valign=-4)} Team Performance</div>",
-                unsafe_allow_html=True
-            )
-
-        with filter_brand_col:
-            brand_options = ["Semua Brand", "IM3", "3ID"]
-            selected_brand_filter = st.selectbox(
-                "Brand",
-                brand_options,
-                key="team_brand_filter",
-                label_visibility="collapsed"
-            )
-
-        with filter_personnel_col:
-            personnel_options = ["Semua Personnel"] + list(PERSONNEL_GROUPS.keys())
-            selected_personnel_filter = st.selectbox(
-                "Personnel",
-                personnel_options,
-                key="team_personnel_filter",
-                label_visibility="collapsed"
-            )
-
-        st.markdown(
+    # ------------------------------------------------
+    # SECTION 1: TEAM PERFORMANCE
+    # (2 TAB: BSM, CSE/RSE -- tab HOS dihapus karena
+    # halaman ini sudah pasti scope 1 HoS)
+    # ------------------------------------------------
+   
+    st.markdown(
             """
             <style>
 
@@ -2854,7 +2189,6 @@ def show():
                     color: #0F172A;
                 }
 
-                /* -- Slate (default/Jumlah) -- */
                 .mld-stat-chip.mld-stat-slate {
                     background: #F8FAFC;
                     border: 1px solid #E2E8F0;
@@ -2862,7 +2196,6 @@ def show():
                 .mld-stat-chip.mld-stat-slate .mld-stat-label { color: #64748B; }
                 .mld-stat-chip.mld-stat-slate .mld-stat-value { color: #0F172A; }
 
-                /* -- Blue (MSISDN) -- */
                 .mld-stat-chip.mld-stat-blue {
                     background: #EFF6FF;
                     border: 1px solid #BFDBFE;
@@ -2870,7 +2203,6 @@ def show():
                 .mld-stat-chip.mld-stat-blue .mld-stat-label { color: #1D4ED8; }
                 .mld-stat-chip.mld-stat-blue .mld-stat-value { color: #1D4ED8; }
 
-                /* -- Purple -- */
                 .mld-stat-chip.mld-stat-purple {
                     background: #F5F3FF;
                     border: 1px solid #DDD6FE;
@@ -2878,7 +2210,6 @@ def show():
                 .mld-stat-chip.mld-stat-purple .mld-stat-label { color: #6D28D9; }
                 .mld-stat-chip.mld-stat-purple .mld-stat-value { color: #6D28D9; }
 
-                /* -- Green (KPI utama / rata-rata) -- */
                 .mld-stat-chip.mld-stat-green {
                     background: #ECFDF5;
                     border: 1px solid #A7F3D0;
@@ -2886,7 +2217,6 @@ def show():
                 .mld-stat-chip.mld-stat-green .mld-stat-label { color: #047857; }
                 .mld-stat-chip.mld-stat-green .mld-stat-value { color: #047857; }
 
-                /* -- Amber (warning / belum capai target) -- */
                 .mld-stat-chip.mld-stat-amber {
                     background: #FFFBEB;
                     border: 1px solid #FDE68A;
@@ -2894,7 +2224,6 @@ def show():
                 .mld-stat-chip.mld-stat-amber .mld-stat-label { color: #B45309; }
                 .mld-stat-chip.mld-stat-amber .mld-stat-value { color: #B45309; }
 
-                /* -- Red (danger) -- */
                 .mld-stat-chip.mld-stat-danger {
                     background: #FEF2F2;
                     border: 1px solid #FECACA;
@@ -2902,7 +2231,6 @@ def show():
                 .mld-stat-chip.mld-stat-danger .mld-stat-label { color: #B91C1C; }
                 .mld-stat-chip.mld-stat-danger .mld-stat-value { color: #DC2626; }
 
-                /* -- Orange (Jumlah) -- */
                 .mld-stat-chip.mld-stat-orange {
                     background: #FFF7ED;
                     border: 1px solid #FED7AA;
@@ -2918,96 +2246,9 @@ def show():
             </style>
             """,
             unsafe_allow_html=True
-        )
-
-     # ==========================================
-    # HITUNG TANGGAL D-1, D-2, D-3 DARI end_date PERIODE
-    # ==========================================
-
-    if isinstance(periode, tuple):
-        if len(periode) == 2:
-            _start_date_tmp, _end_date_tmp = periode
-        elif len(periode) == 1:
-            _start_date_tmp = _end_date_tmp = periode[0]
-        else:
-            _start_date_tmp = _end_date_tmp = date.today()
-    else:
-        _start_date_tmp = _end_date_tmp = periode
-
-    d1_date = _end_date_tmp - timedelta(days=1)
-    d2_date = _end_date_tmp - timedelta(days=2)
-    d3_date = _end_date_tmp - timedelta(days=3)
-
-    d1_label = f"D-1 ({d1_date.strftime('%d/%m')})"
-    d2_label = f"D-2 ({d2_date.strftime('%d/%m')})"
-    d3_label = f"D-3 ({d3_date.strftime('%d/%m')})"
-
-    # ==========================================
-    # FUNGSI HELPER (khusus Team Performance)
-    # (SEMUA BERBASIS SUBMIT, BUKAN BIOMETRIK)
-    # ==========================================
-
-    def get_msisdn_avg_team(user_list):
-
-        user_data = dff[
-            dff["Input By"].isin(user_list)
-        ]
-
-        if selected_brand_filter != "Semua Brand":
-            user_data = user_data[
-                user_data["Brand"] == selected_brand_filter
-            ]
-
-        if selected_personnel_filter != "Semua Personnel":
-            user_data = user_data[
-                user_data["Role"].isin(
-                    PERSONNEL_GROUPS[
-                        selected_personnel_filter
-                    ]
-                )
-            ]
-
-        total_msisdn = len(user_data)
-
-        # pembagi = jumlah orang (dari user_list) yang BENAR-BENAR submit
-        total_person_submit = user_data["Input By"].nunique()
-
-        avg_per_person = (
-            (total_msisdn / total_person_submit)
-            if total_person_submit > 0
-            else 0
-        )
-
-        return total_msisdn, total_person_submit, avg_per_person
-
-    def get_submit_by_date_team(user_list, target_date):
-        user_data = df[
-            df["Input By"].isin(user_list)
-        ].copy()
-
-        if selected_brand_filter != "Semua Brand":
-            user_data = user_data[
-                user_data["Brand"] == selected_brand_filter
-            ]
-
-        if selected_personnel_filter != "Semua Personnel":
-            user_data = user_data[
-                user_data["Role"].isin(
-                    PERSONNEL_GROUPS[selected_personnel_filter]
-                )
-            ]
-
-        # samakan tipe: strip jam, sisakan tanggal murni, baru dibandingkan
-        tanggal_only = pd.to_datetime(user_data["Tanggal"]).dt.date
-
-        return len(
-            user_data[
-                tanggal_only == target_date
-            ]
-        )
+    )
 
     def stat_chip(label, value, color="slate"):
-        """color: slate, blue, purple, green, amber, orange, danger"""
 
         css_class = f"mld-stat-chip mld-stat-{color}"
 
@@ -3025,8 +2266,7 @@ def show():
         role_filter,
         id_col_name,
         include_role_col=False,
-        leaf=False,
-        show_leave_flag=True
+        leaf=False
     ):
 
         rows = []
@@ -3040,6 +2280,7 @@ def show():
         all_users = df_user[
             (df_user["ROLE"].isin(role_list))
             & (df_user["FLAG_ACTIVE"] == True)
+            & (df_user["USER"].astype(str).str.strip().isin(hos_downline_active))
         ]["USER"].unique().tolist()
 
         if selected_brand_filter != "Semua Brand":
@@ -3047,6 +2288,7 @@ def show():
             all_users = df_user[
                 (df_user["ROLE"].isin(role_list))
                 & (df_user["FLAG_ACTIVE"] == True)
+                & (df_user["USER"].astype(str).str.strip().isin(hos_downline_active))
                 &
                 (
                     df_user["BRAND"]
@@ -3104,9 +2346,6 @@ def show():
                 d3_label: d3_submit,
             }
 
-            if show_leave_flag:
-                row["Flag Izin"] = get_leave_flag_range(leave_map, u, start_date, end_date)
-
             if include_role_col:
                 row["Role"] = u_role
 
@@ -3145,117 +2384,13 @@ def show():
             else 3
         )
 
-        chip_cols = st.columns(n_chip)
 
-        with chip_cols[0]:
-            stat_chip("Jumlah", len(dfr), color="orange")
 
-        with chip_cols[1]:
-            stat_chip(
-                "MSISDN",
-                f"{total_msisdn:,}",
-                color="blue"
-            )
-
-        with chip_cols[2]:
-            stat_chip(
-                "Avg MSISDN/Person%",
-                f"{avg_msisdn_person}",
-                color="green"
-            )
-
-        if target_threshold is not None:
-
-            below_target = int(
-                (
-                    dfr["MSISDN"]
-                    < target_threshold
-                ).sum()
-            )
-
-            with chip_cols[3]:
-                stat_chip(
-                    f"Belum Capai Target (<{target_threshold} MSISDN)",
-                    below_target,
-                    color="amber" if below_target > 0 else "slate"
-                )
-
-        st.markdown(
-            "<br>",
-            unsafe_allow_html=True
-        )
-
-        dfr = dfr.sort_values(
-            "Avg MSISDN/Person",
-            ascending=False
-        )
-
-        column_config = {
-            id_col: st.column_config.TextColumn(width=130),
-            "Nama": st.column_config.TextColumn(width=190),
-            "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
-            "Avg MSISDN/Person": st.column_config.NumberColumn(format="%.1f", width=140),
-            d3_label: st.column_config.NumberColumn(format="%d", width=100),
-            d2_label: st.column_config.NumberColumn(format="%d", width=100),
-            d1_label: st.column_config.NumberColumn(format="%d", width=100),
-        }
-
-        if "Flag Izin" in dfr.columns:
-            column_config["Flag Izin"] = st.column_config.TextColumn(width=220)
-
-        if "Role" in dfr.columns:
-            column_config["Role"] = st.column_config.TextColumn(width=80)
-
-        if target_threshold is not None:
-
-            def highlight_below_target(row):
-                if row["MSISDN"] < target_threshold:
-                    return ['background-color: #FEE2E2; color: #991B1B;'] * len(row)
-                return [''] * len(row)
-
-            styled = dfr.style.apply(highlight_below_target, axis=1)
-
-            st.dataframe(
-                styled,
-                use_container_width=True,
-                hide_index=True,
-                column_config=column_config
-            )
-
-        else:
-            st.dataframe(
-                dfr,
-                use_container_width=True,
-                hide_index=True,
-                column_config=column_config
-            )
-
-    tab_hos, tab_bsm, tab_cse = st.tabs([
-        ":material/apartment: HOS",
-        ":material/supervisor_account: BSM",
-        ":material/group: CSE/RSE"
-    ])
-
-    with tab_hos:
-        rows_hos = build_rekap_rows("HOS", "HOS")
-        render_rekap_table(rows_hos, "HOS", target_threshold=None)
-
-    with tab_bsm:
-        rows_bsm = build_rekap_rows("BSM", "BSM", show_leave_flag=False)
-        render_rekap_table(rows_bsm, "BSM", target_threshold=None)
-
-    with tab_cse:
-        rows_cse = build_rekap_rows(["CSE", "RSE"], "CSE/RSE", include_role_col=False)
-        render_rekap_table(rows_cse, "CSE/RSE", target_threshold=None)
-
-    st.divider()
-
-# ------------------------------------------------
-# SECTION 2: INDIVIDUAL PERFORMANCE
-# (6 TAB: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP)
-# Kolom MSISDN/Avg Submit/Day tetap dari INPUT BY DIA SENDIRI.
-# Kolom D-1/D-2/D-3 = submission TURUNAN (dia + descendants) pada tanggal itu.
-# ------------------------------------------------
+    # ------------------------------------------------
+    # SECTION 2: INDIVIDUAL PERFORMANCE
+    # (8 TAB, SCOPE ke downline HoS ini saja.
+    # Filter HOS dihapus karena sudah pasti HoS ini.)
+    # ------------------------------------------------
 
     TARGET_AVG_PER_DAY_MIN = 5
     TARGET_AVG_PER_DAY_MIN_NP = 10
@@ -3276,7 +2411,6 @@ def show():
 
     n_days = max((end_date - start_date).days + 1, 1)
 
-    # tanggal D-1/D-2/D-3 mengikuti end_date (sama seperti Section 1)
     d1_date = end_date - timedelta(days=1)
     d2_date = end_date - timedelta(days=2)
     d3_date = end_date - timedelta(days=3)
@@ -3302,12 +2436,8 @@ def show():
             current = atasan_map.get(current)
         return ancestors
 
-    def matches_hierarchy_filter(u, selected_hos, selected_bsm, selected_cse):
+    def matches_hierarchy_filter(u, selected_bsm, selected_cse):
         ancestors = get_ancestors(u)
-
-        if selected_hos != "Semua HOS":
-            if not (u == selected_hos or selected_hos in ancestors):
-                return False
 
         if selected_bsm != "Semua BSM":
             if not (u == selected_bsm or selected_bsm in ancestors):
@@ -3326,7 +2456,7 @@ def show():
             unsafe_allow_html=True
         )
 
-        f_brand, f_hos, f_bsm, f_cse = st.columns(4)
+        f_brand, f_bsm, f_cse = st.columns(3)
 
         with f_brand:
             brand_options = ["Semua Brand", "IM3", "3ID"]
@@ -3336,39 +2466,15 @@ def show():
                 key="ip_filter_brand"
             )
 
-        hos_candidates = df_user[
-            (df_user["ROLE"] == "HOS")
-            & (df_user["FLAG_ACTIVE"] == True)
-        ]
-        if selected_brand_filter != "Semua Brand":
-            hos_candidates = hos_candidates[
-                hos_candidates["BRAND"] == selected_brand_filter
-            ]
-
-        hos_options = ["Semua HOS"] + sorted(
-            hos_candidates["USER"].unique().tolist()
-        )
-
-        with f_hos:
-            selected_hos = st.selectbox(
-                ":material/apartment: Filter HOS",
-                hos_options,
-                key="ip_filter_hos"
-            )
-
         bsm_candidates = df_user[
             (df_user["ROLE"] == "BSM")
             & (df_user["FLAG_ACTIVE"] == True)
+            & (df_user["USER"].isin(hos_downline_active))
         ]
 
         if selected_brand_filter != "Semua Brand":
             bsm_candidates = bsm_candidates[
                 bsm_candidates["BRAND"] == selected_brand_filter
-            ]
-
-        if selected_hos != "Semua HOS":
-            bsm_candidates = bsm_candidates[
-                bsm_candidates["ATASAN"] == selected_hos
             ]
 
         bsm_options = ["Semua BSM"] + sorted(
@@ -3385,6 +2491,7 @@ def show():
         cse_candidates = df_user[
             (df_user["ROLE"].isin(["CSE", "RSE"]))
             & (df_user["FLAG_ACTIVE"] == True)
+            & (df_user["USER"].isin(hos_downline_active))
         ]
 
         if selected_brand_filter != "Semua Brand":
@@ -3395,17 +2502,6 @@ def show():
         if selected_bsm != "Semua BSM":
             cse_candidates = cse_candidates[
                 cse_candidates["ATASAN"] == selected_bsm
-            ]
-
-        elif selected_hos != "Semua HOS":
-
-            bsm_under_hos = df_user[
-                (df_user["ROLE"] == "BSM")
-                & (df_user["ATASAN"] == selected_hos)
-            ]["USER"].tolist()
-
-            cse_candidates = cse_candidates[
-                cse_candidates["ATASAN"].isin(bsm_under_hos)
             ]
 
         cse_options = ["Semua CSE/RSE"] + sorted(
@@ -3432,7 +2528,6 @@ def show():
         return total_msisdn, total_bio, persen_bio
 
     def get_msisdn_by_date_team(user_list, target_date):
-        """Jumlah MSISDN submission pada 1 tanggal, untuk list user (dia + turunannya)."""
         user_data = df[
             df["Input By"].isin(user_list)
         ].copy()
@@ -3467,18 +2562,20 @@ def show():
         all_users = df_user[
             (df_user["ROLE"].isin(role_list))
             & (df_user["FLAG_ACTIVE"] == True)
+            & (df_user["USER"].isin(hos_downline_active))
         ]["USER"].unique().tolist()
 
         if selected_brand_filter != "Semua Brand":
             all_users = df_user[
                 (df_user["ROLE"].isin(role_list))
                 & (df_user["FLAG_ACTIVE"] == True)
+                & (df_user["USER"].isin(hos_downline_active))
                 & (df_user["BRAND"] == selected_brand_filter)
             ]["USER"].unique().tolist()
 
         all_users = [
             u for u in all_users
-            if matches_hierarchy_filter(u, selected_hos, selected_bsm, selected_cse)
+            if matches_hierarchy_filter(u, selected_bsm, selected_cse)
         ]
 
         for u in all_users:
@@ -3487,15 +2584,13 @@ def show():
             u_name = u_info["REAL_NAME"]
             u_role = u_info["ROLE"]
 
-            u_msisdn, u_bio, _ = get_msisdn_bio_individual([u])
+            u_msisdn, u_bio, u_persen_bio = get_msisdn_bio_individual([u])
 
             avg_per_day = round(
                 u_msisdn / n_days if n_days > 0 else 0,
                 2
             )
 
-            # D-1/D-2/D-3 = submission user itu SENDIRI (sama seperti kolom MSISDN),
-            # cuma bedanya di tanggal
             d1_msisdn = get_msisdn_by_date_team([u], d1_date)
             d2_msisdn = get_msisdn_by_date_team([u], d2_date)
             d3_msisdn = get_msisdn_by_date_team([u], d3_date)
@@ -3506,10 +2601,6 @@ def show():
             }
 
             if include_upline_col:
-
-                # ==========================================
-                # UPLINE = username atasan langsung user ini
-                # ==========================================
 
                 upline_username = atasan_map.get(u, "-")
 
@@ -3523,6 +2614,8 @@ def show():
             row.update({
                 "MSISDN": u_msisdn,
                 "Avg Submit/Day": avg_per_day,
+                "Biometrik": u_bio,
+                "% Biometrik": round(u_persen_bio, 1),
                 d1_label: d1_msisdn,
                 d2_label: d2_msisdn,
                 d3_label: d3_msisdn,
@@ -3546,6 +2639,8 @@ def show():
         dfr = pd.DataFrame(rows)
 
         total_msisdn = int(dfr["MSISDN"].sum())
+        total_bio = int(dfr["Biometrik"].sum())
+        avg_bio_pct = round(dfr["% Biometrik"].mean(), 1) if len(dfr) > 0 else 0
 
         has_leave_flag = "Flag Izin" in dfr.columns
 
@@ -3556,8 +2651,6 @@ def show():
             on_leave_mask = pd.Series(False, index=dfr.index)
             jumlah_cuti_izin = 0
 
-        # User yang sedang izin (approved, overlap tanggal filter) TIDAK dihitung
-        # sebagai "belum achiev" -- walau Avg Submit/Day-nya di bawah target.
         below_target = int(
             (
                 (dfr["Avg Submit/Day"] < target_threshold)
@@ -3565,7 +2658,7 @@ def show():
             ).sum()
         )
 
-        n_chip = 5 if has_leave_flag else 4
+        n_chip = 7 if has_leave_flag else 6
 
         chip_cols = st.columns(n_chip)
 
@@ -3585,9 +2678,13 @@ def show():
                 below_target,
                 color="amber" if below_target > 0 else "slate"
             )
+        with chip_cols[4]:
+            stat_chip("Total Biometrik", f"{total_bio:,}", color="purple")
+        with chip_cols[5]:
+            stat_chip("Rata-rata % Biometrik", f"{avg_bio_pct:.1f}%", color="danger")
 
         if has_leave_flag:
-            with chip_cols[4]:
+            with chip_cols[6]:
                 stat_chip(
                     "Cuti/Izin",
                     jumlah_cuti_izin,
@@ -3603,6 +2700,8 @@ def show():
             "Nama": st.column_config.TextColumn(width=190),
             "MSISDN": st.column_config.NumberColumn(format="%d", width=100),
             "Avg Submit/Day": st.column_config.NumberColumn(format="%.2f", width=130),
+            "Biometrik": st.column_config.NumberColumn(format="%d", width=100),
+            "% Biometrik": st.column_config.NumberColumn(format="%.1f%%", width=110),
             d3_label: st.column_config.NumberColumn(format="%d", width=100),
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
