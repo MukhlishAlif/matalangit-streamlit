@@ -19,6 +19,8 @@ from database import (
     tampil_data_by_date,
     get_latest_data_date,
     tampil_user,
+    load_leave_map,
+    get_leave_flag_range,
 )
 
 # =========================================================
@@ -547,6 +549,10 @@ def show():
         .str.strip()
 
     )
+
+    # Peta izin/cuti (hanya APPROVED), dipakai untuk kolom "Flag Izin"
+    # di tabel Rekap DSE Promotor saja.
+    leave_map = load_leave_map()
 
     real_name_map = (
         df_user
@@ -2286,6 +2292,9 @@ def show():
                 else
 
                 "Belum Input",
+
+            "Flag Izin":
+                get_leave_flag_range(leave_map, nama_promotor, start_date, end_date),
 
             "MSISDN":
                 total_msisdn,

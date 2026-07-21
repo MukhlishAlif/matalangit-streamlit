@@ -30,6 +30,7 @@ ENDPOINTS = {
     "users": "/admin/users/legacy-report",
     "fl": "/bio/fetch-all-fl",
     "bio": "/bio/fetch-all-bio",
+    "leave" : "/leave/export" 
 }
 
 
@@ -355,6 +356,120 @@ def load_fl_summary(brand_filter=None):
 
     return df_fl
 
+MONTH_ID = [
+    "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+]
+ 
+ 
+@st.cache_data(ttl=120)
+def _fetch_leave_raw():
+    """POST tanpa payload. Kalau gagal, return [] (tidak melempar exception)."""
+    try:
+        result = api_fetch(ENDPOINTS["leave"], method="GET")
+    except ApiError as e:
+        print("[LEAVE] gagal ambil dari API:", e.status, e.message)
+        return []
+ 
+    rows = result.get("data", []) if isinstance(result, dict) else (result or [])
+    return rows
+ 
+ 
+def _leave_row_dict(r):
+    return {
+        "id": r.get("id"),
+        "user_code": r.get("user_code"),
+        "full_name": r.get("full_name"),
+        "leave_type": r.get("leave_type"),
+        "start_date": _normalize_join_date(r.get("start_date")),
+        "end_date": _normalize_join_date(r.get("end_date")),
+        "reason": r.get("reason"),
+        "attachment_url": r.get("attachment_url"),
+        "approval_status": str(r.get("approval_status") or "").strip().upper(),
+        "approved_by": r.get("approved_by"),
+        "rejection_reason": r.get("rejection_reason"),
+        "created_at": r.get("created_at"),
+        "updated_at": r.get("updated_at"),
+    }
+ 
+LEAVE_TYPE_ID = {
+    "sick": "Sakit",
+    "leave": "Izin",
+}
+
+def _format_leave_label(leave_type, start_date_str, end_date_str):
+    try:
+        d1 = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        d2 = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return leave_type or ""
+
+    # normalisasi: hilangkan spasi & lowercase sebelum dicocokkan ke dict
+    key = str(leave_type or "").strip().lower().replace(" ", "_")
+    label_type = LEAVE_TYPE_ID.get(key, leave_type)
+
+    if d1 == d2:
+        tanggal = f"{d1.day} {MONTH_ID[d1.month]} {d1.year}"
+    elif d1.month == d2.month and d1.year == d2.year:
+        tanggal = f"{d1.day}-{d2.day} {MONTH_ID[d2.month]} {d2.year}"
+    else:
+        tanggal = (
+            f"{d1.day} {MONTH_ID[d1.month]} {d1.year} - "
+            f"{d2.day} {MONTH_ID[d2.month]} {d2.year}"
+        )
+
+    return f"{label_type} ({tanggal})"
+ 
+ 
+def load_leave_map(only_approved=True):
+    raw_rows = _fetch_leave_raw()
+    records = [_leave_row_dict(r) for r in raw_rows]
+
+    leave_map = {}
+    for rec in records:
+        if only_approved and rec["approval_status"] != "APPROVED":
+            continue
+
+        if not rec["user_code"] or not rec["start_date"] or not rec["end_date"]:
+            continue
+
+        try:
+            d1 = datetime.strptime(rec["start_date"], "%Y-%m-%d").date()
+            d2 = datetime.strptime(rec["end_date"], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            continue
+
+        label = _format_leave_label(rec["leave_type"], rec["start_date"], rec["end_date"])
+
+        key = str(rec["user_code"]).strip().upper()   # <-- TAMBAHKAN INI
+
+        leave_map.setdefault(key, []).append({
+            "start": d1,
+            "end": d2,
+            "label": label,
+            "leave_type": rec["leave_type"],
+        })
+
+    return leave_map
+
+
+def get_leave_flag(leave_map, user_code, check_date):
+    key = str(user_code).strip().upper()   # <-- TAMBAHKAN INI
+    entries = leave_map.get(key, [])
+    labels = [e["label"] for e in entries if e["start"] <= check_date <= e["end"]]
+    return "; ".join(labels)
+
+
+def get_leave_flag_range(leave_map, user_code, filter_start, filter_end):
+    key = str(user_code).strip().upper()   # <-- TAMBAHKAN INI
+    entries = leave_map.get(key, [])
+    labels = [
+        e["label"] for e in entries
+        if e["start"] <= filter_end and e["end"] >= filter_start
+    ]
+    return "; ".join(labels)
+ 
+
 
 def load_outlet_bio_summary(brand_filter=None):
     fl_rows = _fetch_fl_raw()
@@ -382,6 +497,8 @@ def load_outlet_bio_summary(brand_filter=None):
     df_fl["Eligible"] = df_fl["Biometrik"] >= df_fl["fl_target"]
 
     return df_fl
+
+
 
 
 # =====================================

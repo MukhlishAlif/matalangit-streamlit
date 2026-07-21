@@ -9,14 +9,16 @@ from datetime import date, timedelta
 
 from database import (
     tampil_data_by_date,   # <-- ganti dari tampil_data
-    load_user_hierarchy
+    load_user_hierarchy,
+    load_leave_map,
+    get_leave_flag_range
 )
 
 # ==========================================================
 # CONSTANTS
 # ==========================================================
 
-PERSONNEL_ROLES = ["BSM","DSE", "CSE", "RSE", "RGE", "PROMOTOR", "GSE", "FRONTLINER","GEMINI","NP"]
+PERSONNEL_ROLES = ["BSM","DSE", "CSE", "RSE", "RGE", "PROMOTOR", "GSE", "GEMINI","NP"]
 
 TARGET_PER_DAY = 5
 
@@ -33,7 +35,6 @@ PERSONNEL_GROUPS = {
     "GSE": ["GSE"],
     "NP": ["NP"],
     "BSM": ["BSM"],
-    "FRONTLINER": ["FRONLINER"],
     "GEMPI": ["GEMINI"],
 }
 
@@ -1016,6 +1017,46 @@ def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
+
+LEAVE_CATEGORY_LABEL = {
+    "sick": "Sakit",
+    "leave": "Izin",
+}
+
+
+def categorize_leave_type(leave_type):
+    key = str(leave_type or "").strip().lower()
+    return LEAVE_CATEGORY_LABEL.get(key, "Lainnya")
+
+
+def get_leave_breakdown(leave_map, user_list, filter_start, filter_end):
+    """
+    Untuk user dalam list, hitung berapa orang yang lagi izin approved &
+    overlap filter_start-filter_end, dikelompokkan per kategori
+    (Sakit / Izin / Lainnya). 1 user dihitung 1x.
+    """
+    counts = {}
+
+    for u in user_list:
+
+        key = str(u).strip().upper()
+        entries = leave_map.get(key, [])
+
+        matched = next(
+            (
+                e for e in entries
+                if e["start"] <= filter_end and e["end"] >= filter_start
+            ),
+            None
+        )
+
+        if matched:
+            cat = categorize_leave_type(matched["leave_type"])
+            counts[cat] = counts.get(cat, 0) + 1
+
+    return counts
+
+
 def show():
 
     st.markdown(
@@ -1041,6 +1082,9 @@ def show():
         .astype(str)
         .str.strip()
     )
+
+    # Peta izin/cuti, dipakai untuk kolom "Flag Izin" di Team & Individual Performance
+    leave_map = load_leave_map()
 
 # ------------------------------------------------
     # HEADER
@@ -1476,6 +1520,23 @@ def show():
     )
 
     # ==========================================
+    # TOTAL IZIN = jumlah personel aktif yang punya leave APPROVED
+    # kategori Sakit + Izin yang overlap dengan periode filter.
+    # ==========================================
+
+    leave_counts_total = get_leave_breakdown(
+        leave_map,
+        all_personnel["USER"].astype(str).str.strip().unique().tolist(),
+        start_date,
+        end_date
+    )
+
+    total_izin = (
+        leave_counts_total.get("Izin", 0)
+        + leave_counts_total.get("Sakit", 0)
+    )
+
+    # ==========================================
     # Hanya personel aktif yang submit pada periode terpilih
     # ==========================================
 
@@ -1614,6 +1675,8 @@ def show():
 
         ("bolt", "Team Aktif", fmt(active_team), "-", "#10B981"),
 
+        ("event_busy", "Total Izin", fmt(total_izin), "-", "#8B5CF6"),
+
         (
             f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
             "Biometrik IM3",
@@ -1639,7 +1702,7 @@ def show():
         ),
 
     ]
-    kpi_cols = st.columns(6)
+    kpi_cols = st.columns(7)
 
     for col, (icon, label, value, foot, color) in zip(kpi_cols, kpi_defs):
 
@@ -2027,18 +2090,17 @@ def show():
 
     for group_label, roles in role_groups.items():
 
-        # Total personel aktif
-        total_role = df_user[
+        role_filter_base = (
             (df_user["ROLE"].isin(roles))
-            &
-            (df_user["STATUS"].astype(str).str.upper() == "AKTIF")
-            &
-            (
+            & (df_user["STATUS"].astype(str).str.upper() == "AKTIF")
+            & (
                 (selected_brand == "Semua Brand")
-                |
-                (df_user["BRAND"] == selected_brand)
+                | (df_user["BRAND"] == selected_brand)
             )
-        ]["USER"].nunique()
+        )
+
+        role_users = df_user[role_filter_base]["USER"].unique().tolist()
+        total_role = len(role_users)
 
         # Data biometrik pada periode terpilih
         role_data = dff[
@@ -2063,6 +2125,17 @@ def show():
             biom_role / input_role
         ) if input_role > 0 else 0
 
+        leave_counts = get_leave_breakdown(
+            leave_map, role_users, start_date, end_date
+        )
+
+        jumlah_cuti = leave_counts.get("Izin", 0)
+        jumlah_sakit = leave_counts.get("Sakit", 0)
+        jumlah_izin = jumlah_cuti + jumlah_sakit
+
+        pct_cuti = (jumlah_cuti / total_role * 100) if total_role > 0 else 0
+        pct_sakit = (jumlah_sakit / total_role * 100) if total_role > 0 else 0
+
         role_summary.append({
 
             "Role": group_label,
@@ -2075,7 +2148,11 @@ def show():
 
             "Avg Biometrik": avg_biom,
 
-            "Persentase": percent
+            "Persentase": percent,
+
+            "PersentaseCuti": pct_cuti,
+            "PersentaseSakit": pct_sakit,
+            "JumlahIzin": jumlah_izin,
 
         })
 
@@ -2186,51 +2263,71 @@ def show():
 
         for col_idx, (_, row) in enumerate(chunk.iterrows()):
 
-            theme = get_theme(
-                row["Persentase"]
-            )
+            theme = get_theme(row["Persentase"])
+            icon = role_icons.get(row["Role"], mat_icon("person", size=13, valign=-2))
 
-            icon = role_icons.get(
-
-                row["Role"],
-
-                mat_icon("person", size=13, valign=-2)
-
-            )
-
-            pct = row["Persentase"]
+            pct_submit = row["Persentase"]
+            pct_cuti = row["PersentaseCuti"]
+            pct_sakit = row["PersentaseSakit"]
 
             radius = 30
-
             circumference = 2 * 3.14159 * radius
 
-            offset = circumference - (
+            def _ring_segment(offset_pct, length_pct, color):
+                length = (length_pct / 100) * circumference
+                gap = circumference - length
+                dashoffset = -(offset_pct / 100) * circumference
+                return (
+                    f'<circle cx="38" cy="38" r="{radius}" stroke="{color}" stroke-width="6" fill="none" '
+                    f'stroke-dasharray="{length:.2f} {gap:.2f}" stroke-dashoffset="{dashoffset:.2f}" '
+                    f'stroke-linecap="butt" transform="rotate(-90 38 38)" />'
+                )
 
-                pct / 100 * circumference
+            segments_html = ""
+            cum = 0.0
 
-            )
+            if pct_submit > 0:
+                segments_html += _ring_segment(cum, pct_submit, "#ffffff")
+                cum += pct_submit
 
-            # PENTING: string dibangun satu baris (tanpa newline/indentasi),
-            # kalau tidak Streamlit akan menganggapnya sebagai code block Markdown.
+            if pct_cuti > 0:
+                segments_html += _ring_segment(cum, pct_cuti, "#60A5FA")
+                cum += pct_cuti
+
+            if pct_sakit > 0:
+                segments_html += _ring_segment(cum, pct_sakit, "#FBBF24")
+                cum += pct_sakit
+
             ring_svg = (
                 '<div class="kpi-ring-wrap">'
                 '<svg width="76" height="76" viewBox="0 0 76 76">'
                 f'<circle cx="38" cy="38" r="{radius}" stroke="rgba(255,255,255,.28)" stroke-width="6" fill="none" />'
-                f'<circle cx="38" cy="38" r="{radius}" stroke="#ffffff" stroke-width="6" fill="none" '
-                f'stroke-dasharray="{circumference:.1f}" stroke-dashoffset="{offset:.1f}" stroke-linecap="round" '
-                f'transform="rotate(-90 38 38)" />'
-                f'<text x="38" y="43" text-anchor="middle" class="kpi-percent">{pct:.0f}%</text>'
+                f'{segments_html}'
+                f'<text x="38" y="43" text-anchor="middle" class="kpi-percent">{pct_submit:.0f}%</text>'
                 '</svg>'
                 '</div>'
             )
+
+            legend_parts = [f'{pct_submit:.0f}% Biometrik']
+
+            if pct_cuti > 0:
+                legend_parts.append(f'{pct_cuti:.0f}% Izin')
+
+            if pct_sakit > 0:
+                legend_parts.append(f'{pct_sakit:.0f}% Sakit')
+
+            legend_html = ' &middot; '.join(legend_parts)
+
+            jumlah_izin = row.get("JumlahIzin", 0)
+            izin_suffix = f" - {jumlah_izin} izin" if jumlah_izin > 0 else ""
 
             card_html = (
                 f'<div class="kpi-card" style="--accent-grad:{theme["grad"]};">'
                 f'<div class="kpi-icon-badge">{icon}</div>'
                 f'<div class="kpi-role">{row["Role"]}</div>'
                 f'{ring_svg}'
-                f'<div class="kpi-footer">{row["Input"]} / {row["Total"]} personel</div>'
-                f'<div class="kpi-avg">{row["Biometrik"]} biometrik &middot; avg {row["Avg Biometrik"]:.1f}</div>'
+                f'<div class="kpi-footer">{row["Input"]} / {row["Total"]} personel{izin_suffix}</div>'
+                f'<div class="kpi-avg">{legend_html}</div>'
                 '</div>'
             )
 
@@ -3325,7 +3422,8 @@ def show():
         role_filter,
         id_col_name,
         include_role_col=False,
-        leaf=False
+        leaf=False,
+        show_leave_flag=True
     ):
 
         rows = []
@@ -3396,6 +3494,9 @@ def show():
                 d3_label: d3_bio,
             }
 
+            if show_leave_flag:
+                row["Flag Izin"] = get_leave_flag_range(leave_map, u, start_date, end_date)
+
             if include_role_col:
                 row["Role"] = u_role
 
@@ -3460,7 +3561,17 @@ def show():
             
         if target_threshold is not None:
 
-            below_target = int((dfr["MSISDN"] < target_threshold).sum())
+            if "Flag Izin" in dfr.columns:
+                on_leave_mask = dfr["Flag Izin"].astype(str).str.strip().ne("")
+            else:
+                on_leave_mask = pd.Series(False, index=dfr.index)
+
+            below_target = int(
+                (
+                    (dfr["MSISDN"] < target_threshold)
+                    & (~on_leave_mask)
+                ).sum()
+            )
 
             with chip_cols[5]:
                 stat_chip(
@@ -3490,6 +3601,9 @@ def show():
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
         }
+
+        if "Flag Izin" in dfr.columns:
+            column_config["Flag Izin"] = st.column_config.TextColumn(width=220)
         
 
         if "Role" in dfr.columns:
@@ -3498,6 +3612,9 @@ def show():
         if target_threshold is not None:
 
             def highlight_below_target(row):
+                on_leave = str(row.get("Flag Izin", "")).strip() != ""
+                if on_leave:
+                    return [''] * len(row)
                 if row["MSISDN"] < target_threshold:
                     return ['background-color: #FEE2E2; color: #991B1B;'] * len(row)
                 return [''] * len(row)
@@ -3530,7 +3647,7 @@ def show():
         render_rekap_table(rows_hos, "HOS", target_threshold=None)
 
     with tab_bsm:
-        rows_bsm = build_rekap_rows("BSM", "BSM")
+        rows_bsm = build_rekap_rows("BSM", "BSM", show_leave_flag=False)
         render_rekap_table(rows_bsm, "BSM", target_threshold=None)
 
     with tab_cse:
@@ -3754,7 +3871,8 @@ def show():
         role_filter,
         id_col_name,
         include_role_col=False,
-        include_upline_col=True
+        include_upline_col=True,
+        show_leave_flag=True
     ):
         rows = []
 
@@ -3819,6 +3937,9 @@ def show():
                 d3_label: d3_bio,
             })
 
+            if show_leave_flag:
+                row["Flag Izin"] = get_leave_flag_range(leave_map, u, start_date, end_date)
+
             if include_role_col:
                 row["Role"] = u_role
 
@@ -3842,7 +3963,17 @@ def show():
             else 0
         )
 
-        chip_cols = st.columns(4)
+        has_leave_flag = "Flag Izin" in dfr.columns
+
+        if has_leave_flag:
+            on_leave_mask = dfr["Flag Izin"].astype(str).str.strip().ne("")
+            jumlah_cuti_izin = int(on_leave_mask.sum())
+        else:
+            jumlah_cuti_izin = 0
+
+        n_chip = 5 if has_leave_flag else 4
+
+        chip_cols = st.columns(n_chip)
 
         with chip_cols[0]:
             stat_chip("Jumlah", len(dfr), color="orange")
@@ -3855,7 +3986,15 @@ def show():
                 total_bio / total_msisdn * 100, 1
             ) if total_msisdn > 0 else 0
             stat_chip("% Bio", f"{avg_persen}%", color="green")
-        
+
+        if has_leave_flag:
+            with chip_cols[4]:
+                stat_chip(
+                    "Cuti/Izin",
+                    jumlah_cuti_izin,
+                    color="purple" if jumlah_cuti_izin > 0 else "slate"
+                )
+
         st.markdown("<br>", unsafe_allow_html=True)
 
         dfr = dfr.sort_values("% Bio", ascending=False)
@@ -3871,6 +4010,9 @@ def show():
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
         }
+
+        if "Flag Izin" in dfr.columns:
+            column_config["Flag Izin"] = st.column_config.TextColumn(width=220)
 
         if "Upline" in dfr.columns:
             column_config["Upline"] = st.column_config.TextColumn(width=170)
@@ -3908,7 +4050,8 @@ def show():
     with tab_bsm2:
         rows_bsm2 = build_target_rows(
             "BSM", "BSM",
-            include_upline_col=False
+            include_upline_col=False,
+            show_leave_flag=False
         )
         render_target_table(rows_bsm2, "BSM")
 
