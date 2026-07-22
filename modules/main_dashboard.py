@@ -1448,11 +1448,31 @@ def show():
     if selected_brand != "Semua Brand":
         dff = dff[dff["Brand"] == selected_brand]
 
-    # ==========================================
+        # ==========================================
     # FILTER HOS
     # ==========================================
+
     if selected_hos != "Semua HoS":
-        dff = dff[dff["HOS"] == selected_hos]
+
+        hos_downline = get_active_descendants(
+
+            selected_hos,
+
+            children_map,
+
+            active_users_set
+
+        )
+
+        dff = dff[
+
+            dff["Input By"].isin(
+
+                hos_downline
+
+            )
+
+        ]
 
     # ==========================================
     # FILTER PERSONNEL
