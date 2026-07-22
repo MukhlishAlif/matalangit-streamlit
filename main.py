@@ -974,7 +974,7 @@ elif role in ["CSE","RSE"]:
         "Dashboard DSE",
         "Dashboard Frontliner",
         "Dashboard DSE Promotor",
-        "Dashboard Promotor"
+        "Dashboard Promotor",
         "Dashboard GSE",
         "Data MSISDN"
     ]

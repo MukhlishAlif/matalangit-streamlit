@@ -11,7 +11,8 @@ from database import (
     tampil_data_by_date,   # <-- ganti dari tampil_data
     load_user_hierarchy,
     load_leave_map,
-    get_leave_flag_range
+    get_leave_flag_range,
+    _build_bio_map
 )
 
 # ==========================================================
@@ -797,7 +798,47 @@ def load_all_data(start_date, end_date):
 
     )
 
+    
+
     df["MSISDN"] = df["MSISDN"].fillna("").astype(str).str.strip()
+
+        # ------------------------------------------------
+    # AMBIL ga_dt DARI FETCH ALL BIO
+    # ------------------------------------------------
+
+    bio_map = _build_bio_map()
+
+    df["ga_dt"] = (
+
+        df["MSISDN"]
+
+        .map(
+
+            lambda x: bio_map.get(
+
+                str(x).strip(),
+
+                {}
+
+            ).get(
+
+                "ga_dt",
+
+                ""
+
+            )
+
+        )
+
+    )
+
+    df["ga_dt"] = pd.to_datetime(
+
+        df["ga_dt"],
+
+        errors="coerce"
+
+    )
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
 

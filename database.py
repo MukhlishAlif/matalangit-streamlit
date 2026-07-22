@@ -261,7 +261,6 @@ def _user_row_dict(r):
 
 @st.cache_data(ttl=120)
 def _fetch_bio_raw():
-    """Kalau gagal, return [] -- ga_dt akan default kosong."""
     try:
         result = api_fetch(ENDPOINTS["bio"], method="POST")
     except ApiError as e:
@@ -269,12 +268,30 @@ def _fetch_bio_raw():
         return []
 
     rows = result.get("data", []) if isinstance(result, dict) else (result or [])
+
+    print(f"TOTAL DATA BIO : {len(rows)}")
+
+    # Cari semua record yang ga_dt = "ga_date"
+    found = 0
+
+    for i, r in enumerate(rows):
+        ga_dt = str(r.get("ga_dt", "")).strip()
+
+        if ga_dt.lower() == "ga_date":
+            found += 1
+            print("=" * 80)
+            print(f"INDEX : {i}")
+            print(r)
+
+    print(f"TOTAL RECORD ga_dt='ga_date' : {found}")
+
     return rows
 
 
 def _build_bio_map():
-    """Map msisdn -> ga_dt dari /bio/fetch-all-bio. Hanya ga_dt yang dipakai
-    dari endpoint ini; flag_bio diambil langsung dari record outlet."""
+    """Map msisdn -> ga_dt dari /bio/fetch-all-bio, dengan validasi
+    supaya nilai yang bukan tanggal (mis. teks header 'ga_date' yang
+    ikut kebawa dari sumber data) tidak diteruskan ke kolom ga_dt."""
     raw_rows = _fetch_bio_raw()
 
     bio_map = {}
@@ -283,16 +300,31 @@ def _build_bio_map():
         if not msisdn:
             continue
 
-        ga_dt = (
-            r.get("ga_dt")
-            or r.get("ga_date")
-            or r.get("tanggal_biometrik")
-            or ""
-        )
+        ga_dt_raw = str(r.get("ga_dt") or "").strip()
 
-        bio_map[msisdn] = {"ga_dt": ga_dt}
+        # buang nilai yang jelas bukan tanggal (header nyasar, dsb)
+        if not _is_valid_date_string(ga_dt_raw):
+            ga_dt_raw = ""
+
+        bio_map[msisdn] = {"ga_dt": ga_dt_raw}   # <-- key diperbaiki jadi "ga_dt"
 
     return bio_map
+
+
+def _is_valid_date_string(value):
+    """Cek apakah string bisa diparse jadi tanggal (format umum yang
+    biasa dikirim API). Kalau tidak, dianggap data kotor."""
+    if not value:
+        return False
+
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d-%m-%Y", "%d/%m/%Y"):
+        try:
+            datetime.strptime(value[:19], fmt)
+            return True
+        except (ValueError, TypeError):
+            continue
+
+    return False
 
 
 @st.cache_data(ttl=120)
@@ -880,6 +912,22 @@ def tampil_data_by_date(start_date, end_date):
     """
 
     sync_outlet_to_sqlite()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT msisdn, created_at, ga_dt
+    FROM outlet
+    WHERE created_at >= '2026-07-10'
+    ORDER BY created_at DESC
+    LIMIT 20
+    """)
+
+    for r in cursor.fetchall():
+        print(r)
+
+    conn.close()
 
     conn = get_connection()
     cursor = conn.cursor()

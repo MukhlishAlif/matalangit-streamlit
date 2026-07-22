@@ -38,6 +38,13 @@ PERSONNEL_GROUPS = {
     "GEMINI": ["GEMINI"],
 }
 
+ROLE_LABEL = {
+    "HOS": "HoS",
+    "BSM": "BSM",
+    "CSE": "CSE/RSE",
+    "RSE": "CSE/RSE",
+}
+
 # ==========================================================
 # CSS
 # ==========================================================
@@ -874,6 +881,8 @@ def show():
 
     hos_root = current_user
 
+    scope_label = ROLE_LABEL.get(str(current_role).strip().upper(), current_role)
+
     # Downline AKTIF (dipakai untuk semua perhitungan performance)
     hos_downline_active = get_active_descendants(hos_root, children_map, active_users_set)
 
@@ -963,7 +972,7 @@ def show():
                     <div class="mld-sub">
                         Performance Team {display_name} ({hos_root}) berdasarkan jumlah submit MSISDN
                     </div>
-                    <div class="mld-pill" style="margin-top:10px;">HoS Area : {display_name}</div>
+                    <div class="mld-pill" style="margin-top:10px;">{scope_label} : {display_name}</div>
                 </div>
             </div>
         </div>
@@ -1366,6 +1375,8 @@ def show():
         role_users = df_user[role_filter_base]["USER"].unique().tolist()
         total_role = len(role_users)
 
+        if total_role == 0:
+            continue   # role ini tidak ada di bawah user yang login → jangan render
         role_data = dff[
 
             dff["Role"].isin(roles)
@@ -1714,88 +1725,26 @@ def show():
     # + top 5 personel terbaik) + BRANCH (BSM) TOP/BOTTOM
     # ------------------------------------------------
 
-    col_summary, col_branch = st.columns([1.5, 1.3])
+    n_branch = dff["Branch"].nunique()
+    show_branch_compare = n_branch > 1   # BSM/CSE login biasanya cuma 1 branch
+
+    if show_branch_compare:
+        col_summary, col_branch = st.columns([1.5, 1.3])
+    else:
+        col_summary = st.container()
+        col_branch = None
 
     with col_summary:
-
         with st.container(border=True):
+            ...
+            # hapus baris "n_branch = dff["Branch"].nunique()" yang lama di sini,
+            # karena sudah dihitung di atas
+            ...
 
-            st.markdown(
-                f"<div class='mld-card-title'>{mat_icon('insights', size=18, color='#7C3AED', valign=-4)} Ringkasan Performance {display_name}</div>",
-                unsafe_allow_html=True
-            )
-
-            n_branch = dff["Branch"].nunique()
-
-            # ==========================================
-            # TARGET PER USER BEDA-BEDA:
-            # NP / PROMOTOR = 10 submit/hari, role lain = 5 submit/hari.
-            # Dihitung dari SEMUA personel aktif di bawah HoS ini
-            # (bukan cuma yang submit), lalu dijumlah -> target team.
-            # ==========================================
-
-            def target_per_user(role):
-                return 10 if role in ("NP", "PROMOTOR") else TARGET_PER_DAY
-
-            all_personnel_roles = all_personnel[["USER", "ROLE"]].drop_duplicates(subset="USER").copy()
-            all_personnel_roles["Target"] = all_personnel_roles["ROLE"].apply(target_per_user) * n_days
-
-            target_submit = int(all_personnel_roles["Target"].sum())
-            achievement_pct = (submit_total / target_submit * 100) if target_submit else 0
-
-            bar_color = (
-                "#059669" if achievement_pct >= 100
-                else "#D97706" if achievement_pct >= 70
-                else "#DC2626"
-            )
-
-            st.markdown(
-                f"""
-                <div class="branch-card-header">
-                    <div>
-                        <div class="branch-card-name">{display_name}</div>
-                        <div class="branch-card-sub">{hos_root} · {n_branch} Branch</div>
-                    </div>
-                    <div class="branch-stat-row">
-                        <div class="branch-stat-chip">
-                            <div class="branch-stat-val">{fmt(active_team)}</div>
-                            <div class="branch-stat-label">Personel Aktif</div>
-                        </div>
-                        <div class="branch-stat-chip">
-                            <div class="branch-stat-val">{avg_total:.1f}</div>
-                            <div class="branch-stat-label">Avg / Person</div>
-                        </div>
-                        <div class="branch-stat-chip">
-                            <div class="branch-stat-val">{achievement_badge(achievement_pct)}</div>
-                            <div class="branch-stat-label">Achievement</div>
-                        </div>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            st.markdown(
-                f"""
-                <div class="progress-wrap">
-                    <div class="progress-label">
-                        <span>Submit Semua team vs Target ({fmt(target_submit)})</span>
-                        <span>{fmt(submit_total)} / {fmt(target_submit)}</span>
-                    </div>
-                    <div class="progress-track">
-                        <div class="progress-fill" style="width:{min(achievement_pct, 100):.0f}%;background:{bar_color};"></div>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-
-    with col_branch:
-
-        with st.container(border=True):
-
-            render_branch_top_bottom()
+    if col_branch is not None:
+        with col_branch:
+            with st.container(border=True):
+                render_branch_top_bottom()
 
     # ------------------------------------------------
     # 6 LEADERBOARD: BSM, CSE/RSE, DSE, RGE, PROMOTOR, NP
@@ -2024,6 +1973,11 @@ def show():
         ("DSE PROMOTOR", PERSONNEL_GROUPS["PROMOTOR"]),
         ("Promotor", PERSONNEL_GROUPS["NP"]),
     ]
+
+    def role_has_downline(roles):
+        return any(role_map.get(u, "") in roles for u in hos_downline_active)
+
+    lb_defs = [d for d in lb_defs if role_has_downline(d[1])]
 
     LB_PER_ROW = 3
 
@@ -2482,11 +2436,35 @@ def show():
         )
 
         with f_bsm:
-            selected_bsm = st.selectbox(
-                ":material/supervisor_account: Filter BSM",
-                bsm_options,
-                key="ip_filter_bsm"
-            )
+            if len(bsm_options) > 1:
+                selected_bsm = st.selectbox(
+                    ":material/supervisor_account: Filter BSM",
+                    bsm_options,
+                    key="ip_filter_bsm"
+                )
+            else:
+                selected_bsm = "Semua BSM"
+                st.caption("Filter BSM tidak tersedia untuk scope Anda")
+
+        cse_candidates = df_user[
+            (df_user["ROLE"].isin(["CSE", "RSE"]))
+            & (df_user["FLAG_ACTIVE"] == True)
+            & (df_user["USER"].isin(hos_downline_active))
+        ]
+
+        if selected_brand_filter != "Semua Brand":
+            cse_candidates = cse_candidates[
+                cse_candidates["BRAND"] == selected_brand_filter
+            ]
+
+        if selected_bsm != "Semua BSM":
+            cse_candidates = cse_candidates[
+                cse_candidates["ATASAN"] == selected_bsm
+            ]
+
+        cse_options = ["Semua CSE/RSE"] + sorted(
+            cse_candidates["USER"].unique().tolist()
+        )
 
         cse_candidates = df_user[
             (df_user["ROLE"].isin(["CSE", "RSE"]))
@@ -2509,11 +2487,15 @@ def show():
         )
 
         with f_cse:
-            selected_cse = st.selectbox(
-                ":material/group: Filter CSE/RSE",
-                cse_options,
-                key="ip_filter_cse"
-            )
+            if len(cse_options) > 1:
+                selected_cse = st.selectbox(
+                    ":material/group: Filter CSE/RSE",
+                    cse_options,
+                    key="ip_filter_cse"
+                )
+            else:
+                selected_cse = "Semua CSE/RSE"
+                st.caption("Filter CSE/RSE tidak tersedia untuk scope Anda")
 
         st.caption(
             f"Berdasarkan input by masing-masing user • periode {n_days} hari • "
@@ -2733,66 +2715,50 @@ def show():
             column_config=column_config
         )
 
-    (
-        tab_bsm2,
-        tab_cse2,
-        tab_dse2,
-        tab_rge2,
-        tab_promotor2,
-        tab_np2,
-        tab_gse2,
-        tab_gemini2
-    ) = st.tabs([
-        ":material/supervisor_account: BSM",
-        ":material/group: CSE/RSE",
-        ":material/person: DSE",
-        ":material/badge: RGE",
-        ":material/campaign: DSE Promotor",
-        ":material/store: Promotor",
-        ":material/store: GSE",
-        ":material/star: GEMPI"
-    ])
+    tab_defs = [
+        (":material/supervisor_account: BSM", "BSM", "BSM",
+            TARGET_AVG_PER_DAY_MIN, False, False),
+        (":material/group: CSE/RSE", ["CSE", "RSE"], "CSE/RSE",
+            TARGET_AVG_PER_DAY_MIN, False, True),
+        (":material/person: DSE", "DSE", "DSE",
+            TARGET_AVG_PER_DAY_MIN, True, True),
+        (":material/badge: RGE", "RGE", "RGE",
+            TARGET_AVG_PER_DAY_MIN, True, True),
+        (":material/campaign: DSE Promotor", "PROMOTOR", "DSE Promotor",
+            TARGET_AVG_PER_DAY_MIN, True, True),
+        (":material/store: Promotor", "NP", "Promotor",
+            TARGET_AVG_PER_DAY_MIN_NP, True, True),
+        (":material/store: GSE", "GSE", "GSE",
+            TARGET_AVG_PER_DAY_MIN, True, True),
+        (":material/star: GEMPI", "GEMINI", "GEMPI",
+            TARGET_AVG_PER_DAY_MIN, True, True),
+    ]
 
-    with tab_bsm2:
-        rows_bsm2 = build_target_rows(
-            "BSM", "BSM", n_days,
-            include_upline_col=False,
-            show_leave_flag=False
-        )
-        render_target_table(rows_bsm2, "BSM", TARGET_AVG_PER_DAY_MIN)
+    def _as_list(x):
+        return x if isinstance(x, list) else [x]
 
-    with tab_cse2:
-        rows_cse2 = build_target_rows(
-            ["CSE", "RSE"],
-            "CSE/RSE",
-            n_days,
-            include_role_col=False,
-            include_upline_col=False
-        )
-        render_target_table(rows_cse2, "CSE/RSE", TARGET_AVG_PER_DAY_MIN)
+    # hanya tampilkan tab yang rolenya benar-benar ada di downline user yang login
+    visible_tab_defs = [
+        td for td in tab_defs
+        if any(role_map.get(u, "") in _as_list(td[1]) for u in hos_downline_active)
+    ]
 
-    with tab_dse2:
-        rows_dse2 = build_target_rows("DSE", "DSE", n_days)
-        render_target_table(rows_dse2, "DSE", TARGET_AVG_PER_DAY_MIN)
+    if not visible_tab_defs:
+        st.info("Tidak ada bawahan pada scope Anda.")
+    else:
+        rendered_tabs = st.tabs([td[0] for td in visible_tab_defs])
 
-    with tab_rge2:
-        rows_rge2 = build_target_rows("RGE", "RGE", n_days)
-        render_target_table(rows_rge2, "RGE", TARGET_AVG_PER_DAY_MIN)
-
-    with tab_promotor2:
-        rows_promotor2 = build_target_rows("PROMOTOR", "DSE Promotor", n_days)
-        render_target_table(rows_promotor2, "DSE Promotor", TARGET_AVG_PER_DAY_MIN)
-
-    with tab_np2:
-        rows_np2 = build_target_rows("NP", "Promotor", n_days)
-        render_target_table(rows_np2, "Promotor", TARGET_AVG_PER_DAY_MIN_NP)
-
-    with tab_gse2:
-        rows_gse2 = build_target_rows("GSE", "GSE", n_days)
-        render_target_table(rows_gse2, "GSE", TARGET_AVG_PER_DAY_MIN)
-
-    with tab_gemini2:
-        rows_gemini2 = build_target_rows("GEMINI", "GEMPI", n_days)
-        render_target_table(rows_gemini2, "GEMPI", TARGET_AVG_PER_DAY_MIN)
+        for tab_ui, (label, role_filter, id_col_name, target, inc_upline, show_leave) in zip(
+            rendered_tabs, visible_tab_defs
+        ):
+            with tab_ui:
+                rows = build_target_rows(
+                    role_filter,
+                    id_col_name,
+                    n_days,
+                    include_upline_col=inc_upline,
+                    show_leave_flag=show_leave
+                )
+                render_target_table(rows, id_col_name, target)
 
     st.divider()
