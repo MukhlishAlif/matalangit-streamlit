@@ -1133,6 +1133,22 @@ def show():
         .str.strip()
     )
 
+    # ==========================================
+    # CACHE DESCENDANT (BFS) PER ROOT
+    # Dipakai berkali-kali di banyak section (Achievement HOS,
+    # Team Performance, dst) -- tanpa cache ini, BFS akan
+    # dijalankan ulang dari nol untuk root yang sama berkali-kali
+    # di satu render, yang jadi salah satu sumber utama lag.
+    # ==========================================
+    _desc_cache = {}
+
+    def get_descendants_cached(root):
+        if root not in _desc_cache:
+            _desc_cache[root] = get_active_descendants(
+                root, children_map, active_users_set
+            )
+        return _desc_cache[root]
+
     # Peta izin/cuti, dipakai untuk kolom "Flag Izin" di Team & Individual Performance
     leave_map = load_leave_map()
 
@@ -1430,15 +1446,7 @@ def show():
 
     if selected_hos != "Semua HoS":
 
-        hos_downline = get_active_descendants(
-
-            selected_hos,
-
-            children_map,
-
-            active_users_set
-
-        )
+        hos_downline = get_descendants_cached(selected_hos)
 
         dff = dff[
 
@@ -1753,6 +1761,12 @@ def show():
 
     role_summary = []
 
+    target_per_user_map = {
+        "DSE PROMOTOR": 10,
+        "Promotor": 10,
+    }
+    DEFAULT_TARGET_PER_USER = 5
+
     for group_label, roles in role_groups.items():
 
         role_filter_base = (
@@ -1796,6 +1810,10 @@ def show():
         pct_cuti = (jumlah_cuti / total_role * 100) if total_role > 0 else 0
         pct_sakit = (jumlah_sakit / total_role * 100) if total_role > 0 else 0
 
+        target_per_user = target_per_user_map.get(group_label, DEFAULT_TARGET_PER_USER)
+        target_role = total_role * target_per_user
+        pct_vs_target = (submit_role / target_role * 100) if target_role > 0 else 0
+
         role_summary.append({
 
             "Role": group_label,
@@ -1806,7 +1824,10 @@ def show():
             "Persentase": percent,
             "PersentaseCuti": pct_cuti,
             "PersentaseSakit": pct_sakit,
-            "JumlahIzin": jumlah_izin,   # <-- baris baru
+            "JumlahIzin": jumlah_izin,
+            "TargetPerUser": target_per_user,   # <-- baru
+            "Target": target_role,              # <-- baru
+            "PctVsTarget": pct_vs_target,        # <-- baru
 
         })
 
@@ -1897,6 +1918,43 @@ def show():
 
         }
 
+        .kpi-target-wrap{
+
+            margin-top:10px;
+            padding-top:10px;
+            border-top:1px solid rgba(255,255,255,.25);
+
+        }
+
+        .kpi-target-bar-bg{
+
+            width:100%;
+            height:7px;
+            background:rgba(255,255,255,.25);
+            border-radius:5px;
+            overflow:hidden;
+            margin-bottom:5px;
+
+        }
+
+        .kpi-target-bar-fill{
+
+            height:100%;
+            border-radius:5px;
+            background:#ffffff;
+
+        }
+
+        .kpi-target-info{
+
+            display:flex;
+            justify-content:space-between;
+            font-size:11px;
+            font-weight:600;
+            color:rgba(255,255,255,.92);
+
+        }
+
         </style>
         """,
 
@@ -1975,6 +2033,20 @@ def show():
             jumlah_izin = row.get("JumlahIzin", 0)
             izin_suffix = f" - {jumlah_izin} izin" if jumlah_izin > 0 else ""
 
+            pct_target_clamped = min(row["PctVsTarget"], 100)
+
+            target_html = (
+                '<div class="kpi-target-wrap">'
+                '<div class="kpi-target-bar-bg">'
+                f'<div class="kpi-target-bar-fill" style="width:{pct_target_clamped:.0f}%;"></div>'
+                '</div>'
+                '<div class="kpi-target-info">'
+                f'<span>{row["Submit"]}/{row["Target"]:.0f} target</span>'
+                f'<span>{row["PctVsTarget"]:.0f}%</span>'
+                '</div>'
+                '</div>'
+            )
+
             card_html = (
                 f'<div class="kpi-card" style="--accent-grad:{theme["grad"]};">'
                 f'<div class="kpi-icon-badge">{icon}</div>'
@@ -1982,6 +2054,7 @@ def show():
                 f'{ring_svg}'
                 f'<div class="kpi-footer">{row["Input"]} / {row["Total"]} personel{izin_suffix}</div>'
                 f'<div class="kpi-avg">{legend_html}</div>'
+                f'{target_html}'
                 '</div>'
             )
 
@@ -2105,7 +2178,7 @@ def show():
 
             for hos_user in hos_list:
 
-                downline = get_active_descendants(hos_user, children_map, active_users_set)
+                downline = get_descendants_cached(hos_user)
 
                 hos_df = dff[dff["Input By"].isin(downline)]
 
@@ -2560,290 +2633,11 @@ def show():
     st.markdown("<br>", unsafe_allow_html=True)
 # ------------------------------------------------
     # BRANCH PERFORMANCE TABLE
-    # (metrik utama = jumlah submit MSISDN)
+    # NOTE: section ini sudah lama dinonaktifkan (dibungkus jadi
+    # docstring literal), sengaja DIHAPUS pada versi ini karena:
+    # (a) menambah ribuan baris parsing tanpa efek runtime, dan
+    # (b) menyulitkan pembacaan file saat maintenance.
     # ------------------------------------------------
-    """
-    with st.container(border=True):
-
-        st.markdown(
-            f"<div class='mld-card-title'>{mat_icon('assignment', size=18, valign=-4)} Branch Performance</div>",
-            unsafe_allow_html=True
-        )
-
-        t1, t2 = st.columns([1, 3])
-
-        with t1:
-
-            table_group = st.selectbox(
-                "Personnel (tabel)",
-                list(PERSONNEL_GROUPS.keys()),
-                key="qc_table_personnel"
-            )
-
-        with t2:
-
-            st.markdown(
-                f"<div style='font-size:13px;margin-bottom:2px;'>{mat_icon('search', size=14, valign=-2)} Search Branch / MC</div>",
-                unsafe_allow_html=True
-            )
-            search = st.text_input(
-                "Search Branch / MC",
-                key="qc_search",
-                label_visibility="collapsed"
-            )
-
-        roles_for_table = PERSONNEL_GROUPS[table_group]
-
-        table_df = dff[
-            dff["Role"].isin(roles_for_table)
-        ].copy()
-
-        # User yang submit pada periode terpilih
-        submitted_users = (
-            table_df["Input By"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .unique()
-        )
-
-        roster = df_user[
-
-            (df_user["ROLE"].isin(roles_for_table))
-            &
-            (
-                (selected_brand == "Semua Brand")
-                |
-                (df_user["BRAND"] == selected_brand)
-            )
-
-        ].copy()
-
-        # Hanya personel yang submit pada periode terpilih
-        roster = roster[
-
-            roster["USER"]
-            .astype(str)
-            .str.strip()
-            .isin(submitted_users)
-
-        ]
-
-        roster["Branch"] = roster["USER"].apply(
-
-            lambda u: ancestor_lookup(
-                u,
-                {"BSM"},
-                role_map,
-                atasan_map
-            )
-
-        )
-
-        roster["MC"] = roster["USER"].apply(
-
-            lambda u: ancestor_lookup(
-                u,
-                {"CSE", "RSE"},
-                role_map,
-                atasan_map
-            )
-
-        )
-
-        branch_list = sorted(
-
-            table_df["Branch"]
-            .dropna()
-            .unique()
-
-        )
-
-        if search:
-
-            branch_list = [
-
-                b for b in branch_list
-
-                if search.lower() in b.lower()
-
-            ]
-
-        if not branch_list:
-
-            st.info("Tidak ada data Branch untuk filter ini.")
-
-        for branch_name in branch_list:
-
-            branch_roster = roster[roster["Branch"] == branch_name]
-            branch_data = table_df[table_df["Branch"] == branch_name]
-
-            n_personnel = branch_roster["USER"].nunique()
-            n_active = branch_data["Input By"].nunique()
-            n_submit = len(branch_data)
-
-            avg_per_person = (
-
-                n_submit / n_personnel
-
-                if n_personnel
-
-                else 0
-
-            )
-            with st.expander(
-                f"**{branch_name}**  ·  {n_personnel} personnel  ·  "
-                f"{fmt(n_submit)} submit  ",
-                expanded=False
-            ):
-
-                b1, b2, b3, b4 = st.columns(4)
-
-                b1.metric("# Personnel", n_personnel)
-
-                b2.metric("Active", n_active)
-
-                b3.metric("Submit", fmt(n_submit))
-
-                b4.metric(
-                    "Avg/Person",
-                    f"{avg_per_person:.1f}"
-                )
-
-                mc_list = sorted(
-
-                    branch_data["MC"]
-                    .dropna()
-                    .unique()
-
-                )
-
-                mc_list = [m for m in mc_list if m and m != "-"]
-
-                rows = []
-
-                for mc_name in mc_list:
-
-                    mc_roster = branch_roster[
-                        branch_roster["MC"] == mc_name
-                    ]
-
-                    mc_data = branch_data[
-                        branch_data["MC"] == mc_name
-                    ]
-
-                    mc_personnel = mc_roster["USER"].nunique()
-
-                    mc_active = mc_data["Input By"].nunique()
-
-                    mc_submit = len(mc_data)
-
-                    mc_avg = (
-
-                        mc_submit / mc_personnel
-
-                        if mc_personnel
-
-                        else 0
-
-                    )
-
-                    # ======================================
-                    # DATA FULL (TIDAK TERFILTER PERIODE)
-                    # ======================================
-
-                    mc_all = df[
-
-                        (df["MC"] == mc_name)
-
-                        &
-
-                        (
-                            (selected_brand == "Semua Brand")
-                            |
-                            (df["Brand"] == selected_brand)
-                        )
-
-                    ].copy()
-
-                    if selected_hos != "Semua HoS":
-
-                        mc_all = mc_all[
-                            mc_all["HOS"] == selected_hos
-                        ]
-
-                    # gunakan role filter yang SAMA dengan tabel ini
-                    # (roles_for_table = PERSONNEL_GROUPS[table_group])
-                    # bukan filter personnel global (selected_group),
-                    # supaya D-1/D-2/D-3 konsisten dengan kolom Submit di baris ini
-                    mc_all = mc_all[
-                        mc_all["Role"].isin(roles_for_table)
-                    ]
-
-                    mc_all["Tanggal"] = pd.to_datetime(
-                        mc_all["Tanggal"]
-                    )
-
-                    # ======================================
-                    # D-1 / D-2 / D-3
-                    # berdasarkan tanggal akhir filter
-                    # ======================================
-
-                    d1_date = end_date - timedelta(days=1)
-                    d2_date = end_date - timedelta(days=2)
-                    d3_date = end_date - timedelta(days=3)
-
-                    d1 = len(
-                        mc_all[
-                            mc_all["Tanggal"].dt.date == d1_date
-                        ]
-                    )
-
-                    d2 = len(
-                        mc_all[
-                            mc_all["Tanggal"].dt.date == d2_date
-                        ]
-                    )
-
-                    d3 = len(
-                        mc_all[
-                            mc_all["Tanggal"].dt.date == d3_date
-                        ]
-                    )
-
-                    rows.append({
-
-                        "MC": mc_name,
-                        "# Personnel": mc_personnel,
-                        "Active": mc_active,
-                        "Submit": mc_submit,
-                        "Avg/Person": round(
-                            mc_avg,
-                            1
-                        ),
-
-                        f"D-1 ({d1_date.strftime('%d/%m')})": d1,
-                        f"D-2 ({d2_date.strftime('%d/%m')})": d2,
-                        f"D-3 ({d3_date.strftime('%d/%m')})": d3
-
-                    })
-
-                if rows:
-
-                    st.dataframe(
-
-                        pd.DataFrame(rows),
-
-                        use_container_width=True,
-
-                        hide_index=True
-
-                    )
-
-                else:
-
-                    st.caption("Belum ada Micro Cluster / data untuk branch ini.")
-    """
 
     DATE_COL = "Tanggal"
 
@@ -3000,64 +2794,64 @@ def show():
     # (SEMUA BERBASIS SUBMIT, BUKAN BIOMETRIK)
     # ==========================================
 
-    def get_msisdn_avg_team(user_list):
+    def _scope_team_df(source_df):
+        """Terapkan filter Brand & Personnel section Team Performance
+        ke sebuah dataframe, dipakai untuk precompute di bawah."""
 
-        user_data = dff[
-            dff["Input By"].isin(user_list)
-        ]
-
-        if selected_brand_filter != "Semua Brand":
-            user_data = user_data[
-                user_data["Brand"] == selected_brand_filter
-            ]
-
-        if selected_personnel_filter != "Semua Personnel":
-            user_data = user_data[
-                user_data["Role"].isin(
-                    PERSONNEL_GROUPS[
-                        selected_personnel_filter
-                    ]
-                )
-            ]
-
-        total_msisdn = len(user_data)
-
-        # pembagi = jumlah orang (dari user_list) yang BENAR-BENAR submit
-        total_person_submit = user_data["Input By"].nunique()
-
-        avg_per_person = (
-            (total_msisdn / total_person_submit)
-            if total_person_submit > 0
-            else 0
-        )
-
-        return total_msisdn, total_person_submit, avg_per_person
-
-    def get_submit_by_date_team(user_list, target_date):
-        user_data = df[
-            df["Input By"].isin(user_list)
-        ].copy()
+        scoped = source_df
 
         if selected_brand_filter != "Semua Brand":
-            user_data = user_data[
-                user_data["Brand"] == selected_brand_filter
-            ]
+            scoped = scoped[scoped["Brand"] == selected_brand_filter]
 
         if selected_personnel_filter != "Semua Personnel":
-            user_data = user_data[
-                user_data["Role"].isin(
+            scoped = scoped[
+                scoped["Role"].isin(
                     PERSONNEL_GROUPS[selected_personnel_filter]
                 )
             ]
 
-        # samakan tipe: strip jam, sisakan tanggal murni, baru dibandingkan
-        tanggal_only = pd.to_datetime(user_data["Tanggal"]).dt.date
+        return scoped
 
-        return len(
-            user_data[
-                tanggal_only == target_date
-            ]
-        )
+    # ==========================================
+    # PRECOMPUTE (dihitung 1x, dipakai oleh SEMUA user/downline
+    # di bawah lewat reindex/lookup -- BUKAN filter dataframe
+    # berulang per user seperti versi lama).
+    # ==========================================
+
+    # Total submit per user pada periode filter (dff) -> untuk kolom
+    # MSISDN & Avg MSISDN/Person.
+    _team_scoped_dff = _scope_team_df(dff)
+    team_submit_counts = _team_scoped_dff.groupby("Input By").size()
+
+    # Submit per user PER TANGGAL, dari df MENTAH (supaya D-1/D-2/D-3
+    # tetap bisa ambil tanggal di luar rentang filter, sama seperti
+    # perilaku fungsi lama get_submit_by_date_team).
+    _team_daily_src = _scope_team_df(df).copy()
+    _team_daily_src["_date_only"] = pd.to_datetime(
+        _team_daily_src["Tanggal"]
+    ).dt.date
+
+    team_daily_pivot = (
+        _team_daily_src
+        .groupby(["Input By", "_date_only"])
+        .size()
+        .unstack(fill_value=0)
+    )
+
+    def team_daily_sum(user_list, target_date):
+        """Total submit pada 1 tanggal, untuk sekumpulan user (dia +
+        turunannya). Lookup dari pivot yang sudah dihitung sekali,
+        bukan filter dataframe lagi."""
+
+        if target_date not in team_daily_pivot.columns:
+            return 0
+
+        idx = team_daily_pivot.index.intersection(user_list)
+
+        if len(idx) == 0:
+            return 0
+
+        return int(team_daily_pivot.loc[idx, target_date].sum())
 
     def stat_chip(label, value, color="slate"):
         """color: slate, blue, purple, green, amber, orange, danger"""
@@ -3119,33 +2913,23 @@ def show():
             downline = [u] + (
                 []
                 if leaf
-                else get_active_descendants(
-                    u,
-                    children_map,
-                    active_users_set
-                )
+                else get_descendants_cached(u)
             )
 
-            u_msisdn, u_person_submit, u_avg = (
-                get_msisdn_avg_team(
-                    downline
-                )
-            )
+            # ==========================================
+            # VECTORIZED: lookup dari precompute, bukan filter
+            # dataframe ulang untuk tiap user.
+            # ==========================================
 
-            d1_submit = get_submit_by_date_team(
-                downline,
-                d1_date
-            )
+            counts_for_downline = team_submit_counts.reindex(downline).fillna(0)
 
-            d2_submit = get_submit_by_date_team(
-                downline,
-                d2_date
-            )
+            u_msisdn = int(counts_for_downline.sum())
+            u_person_submit = int((counts_for_downline > 0).sum())
+            u_avg = (u_msisdn / u_person_submit) if u_person_submit > 0 else 0
 
-            d3_submit = get_submit_by_date_team(
-                downline,
-                d3_date
-            )
+            d1_submit = team_daily_sum(downline, d1_date)
+            d2_submit = team_daily_sum(downline, d2_date)
+            d3_submit = team_daily_sum(downline, d3_date)
 
             row = {
                 id_col_name: u,
@@ -3477,33 +3261,48 @@ def show():
             f"target minimal {TARGET_AVG_PER_DAY_MIN} submit/hari • "
         )
 
-    def get_msisdn_bio_individual(user_list):
-        user_data = dff[dff["Input By"].isin(user_list)]
-        total_msisdn = len(user_data)
-        total_bio = len(user_data[user_data["Biometrik"] == True])
-        persen_bio = (total_bio / total_msisdn * 100) if total_msisdn > 0 else 0
-        return total_msisdn, total_bio, persen_bio
+    def _scope_indiv_df(source_df):
+        """Terapkan filter Brand section Individual Performance."""
 
-    def get_msisdn_by_date_team(user_list, target_date):
-        """Jumlah MSISDN submission pada 1 tanggal, untuk list user (dia + turunannya)."""
-        user_data = df[
-            df["Input By"].isin(user_list)
-        ].copy()
-
-        tanggal_only = pd.to_datetime(
-            user_data[DATE_COL]
-        ).dt.date
-
-        user_data = user_data[
-            tanggal_only == target_date
-        ]
+        scoped = source_df
 
         if selected_brand_filter != "Semua Brand":
-            user_data = user_data[
-                user_data["Brand"] == selected_brand_filter
-            ]
+            scoped = scoped[scoped["Brand"] == selected_brand_filter]
 
-        return len(user_data)
+        return scoped
+
+    # ==========================================
+    # PRECOMPUTE untuk Individual Performance -- dihitung 1x,
+    # dipakai untuk semua user lewat lookup, bukan filter dataframe
+    # per user seperti versi lama (get_msisdn_bio_individual /
+    # get_msisdn_by_date_team dipanggil per user x per tab).
+    # ==========================================
+
+    indiv_submit_counts = (
+        _scope_indiv_df(dff)
+        .groupby("Input By")
+        .size()
+    )
+
+    _indiv_daily_src = _scope_indiv_df(df).copy()
+    _indiv_daily_src["_date_only"] = pd.to_datetime(
+        _indiv_daily_src[DATE_COL]
+    ).dt.date
+
+    indiv_daily_pivot = (
+        _indiv_daily_src
+        .groupby(["Input By", "_date_only"])
+        .size()
+        .unstack(fill_value=0)
+    )
+
+    def indiv_daily_lookup(u, target_date):
+        if (
+            target_date not in indiv_daily_pivot.columns
+            or u not in indiv_daily_pivot.index
+        ):
+            return 0
+        return int(indiv_daily_pivot.loc[u, target_date])
 
     def build_target_rows(
         role_filter,
@@ -3540,18 +3339,21 @@ def show():
             u_name = u_info["REAL_NAME"]
             u_role = u_info["ROLE"]
 
-            u_msisdn, u_bio, _ = get_msisdn_bio_individual([u])
+            # ==========================================
+            # VECTORIZED: lookup dari precompute Series/pivot,
+            # bukan filter dff/df ulang untuk tiap user.
+            # ==========================================
+
+            u_msisdn = int(indiv_submit_counts.get(u, 0))
 
             avg_per_day = round(
                 u_msisdn / n_days if n_days > 0 else 0,
                 2
             )
 
-            # D-1/D-2/D-3 = submission user itu SENDIRI (sama seperti kolom MSISDN),
-            # cuma bedanya di tanggal
-            d1_msisdn = get_msisdn_by_date_team([u], d1_date)
-            d2_msisdn = get_msisdn_by_date_team([u], d2_date)
-            d3_msisdn = get_msisdn_by_date_team([u], d3_date)
+            d1_msisdn = indiv_daily_lookup(u, d1_date)
+            d2_msisdn = indiv_daily_lookup(u, d2_date)
+            d3_msisdn = indiv_daily_lookup(u, d3_date)
 
             row = {
                 id_col_name: u,
@@ -3747,6 +3549,6 @@ def show():
 
     with tab_gemini2:
         rows_gemini2 = build_target_rows("GEMINI", "GEMPI", n_days)
-        render_target_table(rows_gemini2, "GEMPI", TARGET_AVG_PER_DAY_MIN)
+        render_target_table(rows_gemini2, "GEMPI", TARGET_AVG_PER_DAY_MIN_NP)
 
     st.divider()
