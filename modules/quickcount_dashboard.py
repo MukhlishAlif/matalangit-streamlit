@@ -11,7 +11,8 @@ from database import (
     tampil_data_by_date,
     load_user_hierarchy,
     load_leave_map,
-    get_leave_flag_range
+    get_leave_flag_range,
+    _build_bio_map
 )
 
 # ==========================================================
@@ -804,6 +805,44 @@ def load_all_data(start_date, end_date):
     )
 
     df["MSISDN"] = df["MSISDN"].fillna("").astype(str).str.strip()
+
+        # ------------------------------------------------
+    # AMBIL ga_dt DARI FETCH ALL BIO
+    # ------------------------------------------------
+
+    bio_map = _build_bio_map()
+
+    df["ga_dt"] = (
+
+        df["MSISDN"]
+
+        .map(
+
+            lambda x: bio_map.get(
+
+                str(x).strip(),
+
+                {}
+
+            ).get(
+
+                "ga_dt",
+
+                ""
+
+            )
+
+        )
+
+    )
+
+    df["ga_dt"] = pd.to_datetime(
+
+        df["ga_dt"],
+
+        errors="coerce"
+
+    )
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"], errors="coerce")
 
@@ -3682,7 +3721,7 @@ def show():
 
     with tab_promotor2:
         rows_promotor2 = build_target_rows("PROMOTOR", "DSE Promotor", n_days)
-        render_target_table(rows_promotor2, "DSE Promotor", TARGET_AVG_PER_DAY_MIN)
+        render_target_table(rows_promotor2, "DSE Promotor", TARGET_AVG_PER_DAY_MIN_NP)
 
     with tab_np2:
         rows_np2 = build_target_rows("NP", "Promotor", n_days)
