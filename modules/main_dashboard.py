@@ -2427,20 +2427,55 @@ def show():
         # ==========================================
 
         all_branches = (
-            df_user[
-                df_user["BRAND"].astype(str).str.upper() == brand.upper()
-            ]["BRANCH"]
+
+            df_user["BRANCH"]
+
             .dropna()
+
             .astype(str)
+
             .str.strip()
+
+            .loc[
+
+                lambda s: s.str.upper().str.endswith(
+
+                    f"_{brand.upper()}"
+
+                )
+
+            ]
+
             .unique()
+
             .tolist()
+
         )
 
         branch_scores = []
         seen_branches = set()
 
-        for branch_name, branch_df in dff[dff["Brand"] == brand].groupby("Branch"):
+        for branch_name, branch_df in (
+
+            dff[
+
+                dff["Branch"]
+
+                .astype(str)
+
+                .str.upper()
+
+                .str.endswith(
+
+                    f"_{brand.upper()}"
+
+                )
+
+            ]
+
+            .groupby("Branch")
+
+        ):
 
             total_biom = branch_df["Biometrik"].sum()
 

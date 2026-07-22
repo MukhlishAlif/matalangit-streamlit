@@ -19,7 +19,6 @@ from modules.main_dashboard import show as main_dashboard
 from modules.quickcount_dashboard import show as quickcount_dashboard
 from modules.dashboard_bsm import show as dashboard_bsm
 from modules.dashboard_np import show as dashboard_np
-from modules.performance import show as performance
 
 from auth import login_page, sidebar
 
@@ -1002,7 +1001,6 @@ elif role == "BSM":
 elif role == "HOS":
 
     menu_items = [
-        "Performance Team",
         "Leaderboard Biometrik",
         "Leaderboard Quick Count",
         "Dashboard BSM",
@@ -1096,7 +1094,3 @@ elif menu == "Dashboard Promotor":
 elif menu == "Data MSISDN":
 
     data_outlet()
-
-elif menu == "Performance Team":
-
-    performance()
