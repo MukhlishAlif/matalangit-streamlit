@@ -1424,15 +1424,29 @@ def show():
 
         ]
 
-    # ==========================================
+        # ==========================================
     # FILTER HOS
     # ==========================================
 
     if selected_hos != "Semua HoS":
 
+        hos_downline = get_active_descendants(
+
+            selected_hos,
+
+            children_map,
+
+            active_users_set
+
+        )
+
         dff = dff[
 
-            dff["HOS"] == selected_hos
+            dff["Input By"].isin(
+
+                hos_downline
+
+            )
 
         ]
 
