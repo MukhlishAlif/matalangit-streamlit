@@ -1918,40 +1918,59 @@ def show():
 
         }
 
-        .kpi-target-wrap{
+        .target-card{
 
-            margin-top:10px;
-            padding-top:10px;
-            border-top:1px solid rgba(255,255,255,.25);
+            background:#ffffff;
+            border:1px solid #e5e7eb;
+            border-radius:16px;
+            padding:16px 18px;
+            margin-bottom:14px;
+            box-shadow:0 2px 8px rgba(0,0,0,.06);
 
         }
 
-        .kpi-target-bar-bg{
+        .target-role{
+
+            font-size:13px;
+            font-weight:700;
+            letter-spacing:.6px;
+            text-transform:uppercase;
+            color:#374151;
+            margin-bottom:8px;
+
+        }
+
+        .target-bar-bg{
 
             width:100%;
-            height:7px;
-            background:rgba(255,255,255,.25);
-            border-radius:5px;
+            height:10px;
+            background:#e5e7eb;
+            border-radius:6px;
             overflow:hidden;
-            margin-bottom:5px;
+            margin-bottom:6px;
 
         }
 
-        .kpi-target-bar-fill{
+        .target-bar-fill{
 
             height:100%;
-            border-radius:5px;
-            background:#ffffff;
+            border-radius:6px;
+            transition:width .3s ease;
 
         }
 
-        .kpi-target-info{
+        .target-info{
 
             display:flex;
             justify-content:space-between;
-            font-size:11px;
-            font-weight:600;
-            color:rgba(255,255,255,.92);
+            font-size:12px;
+            color:#6b7280;
+
+        }
+
+        .target-info b{
+
+            color:#111827;
 
         }
 
@@ -2033,20 +2052,6 @@ def show():
             jumlah_izin = row.get("JumlahIzin", 0)
             izin_suffix = f" - {jumlah_izin} izin" if jumlah_izin > 0 else ""
 
-            pct_target_clamped = min(row["PctVsTarget"], 100)
-
-            target_html = (
-                '<div class="kpi-target-wrap">'
-                '<div class="kpi-target-bar-bg">'
-                f'<div class="kpi-target-bar-fill" style="width:{pct_target_clamped:.0f}%;"></div>'
-                '</div>'
-                '<div class="kpi-target-info">'
-                f'<span>{row["Submit"]}/{row["Target"]:.0f} target</span>'
-                f'<span>{row["PctVsTarget"]:.0f}%</span>'
-                '</div>'
-                '</div>'
-            )
-
             card_html = (
                 f'<div class="kpi-card" style="--accent-grad:{theme["grad"]};">'
                 f'<div class="kpi-icon-badge">{icon}</div>'
@@ -2054,7 +2059,6 @@ def show():
                 f'{ring_svg}'
                 f'<div class="kpi-footer">{row["Input"]} / {row["Total"]} personel{izin_suffix}</div>'
                 f'<div class="kpi-avg">{legend_html}</div>'
-                f'{target_html}'
                 '</div>'
             )
 
