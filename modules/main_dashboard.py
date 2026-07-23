@@ -1750,14 +1750,8 @@ def show():
     )
 
     kpi_defs = [
-
-        ("group", "Team Total", fmt(total_team), "-", "#3B82F6"),
-
-        ("person_off", "Vacant", fmt(jumlah_vacant), "-", "#E8A33D"),
-
+  
         ("bolt", "Team Aktif", fmt(active_team), "-", "#10B981"),
-
-        ("event_busy", "Total Izin", fmt(total_izin), "-", "#8B5CF6"),
 
         (
             f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
@@ -1784,7 +1778,7 @@ def show():
         ),
 
     ]
-    kpi_cols = st.columns(7)
+    kpi_cols = st.columns(4)
 
     for col, (icon, label, value, foot, color) in zip(kpi_cols, kpi_defs):
 
