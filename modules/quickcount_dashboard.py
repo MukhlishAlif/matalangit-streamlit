@@ -1632,22 +1632,7 @@ def show():
     )
 
     kpi_defs = [
-
-        (
-            "group",
-            "Team Total",
-            fmt(total_team),
-            "-",
-            "#3B82F6"
-        ),
-
-        (
-            "person_off",
-            "Vacant",
-            fmt(total_vacant),
-            "-",
-            "#EF4444"
-        ),
+    
 
         (
             "bolt",
@@ -1656,15 +1641,6 @@ def show():
             "-",
             "#10B981"
         ),
-
-        (
-            "event_busy",
-            "Total Izin",
-            fmt(total_cuti),
-            "-",
-            "#8B5CF6"
-        ),
-
 
         (
             f'<img src="data:image/png;base64,{im3_icon}" style="width:35px;height:35px;object-fit:contain;vertical-align:-4px;" />',
@@ -1692,7 +1668,7 @@ def show():
 
     ]
 
-    kpi_cols = st.columns(7)
+    kpi_cols = st.columns(4)
 
     for col, (icon, label, value, foot, color) in zip(kpi_cols, kpi_defs):
 
@@ -2945,9 +2921,6 @@ def show():
                 d3_label: d3_submit,
             }
 
-            if show_leave_flag:
-                row["Flag Izin"] = get_leave_flag_range(leave_map, u, start_date, end_date)
-
             if include_role_col:
                 row["Role"] = u_role
 
@@ -3040,9 +3013,6 @@ def show():
             d2_label: st.column_config.NumberColumn(format="%d", width=100),
             d1_label: st.column_config.NumberColumn(format="%d", width=100),
         }
-
-        if "Flag Izin" in dfr.columns:
-            column_config["Flag Izin"] = st.column_config.TextColumn(width=220)
 
         if "Role" in dfr.columns:
             column_config["Role"] = st.column_config.TextColumn(width=80)

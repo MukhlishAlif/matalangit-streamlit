@@ -260,39 +260,26 @@ def _user_row_dict(r):
 # =====================================================================================
 
 @st.cache_data(ttl=120)
-def _fetch_bio_raw():
+def _fetch_bio_raw(start_date=None, end_date=None):
+    payload = {}
+    if start_date:
+        payload["start_date"] = str(start_date)
+    if end_date:
+        payload["end_date"] = str(end_date)
+
     try:
-        result = api_fetch(ENDPOINTS["bio"], method="POST")
+        result = api_fetch(ENDPOINTS["bio"], method="POST", payload=payload or None)
     except ApiError as e:
         print("[BIO] gagal ambil dari API:", e.status, e.message)
         return []
 
     rows = result.get("data", []) if isinstance(result, dict) else (result or [])
-
-    print(f"TOTAL DATA BIO : {len(rows)}")
-
-    # Cari semua record yang ga_dt = "ga_date"
-    found = 0
-
-    for i, r in enumerate(rows):
-        ga_dt = str(r.get("ga_dt", "")).strip()
-
-        if ga_dt.lower() == "ga_date":
-            found += 1
-            print("=" * 80)
-            print(f"INDEX : {i}")
-            print(r)
-
-    print(f"TOTAL RECORD ga_dt='ga_date' : {found}")
-
+    print(f"TOTAL DATA BIO ({start_date} - {end_date}) : {len(rows)}")
     return rows
 
 
-def _build_bio_map():
-    """Map msisdn -> ga_dt dari /bio/fetch-all-bio, dengan validasi
-    supaya nilai yang bukan tanggal (mis. teks header 'ga_date' yang
-    ikut kebawa dari sumber data) tidak diteruskan ke kolom ga_dt."""
-    raw_rows = _fetch_bio_raw()
+def _build_bio_map(start_date=None, end_date=None):
+    raw_rows = _fetch_bio_raw(start_date, end_date)
 
     bio_map = {}
     for r in raw_rows:
@@ -301,12 +288,10 @@ def _build_bio_map():
             continue
 
         ga_dt_raw = str(r.get("ga_dt") or "").strip()
-
-        # buang nilai yang jelas bukan tanggal (header nyasar, dsb)
         if not _is_valid_date_string(ga_dt_raw):
             ga_dt_raw = ""
 
-        bio_map[msisdn] = {"ga_dt": ga_dt_raw}   # <-- key diperbaiki jadi "ga_dt"
+        bio_map[msisdn] = {"ga_dt": ga_dt_raw}
 
     return bio_map
 
@@ -814,14 +799,7 @@ def hapus_data(id_data):
 # OUTLET -- SYNC KE SQLITE LOKAL (mirror dari API, UPDATE bukan replace)
 # =====================================
 
-def sync_outlet_to_sqlite():
-    """
-    Ambil semua data outlet (POST tanpa payload, tanpa filter tanggal di API).
-    flag_bio diambil langsung dari record outlet; ga_dt digabung dari
-    /bio/fetch-all-bio (join by msisdn). Lalu UPDATE ke SQLite (upsert per id)
-    -- data lama TIDAK dihapus dulu.
-    """
-
+def sync_outlet_to_sqlite(start_date=None, end_date=None):
     raw_rows = _fetch_outlet_raw()
 
     if not raw_rows:
@@ -830,7 +808,7 @@ def sync_outlet_to_sqlite():
 
     st.session_state["outlet_sync_error"] = None
 
-    bio_map = _build_bio_map()
+    bio_map = _build_bio_map(start_date, end_date)
 
     rows = [_outlet_row_tuple(r, bio_map) for r in raw_rows]
 
@@ -906,13 +884,11 @@ def tampil_data():
 
 
 def tampil_data_by_date(start_date, end_date):
+    sync_outlet_to_sqlite(start_date, end_date)
     """
     Filter range tanggal dilakukan di SQLite (WHERE created_at BETWEEN ...),
     karena API sekarang dipanggil tanpa payload/tanpa filter tanggal.
     """
-
-    sync_outlet_to_sqlite()
-
     conn = get_connection()
     cursor = conn.cursor()
 
